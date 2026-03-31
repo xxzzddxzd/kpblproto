@@ -1,0 +1,41 @@
+# JSON files
+*.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Binary/data files
+*.chlz
+*.chlsj
+protoc
+
+# IDE/editor
+.vscode/
+.agent/
+.claude/
+
+# Data/log files
+decoded_responses.txt
+response_login_*
+win_decode.txt
+
+# Generated request/response directories
+req/
+res/
+
+# Old/archive
+old/
+oldac/
+
+# Config directories
+ac_xh/
+nuanchunhuodong/
+atkguildship/
+
+# Other config
+.pyre_configuration
+.python-version

@@ -1,0 +1,1156 @@
+syntax = "proto3";
+
+message hd_ybkh_tap_response{
+    message type_cell_info{
+        message type_spec_item_info{
+            int32 specitemid = 2;
+            int32 count = 3;
+        }
+        int32 pos = 1;
+        int32 itemid = 2;
+        int32 status = 3;
+        type_spec_item_info spec_item_info = 4; 
+    }
+    repeated type_cell_info cell_info = 4;
+}
+
+message hd_ybkh_status_response{
+    message type_i3{
+        message type_cell_info{
+            message type_spec_item_info{
+                int32 specitemid = 2;
+                int32 count = 3;
+            }
+            int32 pos = 1;
+            int32 itemid = 2;
+            int32 status = 3;
+            type_spec_item_info spec_item_info = 4; 
+        }
+        repeated type_cell_info cell_info = 8;
+    }
+    type_i3 i3 = 3;
+}
+
+
+// 培育response解析
+message skilltype{
+    bytes sktype=1;
+}
+message skillvalue{
+    float value=1;
+}
+
+
+message response_py{
+    message newskill{
+            repeated bytes n_skillsold = 2;
+    repeated bytes n_valuesold = 3;
+     repeated bytes n_skillsnew = 4;
+     repeated bytes n_valuesnew = 5;
+    }
+    repeated bytes skillsold = 10;
+    repeated bytes valuesold = 11;
+     repeated bytes skillsnew = 12;
+     repeated bytes valuesnew = 13;
+     repeated newskill n_skill = 15;
+}
+message response_py_main{
+    response_py py=2;
+    int32 level=3;
+    int32 levelvalue=4;
+}
+
+message requester1 {
+    string s1=1;
+    int32 i2=2;
+    string udid=3;
+    string encbody=4;
+    int32 i5_adsid1=5;
+    int32 server_id=6;
+    string lang=7;
+    int32 i8=8;
+    string ver=10;
+    int32 i11=11;
+}
+
+message request_body_pure{
+    requester1 r1=1;
+}
+
+
+message request_body{
+    requester1 r1=1;
+    int32 i2=2;
+    int32 i3=3;
+int32 i4=4;
+string i5=5;
+}
+
+
+message request_body_allint{
+    requester1 r1=1;
+    int32 i2=2;
+    int32 i3=3;
+
+int32 i5=5;
+int32 i6=6;
+}
+
+message request_body_allint1{
+    requester1 r1=1;
+    int32 i2=2;
+    int32 i3=3;
+int32 i4=4;
+int32 i5=5;
+int32 i6=6;
+}
+
+message request_body_long64i4{
+    requester1 r1=1;
+    int32 i2=2;
+    int32 i3=3;
+uint64 i4=4;
+}
+
+message request_body_q11{
+    requester1 r1=1;
+    int32 i2=2;
+    int32 i3=3;
+int32 i4=4;
+int32 i5=5;
+}
+
+
+message request_body_for_stringi3{
+    requester1 r1=1;
+    int32 i2=2;
+    string i3=3;
+int32 i4=4;
+string i5=5;
+}
+
+message request_body_for_nickname{
+    requester1 r1=1;
+    string i2=2;
+    int32 i3=3;
+    int32 i4=4;
+}
+
+message request_body_for_kn_invite{
+    requester1 r1=1;
+    int32 i2=2;
+    uint32 i3=3;
+    int32 i5=5;
+    int32 i6=6;
+}
+
+message request_body_for_mfssth{
+    int32 i2=1;
+    requester1 r1=2;
+    int32 i3=3;
+}
+//扫荡
+message request_body_for_sd{ 
+    requester1 r1=1;
+    int32 i2=2;
+    bytes i3=3;
+}
+message syskill{
+    message syskilli2{
+        int32 i1=1;
+    }
+    int32 i1=1;
+    syskilli2 i2=2;
+}
+//深渊-4b51-技能选择
+message request_body_for_sy_skill{ 
+    
+    requester1 r1=1;
+    bytes i4=4;
+}
+//深渊-4951-战斗结果
+message response_for_sy_battle{ 
+    message level_info{
+        message monlist{
+            int32 monid=1;
+        }
+        int32 levelid = 1;
+        int32 waveid=2;
+        repeated monlist monsters=4;
+    }
+    message iteminfo{
+        int32 itemid = 2; 
+        int32 itemcount = 3;
+    }
+    string battleinfo = 3;
+    level_info linfo = 4;
+    int32 stepnow = 5;
+    int32 progress = 6;
+    string battleresultstring = 9;
+    int32 waveid = 10;
+    repeated iteminfo drops = 11;
+
+
+}
+//深渊-4751-选择levelid结果
+message response_for_sy_selectlevelid{ 
+    message level_info{
+        message monlist{
+            int32 monid=1;
+        }
+        int32 levelid = 1;
+        //int32 waveid=2;
+        repeated monlist monsters=4;
+        monlist boss=5;
+    }
+    level_info linfo = 3;
+    //string battleresultstring = 9;
+    int32 waveid = 8;
+}
+
+//深渊-4351-enter结果
+message response_for_sy_enter{ 
+    repeated int32 levelid = 4;
+}
+
+// 剧情结束
+message request_body_for_jqfinish{ 
+    requester1 r1=1;
+    int32 i2=2;
+    int32 i3=3;
+    int32 i4=4;
+    bytes i7=7;
+    
+}
+//地牢、工会战
+message request_body_for_dilao{ 
+    requester1 r1=1;
+    bytes i2=2;
+    int32 i3=3;
+}
+//个人排名战
+message request_body_for_geren{ 
+    requester1 r1=1;
+    bytes i2=2;
+    string i3=3;
+}
+
+message request_body_tzzt{
+    requester1 r1=1;
+    int32 i2=2;
+    string i3=3;
+}
+
+message respone_body{
+    requester1 r1=1;
+    int32 i2=2;
+    int32 i3=3;
+    int32 i4=4;
+}
+message request_login{
+    requester1 r1=1;
+    int32 i2=2;
+    string i3=3;
+    string i5=5;
+}
+
+message request_qh{  //强化
+    requester1 r1=1;
+    string i2=2;
+    int32 i3=3;
+}
+
+
+
+
+
+message currencyinfo{
+    int32 coin = 1;
+    int32 diamon =2;
+
+}
+
+
+
+
+message gqxx{
+    int32 gqh = 1; //已解锁的关卡号
+}
+
+message hdinfotype{
+    message hdinfotype1{
+        message hdinfo_season_type{
+            int32 seasonid = 1;
+        }
+        message hdinfo_ad_type_field28{
+            message subadsinfotype{
+                int32 adssubid=1;
+            }
+            int32 adsid=1;
+            repeated subadsinfotype subadslist=2;
+
+        }
+        hdinfo_season_type seasoninfo = 22;
+        repeated hdinfo_ad_type_field28 adinfo = 28;
+    }
+    hdinfotype1 hdinfo1 = 6;
+}
+message response_login{
+    // 宠物列表
+    message type_petinfo {
+        message type_fangan{
+            bytes skillsold = 2;
+            bytes valuesold = 3;
+        }
+        int32 id = 1;
+        int32 type = 2;
+        int32 level = 5;
+        int32 position = 7;
+        repeated type_fangan fangan = 15;
+    }
+    message type_pet {
+        repeated type_petinfo petinfo = 5;
+    }
+    message type_field19{
+        message type_field19_8{
+            message type_cc{
+                message type_ccxl{
+                    message type_cccell{ //传承单元
+                        int32 id=1;  //编码 20402 代表传承2，
+                        int32 jd=2;  //进度
+                    }
+                    repeated type_cccell ccs=1; //传承详情
+                }
+                repeated type_ccxl ccxl = 1;//传承序列
+            }
+            repeated type_petinfo petinfo = 14;
+            type_cc  cc = 28;
+        }
+        type_field19_8 field19_8=8;
+    }
+    message field17{
+        string charaname = 2;
+        int64 zhanli = 6;
+    }
+    message equipment{
+        message eq_baoshi{
+            int32 id=1;
+            int32 baoshiid=2;
+        }
+        int32 eq_uid = 1;
+        int32 eq_type_id = 2;
+        int32 eq_level = 3;
+        repeated eq_baoshi baoshi = 11;
+    }
+
+    // 背包列表
+    message baginfo{
+        int32 id = 1;
+        int32 type = 2;
+        int32 count = 3;
+    }
+    message youliinfo{
+        int32 id = 1;
+    }
+    message khfzyinfo{   // 可恢复资源信息
+        int32 type = 1;
+        int32 count = 2;
+        int32 max = 5;
+    }
+
+    string encbody = 2;
+    int32 charauuid = 3;
+    int32 charaid = 4;
+    currencyinfo ci = 5;
+    repeated baginfo bi = 11;
+    repeated equipment eq = 12;
+    int32 reqid=15;  // 对应i5_adsid1
+    field17 f17 = 17;
+    type_field19 field19=19;
+    int32 ac0_tower_level = 27;  // 挑战之塔(ac0)进度，值=100000+已通关关卡号
+    repeated khfzyinfo zyinfo = 30; // 包含了体力信息
+    type_pet pets = 32;  // 宠物信息
+    // AC副本通关记录
+    message ac_dungeon_info {
+        int32 dungeonType = 1;  // 副本类型/顺位编号 (1~4)
+        int32 level = 2;        // 已通关最高层数
+    }
+    repeated ac_dungeon_info ac_dungeon_level = 40;  // AC各顺位通关进度
+    hdinfotype hdinfo = 49;  // 活动信息
+    int32 serverid = 54;  // 对应i6_adsid2
+    youliinfo ylif = 71;
+    repeated gqxx gqxxinfo = 82; //关卡信息
+    int32 kunnan = 101; // 困难模式已到达
+}
+
+message response_lzqd_cd{ //龙州庆典菜单
+    message mainres{
+        int32 giftcount = 13;
+    }
+
+    mainres res = 3;
+}
+
+// 新增请求消息定义
+// 种植
+message request_zz {
+    requester1 r1 = 1;
+    bytes i2 = 2;
+    int32 i3 = 3;
+}
+// 收获
+message request_sh {
+    requester1 r1 = 1;
+    bytes i2 = 2;
+}
+
+// 植物相关消息定义
+message myplant {
+    int32 planttype = 1;
+    int32 plantprice = 2;
+}
+
+message memberinfo {
+    int32 memid = 1;
+}
+
+message guildplant {
+    repeated myplant myplant = 2;
+    memberinfo field1 = 1;
+}
+
+message plant_response {
+    repeated myplant myplant = 5;
+    repeated guildplant guildplant = 6;
+}
+
+//武道大会信息
+message wddh_response {
+    message type_field3{
+        message type_huojiangren{
+            int32 id=1;
+        }
+        repeated type_huojiangren huojiangren = 6;
+        int32 pm = 8;
+        int32 jf = 9;
+    }
+    type_field3 field3 = 3;
+    
+}
+//武道对战列表
+message wddh_list_response {
+    message type_field3{
+        int32 userid = 1;
+        int64 zhanli = 6;
+    }
+    repeated type_field3 pvpplayer = 3;
+}
+
+// 钓鱼信息结构
+message fishing_total_info {
+    int32 overall_weight = 4;  // 总重量
+    int32 next_field = 10;  // 总重量
+}
+
+message fishing_response {
+    int32 current_weight = 4;  // 当前重量
+    fishing_total_info total_info = 5;  // 总信息
+}
+
+// 钓鱼开始响应结构
+message fishing_start_response {
+    bytes field3 = 3;  // 钓鱼开始响应的第3个字段，类型为bytes
+}
+
+
+//挖矿响应
+
+
+
+
+message miner_unit{
+    message miner_cell {
+        message miner_drop {
+            int32 type1 =1;
+            int32 type2 =2;
+            int32 count =3;
+        }
+        int32 position_xy =1;
+        int32 isZhuantou =2;
+        int32 type =3;
+        repeated miner_drop drops = 7;
+    }
+    int32 minerlevel = 1;
+    repeated miner_cell minercells = 4;
+}
+
+message miner_main_response {
+    miner_unit unit = 3;
+}
+
+
+message miner_tap_response {
+    miner_unit unit = 4;
+}
+
+message miner_tap_request{ 
+    requester1 r1=1;
+    bytes i3=3;
+}
+
+message request_body_for_jqupdate{
+    requester1 r1=1;
+    int32 i2 = 2;
+    int32 i3 = 3;
+    string i4 = 4;
+    bytes i5 = 5;
+    bytes i6 = 6;
+    int32 i7 = 7;
+    int32 i9 = 9;
+    bytes i10 = 10;
+    string i36 = 36;
+
+}
+
+message status_code_response{
+    int32 status_code = 1;
+}
+
+// 战斗响应
+message battle_response {
+    message turn_define {
+        message round_detail{
+            int32 round_type = 2;
+        }
+
+        int32 round_number = 1;  // 回合数
+        round_detail round_details = 2;  // 回合详细数据
+    }
+    repeated turn_define turns = 6;  // 战斗回合列表
+}
+
+message battle_end_response{
+    int32 update_gqxx = 3;
+}
+
+
+
+
+// 游历响应
+message youli_response {
+
+    message type_huodong {
+        int64 stepid = 1;
+        message NestedMessage {
+            // 字段1可能表示某种ID或时间戳，不同实例有不同值
+            int64 entity_id = 1;
+            
+            // 字段3在所有实例中值都是910021
+            int64 type_id = 3;
+            
+            // 字段4在所有实例中值都是1
+            int64 flag = 4;
+            
+            //message Field5Data {
+            // 字段编号非常大，可能是某种特殊的编码
+            //int64 data = 218322000;  // 所有实例中值都是4000029
+            //}
+            bytes metadata = 5;
+        }
+        
+        NestedMessage content = 2;
+    }
+
+    repeated type_huodong huodonglist1 = 7;  // 活动1出现的step
+}
+
+// 幸运星响应
+message xyx_response {
+    int32 point_left = 4;  // 幸运星点数
+}
+
+
+message youli_result_response{
+    message mainresponseField2 {
+        message iteminfo{
+            int32 typeid = 2;
+            int32 count = 3;
+        }
+        repeated iteminfo items = 3;
+        
+    }
+    mainresponseField2  mainresponse =2;
+}
+
+
+
+message pvplist_response{
+    message pvpplayer{
+        int32 pid = 1;
+    }
+    repeated pvpplayer players = 3; 
+}
+message hd_dashang_huanxiang_response{   // 大赏活动，换箱response
+    message boxdetail{
+        message item{
+            int32 itemid=1;
+            int32 itemcount=2;
+        }
+        int32 boxid = 1;
+        int32 boxseq = 2;
+        repeated item items =3;
+        repeated item items_total = 4;
+    }
+    int32 boxid = 3;
+    repeated boxdetail boxs = 4; 
+}
+
+message kn_gqxx_response {
+    message kn_gq_info{
+        message step_info{
+            message step_detail{
+                int32 stepids = 1;
+                int32 type = 2;
+                int32 unknown = 3;
+            }
+            int32 stepid = 1;
+            step_detail stepdetail = 2;
+        }
+        int32 level = 2;
+        //int32 userid = 4;
+        repeated step_info steps = 6;
+    }
+    kn_gq_info gqinfo = 3;
+}
+
+message kn_create_response{
+    message roomdetail{
+        int32 level = 2;
+        int32 targetUser = 9;
+        string roomid = 11;
+    }
+    roomdetail rd = 3;
+    
+}
+
+message tfqh_response{
+    message type_tfqh {
+        message type_tfxq{
+            string tfms = 1;
+            int32 tfdj = 2;
+        }
+        int32 level = 1;
+        repeated type_tfxq tfxq = 2;  // 天赋详情
+    }
+    message type_i2{
+        message type_i1{
+            int32 i1=1;
+            int32 i2=2;
+        }
+        type_i1 i1=1;
+    }
+    type_i2 i2 = 2;
+    type_tfqh tf = 3;
+}
+
+message kn_friendlist_response{
+    message friendinfo{
+        int32 i1=1;
+        string i2=2;
+        int32 i3=3;
+        int32 i4=4;
+        bytes i5=5;
+        bytes i6=6;
+        bytes i7=7;
+        bytes i8=8;
+    }
+    repeated friendinfo fi = 3;
+}
+
+message kn_round_check_response{
+    message battleinfo{
+        message playerinfo{
+            string detail = 2;
+            int32 currentwave = 6;
+            int32 playerid = 11;
+        }
+        int32 level  = 2;
+        repeated playerinfo players = 7;
+    }
+    battleinfo bi = 3;
+}
+
+message kn_weekly_stat_response{
+    message gqinfo{
+        int32 level = 1;
+        int32 count = 2;
+    }
+    repeated gqinfo gqs = 3;
+}
+
+message zhounian_sell_response{
+    message type_zn_detail{
+        message type_zn_player{
+            message type_player{
+                int32 player_id = 1;
+            }
+            type_player player = 1;
+            int32 sell_price = 2;
+        }
+        int32 myprice = 4;
+        repeated type_zn_player zn_player = 5;
+    }
+    type_zn_detail zndetail = 3;
+}
+
+message qdggl_sx_response{   // 庆典刮刮乐 刷新
+    message type_field3{
+        message type_field3_field6{
+            int32 itemid=1;
+            int32 itemcount=2;
+        }
+        repeated type_field3_field6 itemlist=6;
+    }
+    type_field3 field3=3;
+}
+
+message yxkc_battle_start_response {
+    message battle_info {
+        int32 field1 = 1;
+        int32 field2 = 2;
+        int64 timestamp = 4;
+        
+        message step_info {
+            int32 step_id = 1;
+            
+            message step_detail {
+                int64 id = 1;
+                int32 type = 2;      // 201, 202 等
+                int32 config_id = 3; // 14008, 14009 等
+            }
+            step_detail detail = 2;
+        }
+        repeated step_info steps = 6;  // 步骤列表，数量即为 total_step
+    }
+    battle_info info = 3;
+}
+
+message jielve_refreash_response{  // 劫掠刷新返回
+    message type_boat{
+        message type_userinfo{
+            int32 charid = 1;
+            string guildname = 2;
+            int64 zhanli = 6;
+            string username = 8;
+            int32 serverid = 9;
+        }
+        int32 boatpara1=1;
+        int32 boatpara2=2;
+        type_userinfo user = 3;
+        int32 boatpara4=4;
+        int32 boatpara5=5;
+        int32 rare=6;   // rare
+        int32 boathasjlcount = 7; // 被劫掠次数
+        int32 boatpara10=10;
+    }
+    repeated type_boat boats = 3;
+}
+
+message jielve_boatinfo_response{ //劫掠船详情
+    message tpye_i4{
+        message type_slotinfo{
+            message type_iteminfo{
+                int32 itemid=2;
+                int32 itemcount=3;
+            }
+            int32 slotid=1;
+            type_iteminfo item=2;
+            int32 hasjl = 3;
+        }
+        repeated type_slotinfo slots=4;
+    }
+    tpye_i4 i4=4;
+}
+
+message huoguo_price_response{
+    message type_i3{
+        message type_pp_info{
+            message type_pp{
+                int32 charaid = 1;
+            }
+            type_pp pp = 1;
+            int32 price = 2;
+        }
+        repeated type_pp_info ppinfos = 5;
+    }
+    type_i3 i3 = 3;
+}
+
+
+
+// 公会信息响应
+message guild_info_response {
+    // field 2: 未知标识
+    int32 unknown2 = 2;
+
+    // field 3: 公会基本信息
+    message type_guild_basic {
+        // field 1: 公会详情
+        message type_guild_detail {
+            int32 guild_id = 1;           // 135474
+            string guild_name = 2;        // "PhoenixTH"
+            int32 guild_icon = 4;         // 1003 (公会图标/旗帜)
+            int32 member_count = 6;       // 48 (48/48 当前成员数)
+            int32 max_members = 7;        // 48 (x/48 最大成员数)
+            int32 field8 = 8;             // 9285100
+            int32 guild_level = 9;        // 10 (Lv10)
+            int32 field13 = 13;           // 3 (仅小公会有)
+            string guild_announcement = 14; // 公会宣言
+            int32 leader_id = 15;         // 16104395
+            string leader_name = 16;      // "SainT"
+            int32 guild_exp = 17;         // 1223900 (1223900/6000000)
+            int64 guild_zhanli = 18;      // 18074701718834 (18.07T)
+            string guild_uuid = 19;       // "GUILD-135474-..."
+            int32 server_id = 20;         // 400019
+            int32 weekly_donation = 22;   // 31050 (本周捐献值 🔥)
+            int32 field23 = 23;           // 139120
+        }
+        // field 2: 成员信息 (repeated, 每个成员一条)
+        message type_member_info {
+            int32 member_id = 1;          // 108153
+            string member_name = 2;       // "zombieCAT"
+            int32 field3 = 3;             // 1032
+            int32 field4 = 4;             // 2026
+            int32 field5 = 5;             // 1
+            int32 last_active_time = 6;   // 1773111070 (最后活跃时间戳)
+            int32 role = 7;               // 2=副会长, 4=成员 (1=会长)
+            int32 level = 8;              // 221 (成员等级)
+            int64 member_zhanli = 11;     // 583465117851 (583.46B)
+            int32 join_time = 13;         // 1742443084 (加入时间)
+            int32 field14 = 14;           // 500
+            int32 contribution = 15;      // 1090 (🔥贡献值)
+            int32 is_online = 20;         // 1=在线
+            int32 field26 = 26;           // 2
+        }
+        type_guild_detail guild_detail = 1;
+        repeated type_member_info members = 2;
+    }
+    type_guild_basic guild_basic = 3;
+
+    // field 4: 公会活动/捐献信息
+    message type_guild_activity {
+        // field 2: 任务1
+        message type_task {
+            message type_task_reward {
+                int32 field2 = 2;
+                int32 field3 = 3;
+            }
+            int32 task_id = 1;
+            int32 field2 = 2;
+            int32 field4 = 4;
+            type_task_reward reward = 7;
+            int32 field8 = 8;
+            int32 field9 = 9;
+        }
+        // field 4: 商店信息
+        message type_shop {
+            message type_shop_item {
+                int32 item_type = 1;
+                int32 item_id = 2;
+                int32 item_price = 3;
+            }
+            int32 field2 = 2;
+            repeated type_shop_item items = 6;
+        }
+        // field 7: 公会战/Boss信息
+        message type_guild_battle {
+            message type_battle_player {
+                int32 field1 = 1;
+                int64 field2 = 2;
+            }
+            message type_donate_level {
+                int32 level_id = 1;
+                int64 target = 2;
+                int64 current = 3;
+                int32 field5 = 5;
+                int32 field6 = 6;
+            }
+            int32 field4 = 4;
+            int32 field6 = 6;
+            int32 field7 = 7;
+            int32 field8 = 8;
+            int32 field9 = 9;
+            int32 field10 = 10;
+            int32 field11 = 11;
+            int64 field12 = 12;
+            int64 field13 = 13;
+            int32 field16 = 16;
+            type_battle_player field17 = 17;
+            repeated type_donate_level donate_levels = 18;
+            int32 field21 = 21;
+            int32 field22 = 22;
+            int32 field23 = 23;
+            int32 field24 = 24;
+            int32 field25 = 25;
+            int32 field28 = 28;
+            int32 field29 = 29;
+            int32 field32 = 32;
+        }
+        // field 12: 未知
+        message type_field12 {
+            int32 field3 = 3;
+        }
+        // field 16: 捐献状态
+        message type_donate_status {
+            int32 donate_count = 1;
+            int32 donate_time = 2;
+            int32 field3 = 3;
+            int32 field4 = 4;
+            int32 field5 = 5;
+            int32 field8 = 8;
+            int32 field9 = 9;
+        }
+        type_task task1 = 2;
+        type_task task2 = 3;
+        type_shop shop = 4;
+        int32 start_time = 5;
+        int32 end_time = 6;
+        type_guild_battle guild_battle = 7;
+        int32 field8 = 8;
+        int32 field9 = 9;
+        type_field12 field12 = 12;
+        int32 field14 = 14;
+        int32 field15 = 15;
+        type_donate_status donate_status = 16;
+    }
+    type_guild_activity guild_activity = 4;
+
+    // field 7: 版本信息
+    message type_version_info {
+        message type_version_detail {
+            int32 field1 = 1;
+            int32 field2 = 2;
+        }
+        type_version_detail version_detail = 1;
+    }
+    type_version_info version_info = 7;
+
+    // field 9: 时间戳
+    int32 timestamp = 9;
+}
+
+// 种花/活动列表响应 (proto1)
+message hd_jslx_response {
+    // 内部条目详情 (field 3/4/6 共用的子结构)
+    message type_entry_detail {
+        int32 entry_id = 1;       // 活动/赛季ID，如 20259, 20257, 11038 等（动态值）
+        bytes entry_bytes = 2;    // 特征值，如 "\320\360\001"，可用于定位
+        int32 entry_type = 4;     // 类型
+        int32 start_time = 5;     // 开始时间戳
+        int32 end_time = 6;       // 结束时间戳
+        int32 count = 8;          // 数量/进度
+        int32 category = 10;      // 分类标记: 1 或 8
+    }
+
+    // field 2: 基础信息
+    message type_basic_info {
+        message type_inner {
+            int32 field1 = 1;
+            int32 field2 = 2;     // 如 5290288
+        }
+        type_inner inner = 1;
+    }
+
+    // field 3: 带积分的条目
+    message type_score_entry {
+        type_entry_detail detail = 1;
+        int32 score = 3;          // 积分/进度值，如 10000, 346200
+    }
+
+    // field 4: 普通条目
+    message type_normal_entry {
+        type_entry_detail detail = 1;
+    }
+
+    // field 6: 排名/排行条目
+    message type_rank_entry {
+        type_entry_detail detail = 1;
+    }
+
+    type_basic_info basic_info = 2;
+    repeated type_score_entry score_entries = 3;
+    repeated type_normal_entry normal_entries = 4;
+    repeated type_rank_entry rank_entries = 6;
+}
+
+// 日常任务面板响应 (hexstringheader: 0529)
+message daily_task_response {
+    message task_item {
+        int32 task_id = 1;      // 任务编号
+        int32 progress = 2;     // 完成进度/次数
+        int32 completed = 3;    // 是否已完成
+        int32 claimed = 4;      // 是否已领取
+    }
+    message weekly_task_item {
+        int32 task_id = 1;      // 周任务编号 (2001, 3001, 6001, 9001等)
+    }
+    message task_list {
+        repeated task_item daily_tasks = 1;     // 日常任务列表
+        repeated weekly_task_item weekly_tasks = 2;  // 周任务列表
+    }
+    task_list tasks = 2;        // 任务数据
+    int32 daily_activity = 3;   // 日活跃度
+    int32 weekly_activity = 4;  // 周活跃度
+    int32 reset_time = 5;       // 重置时间戳
+}
+
+message jielve_guild_boat_response {
+    message type_field2 {
+        message type_field2_1 {
+            int32 field1 = 1;
+            int32 field2 = 2;
+        }
+        type_field2_1 field1 = 1;
+    }
+
+    message type_boat {
+        int32 boatpara1 = 1; // i2: guild_boat_id
+
+        message type_slot {
+            int32 slotid = 1;
+            
+            message type_userinfo {
+                int32 charid = 1;
+                string guildname = 2;
+                int32 field3 = 3;
+                int32 field4 = 4;
+                int32 field5 = 5;
+                int64 zhanli = 6;
+                string username = 8;
+                int32 serverid = 9;
+            }
+            type_userinfo user = 2;
+            
+            message type_item_container {
+                int32 index = 1;
+                message type_item {
+                    int32 itemid = 2;
+                    int32 itemcount = 3;
+                }
+                type_item item = 2;
+                int32 hasjl = 3;
+            }
+            repeated type_item_container items = 3;
+            
+            int32 field4 = 4;
+            int32 field5 = 5;
+        }
+        repeated type_slot slots = 2;
+        
+        int32 field7 = 7;
+        int32 start_time = 8;
+        int32 end_time = 9;
+        int32 field10 = 10;
+        int32 field11 = 11;
+        
+        message type_log {
+            message type_userinfo {
+                int32 charid = 1;
+                string guildname = 2;
+                int32 field3 = 3;
+                int32 field4 = 4;
+                int32 field5 = 5;
+                int64 zhanli = 6;
+                string username = 8;
+                int32 serverid = 9;
+            }
+            type_userinfo user = 1;
+            int32 field2 = 2;
+            int32 field4 = 4;
+            string field5 = 5;
+            int32 timestamp = 6;
+            
+            message type_item {
+                int32 itemid = 2;
+                int32 itemcount = 3;
+            }
+            repeated type_item items = 7;
+        }
+        repeated type_log logs = 14;
+        
+        int32 boatpara4 = 15; // i3: guild_id
+        int32 field16 = 16;
+        int32 field17 = 17;
+    }
+
+    type_field2 field2 = 2;
+    repeated type_boat boats = 3;
+    int32 field4 = 4;
+}
+
+// 公会悬赏查询响应
+message ghxs_query_response {
+    message type_basic_info {
+        message type_inner {
+            int32 field1 = 1;
+            int32 field2 = 2;
+        }
+        type_inner inner = 1;
+    }
+    message type_task_entry {
+        string task_uuid = 1;
+        int32 task_type_id = 2;
+    }
+    type_basic_info basic_info = 2;
+    repeated type_task_entry task_entries = 3;
+    int32 field7 = 7;
+    int32 field8 = 8;
+    int32 field9 = 9;
+    bytes field10 = 10;
+    int32 field12 = 12;
+    int32 timestamp = 13;
+}
+
+// 活动信息响应 (9d2c)
+message acmanager_activity_info_response {
+    message type_activity {
+        message type_reward_entry {
+            int32 reward_id = 1;
+            int32 reward_count = 2;
+        }
+        message type_progress {
+            int32 total = 2;
+            int32 current = 5;
+            bytes claimed = 7;     // 已领取的奖励位图
+            int64 start_time = 10;
+            int64 end_time = 11;
+        }
+        message type_time_entry {
+            int32 phase = 1;
+            int64 timestamp = 2;
+        }
+        int32 activity_id = 1;              // 活动ID，如260005
+        repeated type_reward_entry rewards = 2;  // 奖励条目
+        bytes field3 = 3;
+        repeated type_reward_entry field4 = 4;
+        int64 field6 = 6;
+        int64 expire_time = 7;             // 过期时间
+        type_progress progress = 8;        // 进度信息
+        repeated type_time_entry field9 = 9;
+        int64 start_time = 10;
+        repeated type_time_entry field14 = 14;
+        int32 field15 = 15;
+    }
+    repeated type_activity activities = 2;
+}
+
+
+message hd20260330_nd_response{
+    message type_i3{
+        int32 item_type=2;
+        int32 item_count=3;
+    }
+    repeated type_i3 i3=3;
+}
+
+// ./protoc --python_out=modules/ kpbl.proto
