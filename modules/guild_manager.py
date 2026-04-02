@@ -543,37 +543,52 @@ class GuildBatchManager:
             ac.do_common_request(name, {"ads": "工会捐献5", "times": 5, "hexstringheader": "2977"}, showres=self.showres)
         self._for_each_account(_donate, "捐献")
 
-    def batch_zs_cp(self, start_from=1):
-        """赠送船票：先用会长号任命船长，再遍历小号赠送船票"""
+    def _zscp_setup(self):
+        """zscp一次性设置：找船+任命船长，返回boat_id或None"""
+        if hasattr(self, '_zscp_boat_id'):
+            return self._zscp_boat_id
         from .trade_manager import TradeManager
         print(f"leader:{self.leader_account}")
         tm = TradeManager(self.leader_account)
         resp = tm.getghinfo()
         if not resp or not resp.boats:
             print("没有找到公会船信息")
-            return False
-        # 筛选未到达的船（候船中start_time=0 或 航行中end_time=0）
+            self._zscp_boat_id = None
+            return None
         valid_boats = [b for b in resp.boats if b.end_time == 0]
         if not valid_boats:
             print("当前没有可赠送船票的公会船")
-            return False
-        # 优先选候船中的船（start_time=0），其次选航行中的
+            self._zscp_boat_id = None
+            return None
         valid_boats.sort(key=lambda b: (b.start_time > 0, b.boatpara1))
         boat_id = valid_boats[0].boatpara1
         print(f"目标船 boatpara1={boat_id}，共 {len(valid_boats)} 艘未到达")
-        # 任命会长为船长
         tm.assign_captain(boat_id)
-        def _zs_cp(ac, name):
-            id, count = ac.getItemIdByType(133)
-            if not count or count<3:
-                print(f"购买船票: {id}, {count}")
-                req ={"ads":"船票购买(3)", "times":1, "hexstringheader":"6532", "request_body_i2":2, "request_body_i3":22100, "request_body_i4":3}
-                print(len(ac.do_common_request(name, req, showres=self.showres))>20)
-            req ={"ads":"上船", "times":1, "hexstringheader":"1962", "request_body_i2":int(boat_id), "request_body_i3":random.randint(21, 25)}
-            print(len(ac.do_common_request(name, req, showres=1))>20)
-            req ={"ads":"船票赠送", "times":1, "hexstringheader":"1b62", "request_body_i2":int(boat_id), "request_body_i3":3}
-            print(len(ac.do_common_request(name, req, showres=1))>20)
-        self._for_each_account(_zs_cp, "赠送船票", start_from=start_from)
+        self._zscp_boat_id = boat_id
+        return boat_id
+
+    def _zscp_for_account(self, ac, name):
+        """单账号赠送船票"""
+        boat_id = self._zscp_boat_id
+        if not boat_id:
+            print("无目标船，跳过")
+            return
+        id, count = ac.getItemIdByType(133)
+        if not count or count < 3:
+            print(f"购买船票: {id}, {count}")
+            req = {"ads": "船票购买(3)", "times": 1, "hexstringheader": "6532", "request_body_i2": 2, "request_body_i3": 22100, "request_body_i4": 3}
+            print(len(ac.do_common_request(name, req, showres=self.showres)) > 20)
+        req = {"ads": "上船", "times": 1, "hexstringheader": "1962", "request_body_i2": int(boat_id), "request_body_i3": random.randint(21, 25)}
+        print(len(ac.do_common_request(name, req, showres=1)) > 20)
+        req = {"ads": "船票赠送", "times": 1, "hexstringheader": "1b62", "request_body_i2": int(boat_id), "request_body_i3": 3}
+        print(len(ac.do_common_request(name, req, showres=1)) > 20)
+
+    def batch_zs_cp(self, start_from=1):
+        """赠送船票：先用会长号任命船长，再遍历小号赠送船票"""
+        boat_id = self._zscp_setup()
+        if not boat_id:
+            return False
+        self._for_each_account(self._zscp_for_account, "赠送船票", start_from=start_from)
 
     def batch_daily(self):
         """捐献+扫荡"""
@@ -630,6 +645,16 @@ class GuildBatchManager:
         # pipeline 中 status 仍走旧逻辑（需要 _collect_account_status）
         if command in ('status', 's'):
             self._collect_account_status(account_name)
+            return
+
+        # pipeline 中 zscp: 首次执行setup（找船+任命船长），之后每账号执行单账号逻辑
+        if command == 'zscp':
+            boat_id = self._zscp_setup()
+            if not boat_id:
+                return
+            ac = ACManager(account_name, accounts_file=self.accounts_file,
+                          showres=self.showres, delay=self.delay)
+            self._zscp_for_account(ac, account_name)
             return
 
         # 确保独立账号文件存在
