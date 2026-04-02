@@ -11,10 +11,13 @@ __pycache__/
 # Binary/data files
 *.chlz
 *.chlsj
+*.bin
+*.dat
 protoc
 proto1
 proto2
 proto_*
+dungeon/
 
 # IDE/editor
 .vscode/
