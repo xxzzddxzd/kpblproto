@@ -33,7 +33,7 @@ class DAManager:
         return [
             {"ads":"活动日历签到","times":1,"hexstringheader":"d32b","request_body_i2":250},
             # {"ads":"骰子广告","times":1,"hexstringheader":"2f35","request_body_i2":9218},
-            # {"ads":"深渊钥匙x2","hexstringheader":"a52c","times":2,"request_body_i2":250601,'request_body_i3':10001},
+            {"ads":"hd20260330广告","hexstringheader":"a52c","times":1,"request_body_i2":202603301,'request_body_i3':9735},
             # {"ads":"中秋x5","hexstringheader":"a52c","times":5,"request_body_i2":20251006,'request_body_i3':9799},
             # {"ads":"周年","hexstringheader":"a52c","times":1,"request_body_i2":202512223,'request_body_i3':3010},
             # {"ads":"周年","hexstringheader":"a52c","times":2,"request_body_i2":202512223,'request_body_i3':3020},
@@ -87,14 +87,15 @@ class DAManager:
             {"ads":"冒险日记免费","times":1,"hexstringheader":"4735","request_body_i2":9320},
             {"ads":"免费贝壳x2","times":1,"hexstringheader":"4735","request_body_i2":9330},
             {"ads":"免费s特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":14101,"request_body_i3":141,"requestbodytype":"request_body_for_mfssth"},
-            # {"ads":"免费钥匙特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":18201,"request_body_i3":182,"requestbodytype":"request_body_for_mfssth"},
+            {"ads":"免费钥匙特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":18201,"request_body_i3":182,"requestbodytype":"request_body_for_mfssth"},
             {"ads":"免费钥匙特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":181},
+            {"ads":"免费钥匙特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":182},
             {"ads":"宠物特惠","times":2,"hexstringheader":"8f2c","request_body_i2":191},
             {"ads":"宠物特惠","times":2,"hexstringheader":"8f2c","request_body_i2":192},
             {"ads":"神兵魔方特惠","times":2,"hexstringheader":"8f2c","request_body_i2":154},
             {"ads":"免费书特惠1次","times":1,"hexstringheader":"8f2c","request_body_i2":15301,"request_body_i3":153,"requestbodytype":"request_body_for_mfssth"},
             {"ads":"免费书特惠1次","times":1,"hexstringheader":"8f2c","request_body_i2":15302,"request_body_i3":153,"requestbodytype":"request_body_for_mfssth"},
-            # {"ads":"宠物特惠","times":2,"hexstringheader":"8f2c","request_body_i2":19201,"request_body_i3":192,"requestbodytype":"request_body_for_mfssth"},
+            {"ads":"宠物特惠","times":2,"hexstringheader":"8f2c","request_body_i2":19201,"request_body_i3":192,"requestbodytype":"request_body_for_mfssth"},
             {"ads":"0428活动免费2","times":1,"hexstringheader":"89 2e ","request_body_i2":9130},
             {"ads":"钓鱼广告","times":1,"hexstringheader":"89 2e ","request_body_i2":9110},
 
@@ -102,7 +103,10 @@ class DAManager:
             {"ads":"锦鲤2","times":1,"hexstringheader":"b92c","request_body_i2":102},
             {"ads":"锦鲤3","times":1,"hexstringheader":"b92c","request_body_i2":103},
             # {"ads":"骰子广告","times":1,"hexstringheader":"2f35","request_body_i2":9211},
-
+            {"ads":"公会讨伐奖励", "times":1, "hexstringheader":"2b77"}, 
+            {"ads":"公会船票购买(D)", "times":1, "hexstringheader":"6532", "request_body_i2":1, "request_body_i3":10601, "request_body_i4":2},
+            {"ads":"公会船票购买(W)", "times":1, "hexstringheader":"6532", "request_body_i2":1, "request_body_i3":12301, "request_body_i4":1}, 
+            {"ads":"公会宝石购买(W)", "times":1, "hexstringheader":"6532", "request_body_i2":1, "request_body_i3":11200, "request_body_i4":1}, 
 
             {"ads":"大扫除1600购买","times":1,"hexstringheader":"512d","request_body_i2":20402, "request_body_i3":20132},
 
@@ -152,16 +156,16 @@ class DAManager:
         """
         try:
             self.get_jsxl_id()
-            print(f"<{mask_account(self.account_name)}> 开始活动广告任务...")
-            req_list = []
-            if self.ac_manager.get_account(self.account_name, 'adlist'):
-                for ad in self.ac_manager.get_account(self.account_name, 'adlist'):
-                    for adid, adsubid in ad.items():
-                        print(f"<{mask_account(self.account_name)}> 开始执行广告{adid} {adsubid}")
-                        req_config = {"ads":f"广告{adid}","times":1,"hexstringheader":"a52c","request_body_i2":adid,"request_body_i3":adsubid}
-                        req_list.append(req_config)
-            print(f"<{mask_account(self.account_name)}> 开始 adlist(并发)")
-            self.ac_manager.do_common_request_list(self.account_name, req_list, showres=self.showres)
+            # print(f"<{mask_account(self.account_name)}> 开始活动广告任务...")
+            # req_list = []
+            # if self.ac_manager.get_account(self.account_name, 'adlist'):
+            #     for ad in self.ac_manager.get_account(self.account_name, 'adlist'):
+            #         for adid, adsubid in ad.items():
+            #             print(f"<{mask_account(self.account_name)}> 开始执行广告{adid} {adsubid}")
+            #             req_config = {"ads":f"广告{adid}","times":1,"hexstringheader":"a52c","request_body_i2":adid,"request_body_i3":adsubid}
+            #             req_list.append(req_config)
+            # print(f"<{mask_account(self.account_name)}> 开始 adlist(并发): {req_list}")
+            # self.ac_manager.do_common_request_list(self.account_name, req_list, showres=1)
             
             print(f"<{mask_account(self.account_name)}> 开始执行日常任务...")
             # 获取配置列表
@@ -228,9 +232,12 @@ class DAManager:
 
     def xsqy_claim(self):
         """限时祈愿任务领取（9f2c），动态获取活动ID，i3从140000到140030并发领取"""
+        
         activity_info = self.ac_manager.get_account(self.account_name, 'activity_info')
+        # print(f'xsqy_claim activity_info: {activity_info}')
         if not activity_info:
             activity_info = self.ac_manager.fetch_activity_info(self.account_name)
+        print(f'xsqy_claim activity_info: {activity_info}')
         # 查找25xxxxx范围的活动ID
         act_id = None
         for aid in activity_info:
@@ -242,9 +249,9 @@ class DAManager:
             return
         print(f"<{mask_account(self.account_name)}> 限时祈愿领取: 活动ID={act_id}")
         req_list = []
-        for i3 in range(140000, 140031):
-            req_list.append({"ads": f"限时祈愿{i3}", "hexstringheader": "9f2c", "times": 1, "request_body_i2": act_id, "request_body_i3": i3})
-        self.ac_manager.do_common_request_list(self.account_name, req_list, showres=self.showres)
+        for i3 in range(140000, 140051):
+            req = {"ads": f"限时祈愿{i3}", "hexstringheader": "9f2c", "times": 1, "request_body_i2": act_id, "request_body_i3": i3}
+            self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
 
     def execute_daily_tasks_nowk(self):  #周年用
         """
@@ -705,10 +712,10 @@ class DAManager:
     def get_jsxl_id(self):  # 箭术训练
         """获取竞赛系列动态ID"""
         # 1. 发送552d请求获取活动列表
-        req_list = {"ads":"竞赛系列列表","times":1,"hexstringheader":"552d"}
+        req_list = {"ads":"箭术训练","times":1,"hexstringheader":"552d"}
         rev = self.ac_manager.do_common_request(self.account_name, req_list, showres=self.showres)
         if not rev or len(rev) < 6:
-            print("获取竞赛系列列表失败")
+            print("获取箭术训练失败")
             return None
 
         # 2. 解析response，通过entry_bytes特征定位动态ID
@@ -723,7 +730,7 @@ class DAManager:
         if entry_id is None:
             print(f"未找到特征值 {target_bytes.hex()} 对应的条目")
             return None
-        print(f"竞赛系列动态ID: {entry_id}")
+        print(f"箭术训练ID: {entry_id}")
 
         # 3. 发送512d请求，i2=20502, i3=动态ID
         rq_list = []

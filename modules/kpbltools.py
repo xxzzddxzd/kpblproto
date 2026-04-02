@@ -289,7 +289,7 @@ class ACManager:
             for account_name, account_data in self.accounts.items():
                 filtered_account = {}
                 # 只保存指定的字段
-                for field in ['s1', 'udid', 'server_id', 'acstr', 'py_session', 'encbody', 'i5_adsid1',
+                for field in ['s1', 'udid', 'server_id', 'acstr', 'py_session',  'i5_adsid1',
                               'daily_activity', 'weekly_activity', 'diamond', 'coin', 'tl',
                               'charaname', 'charaid', 'status_time', 'kunnan', 'gqxx']:
                     if field in account_data:
@@ -469,8 +469,8 @@ class ACManager:
             requester.s1 = account.get("s1")
         requester.i2 = 1
         requester.udid = account["udid"]
-        if "encbody" in account:
-            requester.encbody = account["encbody"]
+        # if "encbody" in account:
+        #     requester.encbody = account["encbody"]
         
         # 自增 i5_adsid1 并设置
         if "i5_adsid1" in account:
@@ -556,6 +556,14 @@ class ACManager:
             request_body = kpbl_pb2.request_body_for_kn_invite()
         elif requestbodytype == 'request_body_for_nickname':
             request_body = kpbl_pb2.request_body_for_nickname()
+        elif requestbodytype == 'dungeon_prepare_request':
+            request_body = kpbl_pb2.dungeon_prepare_request()
+        elif requestbodytype == 'dungeon_battle_request':
+            request_body = kpbl_pb2.dungeon_battle_request()
+        elif requestbodytype == 'dungeon_boss_complete_request':
+            request_body = kpbl_pb2.dungeon_boss_complete_request()
+        elif requestbodytype == 'dungeon_fail_request':
+            request_body = kpbl_pb2.dungeon_fail_request()
         else:
             request_body = kpbl_pb2.request_body()
         
@@ -567,7 +575,7 @@ class ACManager:
             request_body.r1.ClearField("encbody")
             # request_body.r1.ClearField("server_id")
             request_body.r1.i5_adsid1 = 2
-        
+
         # 设置其他参数
         if request_body_i2:
             request_body.i2 = request_body_i2
@@ -596,7 +604,7 @@ class ACManager:
         
         # 序列化请求体
         serialized_data = request_body.SerializeToString()
-        
+
         # 转换并拼接头部
         header_binary = binascii.unhexlify(hexstringheader)[:2]
         len_hex = len(serialized_data)

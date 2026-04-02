@@ -223,13 +223,13 @@ message request_body_for_jqfinish{
     
 }
 //地牢、工会战
-message request_body_for_dilao{ 
+message request_body_for_dilao{
     requester1 r1=1;
     bytes i2=2;
     int32 i3=3;
 }
-//个人排名战
-message request_body_for_geren{ 
+
+message request_body_for_geren{
     requester1 r1=1;
     bytes i2=2;
     string i3=3;
@@ -1151,6 +1151,75 @@ message hd20260330_nd_response{
         int32 item_count=3;
     }
     repeated type_i3 i3=3;
+}
+
+// ─── 地牢 (Dungeon) ───────────────────────────────────────
+
+// 地牢 - 初始化响应 (4e33)
+message dungeon_init_response {
+    int32 i1 = 1;               // 错误码，正常时不存在
+    bytes i2 = 2;               // 通用响应包装
+    int64 i3 = 3;               // 当前关卡 (level * 1000)
+    int64 i4 = 4;
+    bytes i5 = 5;               // packed varint, 初始可选技能ID池
+    bytes i6 = 6;
+    int32 i8 = 8;
+}
+
+// 地牢 - 选技能请求 (4f33)
+message dungeon_prepare_request {
+    requester1 r1 = 1;
+    bytes i2 = 2;           // packed varint 技能ID列表
+    int64 i3 = 3;           // 当前HP
+}
+
+// 地牢 - 战斗步骤请求 (5d33)
+message dungeon_battle_request {
+    requester1 r1 = 1;
+    string i2 = 2;          // I8_VALUE 字符串形式
+    int64 i3 = 3;           // 关卡ID (floor*1000 + battle_index)
+}
+
+// 地牢 - 战斗步骤响应 (5e33)
+message dungeon_battle_response {
+    bytes i2 = 2;           // 通用响应包装
+    int32 i3 = 3;           // 1=赢，0或缺失=输
+    int32 i4 = 4;
+    int64 i5 = 5;           // 战后HP
+    int64 i7 = 7;           // seed
+    int64 i11 = 11;         // 下一关ID
+    int32 i12 = 12;         // 已通过boss数(仅失败时出现)
+}
+
+// 地牢 - buff 信息
+message dungeon_buff_info {
+    string i1 = 1;          // 如 "HPMax%", "Attack%"
+    int32 i2 = 2;           // 数值，如 15
+}
+
+// 地牢 - Boss通关请求 (5333)
+message dungeon_boss_complete_request {
+    requester1 r1 = 1;
+    bytes i2 = 2;               // 技能列表 (packed varint)
+    dungeon_buff_info i3 = 3;   // 累积的buff，首次为空
+    int64 i4 = 4;               // 当前HP
+}
+
+// 地牢 - Boss通关响应 (5433)
+message dungeon_boss_complete_response {
+    bytes i2 = 2;               // 通用响应包装
+    dungeon_buff_info i5 = 5;   // 返回的buff信息
+}
+
+// 地牢 - 失败请求 (5b33)
+message dungeon_fail_request {
+    requester1 r1 = 1;
+    int64 i2 = 2;               // 失败的关卡ID
+}
+
+// 地牢 - 失败响应 (5c33)
+message dungeon_fail_response {
+    bytes i2 = 2;               // 奖励信息
 }
 
 // ./protoc --python_out=modules/ kpbl.proto

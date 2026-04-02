@@ -273,9 +273,11 @@ class RZSGManager:
         self.hdid = 20260330
         self.hdzdid = 202603301
         self.txz_ticket_id = 1202
+        self.txz_coin = 1252
         self.ticket_id = 1508
         self.coin_normal_id = 1509
         self.coin_gold_id = 1510
+
 
 
 

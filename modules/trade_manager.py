@@ -163,7 +163,7 @@ class TradeManager:
                     items_count += 1
                     item = item_container.item
                     name = self.item_list.get(item.itemid, f"#{item.itemid}")
-                    slot_items.append(f"{name}×{item.itemcount}")
+                    slot_items.append({'id': item.itemid, 'text': f"{name}×{item.itemcount}"})
                     if item.itemid == 135:
                         max_135 = max(max_135, item.itemcount)
                     elif item.itemid == 59:
@@ -215,3 +215,22 @@ class TradeManager:
             resp.ParseFromString(res[6:])
             return resp
         return None
+
+    def assign_captain(self, boat_id, member_charaid=None):
+        """任命船长 (1d62): 会长指定某成员为船长，默认任命自己"""
+        if member_charaid is None:
+            member_charaid = self.ac_manager.get_account(self.account_name, 'charaid')
+            if not member_charaid:
+                print("未找到charaid，无法任命船长")
+                return False
+        config = {
+            "ads": "任命船长",
+            "times": 1,
+            "hexstringheader": "1d62",
+            "request_body_i2": int(boat_id),
+            "request_body_i3": int(member_charaid),
+        }
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        ok = len(res) > 20
+        print(f"任命船长: boat={boat_id}, captain={member_charaid}, {'成功' if ok else '失败'}")
+        return ok

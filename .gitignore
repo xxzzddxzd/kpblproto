@@ -12,6 +12,9 @@ __pycache__/
 *.chlz
 *.chlsj
 protoc
+proto1
+proto2
+proto_*
 
 # IDE/editor
 .vscode/

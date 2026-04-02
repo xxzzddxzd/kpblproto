@@ -170,7 +170,7 @@ class YLManager:
         self.ac_manager.do_common_request(self.account_name, req_config_jsyl2, showres=self.showres)
         print(f"<{mask_account(self.account_name)}> 游历完成")
     
-    def do_youli_with_params(self, bio=1, level=None,xyx=1):
+    def do_youli_with_params(self, bio=1, level=None,times=1,xyx=1):
         """
         带参数的游历执行方法，与main.py接口兼容
         
@@ -178,7 +178,10 @@ class YLManager:
             bio: 倍数，默认1
             level: 游历等级，如果为None则从账户信息中获取
         """
-        self.youli(bio, level,xyx)
+        while times > 0:
+            print(f"<{mask_account(self.account_name)}> 开始游历，次数剩余: {times}")
+            self.youli(bio, level,xyx)
+            times -= 1
         return True
 
 

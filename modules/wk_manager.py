@@ -719,7 +719,7 @@ class WKManager:
             minelevel = miner_map.unit.minerlevel
             
             # 调试：打印详细矿图信息
-            self.debug_print_mine_map(miner_map, f"<{mask_account(self.account_name)}> 第{minelevel}层矿图")
+            # self.debug_print_mine_map(miner_map, f"<{mask_account(self.account_name)}> 第{minelevel}层矿图")
             
             # 解析矿区数据
             table = self.parse_miner_map(miner_map, print_table=print_table, 
@@ -802,10 +802,10 @@ class WKManager:
                 
                 # 调试：打印炸弹触发后的详细矿图
                 if updated_map:
-                    self.debug_print_mine_map(updated_map, f"<{mask_account(self.account_name)}> 炸弹触发后矿图")
+                    # self.debug_print_mine_map(updated_map, f"<{mask_account(self.account_name)}> 炸弹触发后矿图")
                     table = self.parse_miner_map(updated_map, print_table=print_table, 
                                                header="炸弹触发后的矿区状态")
-                    print(f"<{mask_account(self.account_name)}> 炸弹触发后矿区状态: {table}")
+                    # print(f"<{mask_account(self.account_name)}> 炸弹触发后矿区状态: {table}")
                 
                 # 检查炸弹后是否出现K
                 new_strategy = self.analyze_miner_plan_new(updated_map)
@@ -833,7 +833,7 @@ class WKManager:
                 
                 # 调试：打印挖矿后的详细矿图
                 if updated_map:
-                    self.debug_print_mine_map(updated_map, f"<{mask_account(self.account_name)}> 挖矿后矿图")
+                    # self.debug_print_mine_map(updated_map, f"<{mask_account(self.account_name)}> 挖矿后矿图")
                     table = self.parse_miner_map(updated_map, print_table=print_table, 
                                                header="挖矿后的矿区状态")
                     # print(f"<{mask_account(self.account_name)}> 挖矿后矿区状态: {table}")

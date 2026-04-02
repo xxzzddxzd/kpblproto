@@ -57,19 +57,21 @@ def _execute_sy(account_name, args, **kw):
 
 
 def _execute_yl(account_name, args, **kw):
-    bio = int(args[0]) if len(args) > 0 else 1
-    level = int(args[1]) if len(args) > 1 else None
+    bio = 20
+    level = None
+    times = int(args[0]) if len(args) > 0 else 1
     print(f"游历参数: 倍数={bio}, 等级={level if level else '从账户获取'}")
     from .yl_manager import YLManager
-    return YLManager(account_name, delay=0, showres=0).do_youli_with_params(bio, level, 0)
+    return YLManager(account_name, delay=0, showres=0).do_youli_with_params(bio, level, times, 0)
 
 
 def _execute_ylxyx(account_name, args, **kw):
-    bio = int(args[0]) if len(args) > 0 else 1
-    level = int(args[1]) if len(args) > 1 else None
+    bio = 20
+    level = None
+    times = int(args[0]) if len(args) > 0 else 1
     print(f"游历参数: 倍数={bio}, 等级={level if level else '从账户获取'}")
     from .yl_manager import YLManager
-    return YLManager(account_name, delay=0, showres=0).do_youli_with_params(bio, level, 1)
+    return YLManager(account_name, delay=0, showres=0).do_youli_with_params(bio, level, times, 1)
 
 
 def _execute_xyx(account_name, args, **kw):
@@ -561,6 +563,20 @@ def _execute_yxkc(account_name, args, **kw):
     return YXKCManager(account_name, showres=1, delay=0).do_battle(level)
 
 
+def _execute_dc(account_name, args, **kw):
+    times = int(args[0]) if len(args) > 0 else 3
+    print(f"开始执行地牢自动战斗 x{times}...")
+    from .dungeon_manager import DungeonManager
+    showres = kw.get('showres', 0)
+    delay = kw.get('delay', 0.5)
+    total_boss = 0
+    for i in range(times):
+        print(f"\n===== 地牢第 {i+1}/{times} 次 =====")
+        total_boss += DungeonManager(account_name, showres=showres, delay=delay).auto_battle()
+    print(f"\n地牢完成: {times}次, 总Boss通过={total_boss}")
+    return True
+
+
 def _execute_kpkpj(account_name, args, **kw):
     from .da_manager import DAManager
     return DAManager(account_name).kpkpj()
@@ -605,6 +621,8 @@ def _execute_jl(account_name, args, **kw):
                 results.extend(new_results)
                 results.sort(key=lambda x: x[0])
 
+            TARGET_IDS = {5605} | set(range(1386000, 1386101))
+
             def show_results():
                 if not results:
                     print("没有找到符合条件的船只")
@@ -613,11 +631,19 @@ def _execute_jl(account_name, args, **kw):
                 print("-" * 60)
                 for idx, (slotslen, max_135, max_59, max_5604, boat, is_guild, guild_slots) in enumerate(results):
                     tag = "🏰" if is_guild else "  "
-                    print(f"  {tag}[{idx}] slots:{slotslen} 功勋币:{max_135} 武装令牌:{max_59} 武装宝箱:{max_5604}")
+                    # 过滤guild_slots: 只保留含目标物品的船舱
+                    filtered_slots = []
                     if is_guild and guild_slots:
                         for s in guild_slots:
-                            if s['rarity'] >= 5 and s['items']:
-                                print(f"        ⭐舱{s['slotid']}(稀有{s['rarity']}): {', '.join(s['items'])}")
+                            matched = [it for it in s['items'] if isinstance(it, dict) and it['id'] in TARGET_IDS]
+                            if matched:
+                                filtered_slots.append((s, matched))
+                    if not filtered_slots and is_guild:
+                        continue  # 公会船无匹配物品，跳过
+                    print(f"  {tag}[{idx}] slots:{slotslen} 功勋币:{max_135} 武装令牌:{max_59} 武装宝箱:{max_5604}")
+                    for s, matched in filtered_slots:
+                        texts = ', '.join(it['text'] for it in matched)
+                        print(f"        ⭐舱{s['slotid']}(稀有{s['rarity']}): {texts}")
                 print("-" * 60)
 
             do_search()
@@ -652,9 +678,11 @@ def _execute_jl(account_name, args, **kw):
                     trade.attack(boat)
                 trade.ac_manager.login(account_name)
                 baginfo_after = trade.ac_manager.get_account(account_name, 'baginfo') or {}
-                diff = {ITEM_NAMES.get(k, k): baginfo_after.get(k, 0) - baginfo_before.get(k, 0)
+                def _bag_count(v):
+                    return v['count'] if isinstance(v, dict) else v
+                diff = {ITEM_NAMES.get(k, k): _bag_count(baginfo_after.get(k, 0)) - _bag_count(baginfo_before.get(k, 0))
                         for k in set(baginfo_before) | set(baginfo_after)
-                        if baginfo_after.get(k, 0) != baginfo_before.get(k, 0)}
+                        if _bag_count(baginfo_after.get(k, 0)) != _bag_count(baginfo_before.get(k, 0))}
                 print(f"变化: {diff}")
     else:
         from .da_manager import DAManager
@@ -895,6 +923,7 @@ COMMANDS = [
     CommandDef(name="wddhyx", desc="武道大会预选", category="武道/其他", execute=_execute_wddhyx, batchable=False),
     CommandDef(name="sdgm",  desc="扫荡购买",   category="武道/其他", execute=_execute_sdgm, batchable=False),
     CommandDef(name="yxkc",  desc="异星矿场",   category="武道/其他", usage="[关卡=1]", execute=_execute_yxkc, batchable=False),
+    CommandDef(name="dc",    desc="地牢自动战斗", category="挑战/战斗", execute=_execute_dc, batchable=True),
     CommandDef(name="rn",    desc="新账号(批量)", category="武道/其他", execute=_execute_rn, batchable=False),
     CommandDef(name="rns",   desc="新账号(样本)", category="武道/其他", execute=_execute_rns, batchable=False),
     CommandDef(name="ghxs",  desc="公会悬赏查询", category="武道/其他", execute=_execute_ghxs, batchable=False),

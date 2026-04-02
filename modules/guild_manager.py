@@ -5,6 +5,7 @@
 
 import json
 import logging
+import random
 from .kpbltools import ACManager, mask_account
 
 
@@ -543,7 +544,7 @@ class GuildBatchManager:
         self._for_each_account(_donate, "捐献")
 
     def batch_zs_cp(self, start_from=1):
-        """赠送船票：先用会长号获取公会船信息，找到已起航的船的boatpara1"""
+        """赠送船票：先用会长号任命船长，再遍历小号赠送船票"""
         from .trade_manager import TradeManager
         print(f"leader:{self.leader_account}")
         tm = TradeManager(self.leader_account)
@@ -551,7 +552,6 @@ class GuildBatchManager:
         if not resp or not resp.boats:
             print("没有找到公会船信息")
             return False
-        # print(resp.boats)
         # 筛选未到达的船（候船中start_time=0 或 航行中end_time=0）
         valid_boats = [b for b in resp.boats if b.end_time == 0]
         if not valid_boats:
@@ -561,9 +561,18 @@ class GuildBatchManager:
         valid_boats.sort(key=lambda b: (b.start_time > 0, b.boatpara1))
         boat_id = valid_boats[0].boatpara1
         print(f"目标船 boatpara1={boat_id}，共 {len(valid_boats)} 艘未到达")
+        # 任命会长为船长
+        tm.assign_captain(boat_id)
         def _zs_cp(ac, name):
-            print(len(ac.do_common_request(name, {"ads": "赠送船票", "times": 1, "hexstringheader": "1b62",
-                                        "request_body_i2": boat_id, "request_body_i3": 3}, showres=self.showres))>20)
+            id, count = ac.getItemIdByType(133)
+            if not count or count<3:
+                print(f"购买船票: {id}, {count}")
+                req ={"ads":"船票购买(3)", "times":1, "hexstringheader":"6532", "request_body_i2":2, "request_body_i3":22100, "request_body_i4":3}
+                print(len(ac.do_common_request(name, req, showres=self.showres))>20)
+            req ={"ads":"上船", "times":1, "hexstringheader":"1962", "request_body_i2":int(boat_id), "request_body_i3":random.randint(21, 25)}
+            print(len(ac.do_common_request(name, req, showres=1))>20)
+            req ={"ads":"船票赠送", "times":1, "hexstringheader":"1b62", "request_body_i2":int(boat_id), "request_body_i3":3}
+            print(len(ac.do_common_request(name, req, showres=1))>20)
         self._for_each_account(_zs_cp, "赠送船票", start_from=start_from)
 
     def batch_daily(self):
