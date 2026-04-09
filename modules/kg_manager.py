@@ -134,12 +134,15 @@ class KGManager:
 
     def run(self):
         """执行考古：领取奖励 → login刷新背包 → 缓存锤子数量 → 自动挖掘"""
-        # 登录刷新背包
-        self.ac_manager.login(self.account_name)
-
+        
         # 1. 领取奖励
         print("== 步骤1: 领取考古奖励 ==")
         self.claim_all_rewards()
+
+
+        # 登录刷新背包
+        self.ac_manager.login(self.account_name)
+
 
         # 2. login一次刷新背包，获取锤子数量并缓存
         self.ac_manager.login(self.account_name)
