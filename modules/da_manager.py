@@ -141,6 +141,10 @@ class DAManager:
             {"ads":"公会战结束300b","times":2,"hexstringheader":"0376","request_body_i2":binascii.unhexlify('b7db06a48d06839206e98e06eb8e06ec8e069adc069fdc06fb9106fa9106'),"requestbodytype":"request_body_for_dilao"},
             
         ]
+    
+    def petegggacha(self):
+        req = {"ads":"宠物蛋3抽卡10倍","times":1,"hexstringheader":"f14e","request_body_i2":13, 'request_body_i3':10}
+        return len(self.ac_manager.do_common_request(self.account_name, req, showres=self.showres))>20
 
     def execute_daily_tasks(self):
         """

@@ -882,7 +882,9 @@ def _execute_donate_single(account_name, args, **kw):
 
 def _execute_kg(account_name, args, **kw):
     from .kg_manager import KGManager
+    from .da_manager import DAManager
     ac = kw.get('ac_manager')
+    DAManager(account_name, showres=0, delay=0).petegggacha()
     KGManager(account_name, ac_manager=ac).run()
     return True
 
