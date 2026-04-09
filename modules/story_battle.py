@@ -105,62 +105,53 @@ class StoryBattleManager:
 
 
     def dotfqh(self):
-        # config_qh = [
-        #     {"ads":"tsAttack","times":10,"hexstringheader":"7f30 ", 'request_body_i2':"Attack", "request_body_i3":level, 'requestbodytype':'request_qh'}, 
-        #     {"ads":"tsHPMax","times":10,"hexstringheader":"7f30 ", 'request_body_i2':"HPMax", "request_body_i3":level, 'requestbodytype':'request_qh'}, 
-        #     {"ads":"tsDefence","times":10,"hexstringheader":"7f30 ", 'request_body_i2':"Defence", "request_body_i3":level, 'requestbodytype':'request_qh'},         
-        # ]
-        todo = {
-            "Attack":0,
-            "HPMax":0,
-            "Defence":0
-        }
-        next_todo = {
-            "Attack":0,
-            "HPMax":0,
-            "Defence":0
-        }
+        """天赋强化：循环所有阶梯，直到没有变化"""
+        # 初始查询获取当前状态
         config = {"ads":"tsDefence","times":1,"hexstringheader":"7f30 ", 'request_body_i2':"Defence", "request_body_i3":1, 'requestbodytype':'request_qh'}
         res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
         if not res:
-            return 0
+            return
         tfqh_resp = kpbl_pb2.tfqh_response()
         tfqh_resp.ParseFromString(res[6:])
         level = tfqh_resp.tf.level
-        # print(tfqh_resp)
+        current = {}
         for tfxq in tfqh_resp.tf.tfxq:
-            todo[tfxq.tfms] = tfxq.tfdj
-        # print(todo)
-        # input('sss')
-        if level < 34:
-            cap = 10
-        else:
-            cap = 15
-        enhanced = False
-        for key in todo:
-            while todo[key]<cap:
-                config = {"ads":key,"times":1,"hexstringheader":"7f30 ", 'request_body_i2':key, "request_body_i3":level, 'requestbodytype':'request_qh'}
-                rev = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
-                tfqh_resp = kpbl_pb2.tfqh_response()
-                tfqh_resp.ParseFromString(rev[6:])
-                # print(tfqh_resp)
-                for tfxq in tfqh_resp.tf.tfxq:
-                    next_todo[tfxq.tfms] = tfxq.tfdj
+            current[tfxq.tfms] = tfxq.tfdj
+        print(f"  天赋强化 阶梯={level}, {current}")
 
-                # 对比 todo 和next_todo，若完全一样，则返回0
-                if todo[key] == next_todo[key]:
-                    print('未变化，无money')
-                    return 0
-                enhanced = True
-                todo = next_todo
-                next_todo = {
-                    "Attack":0,
-                    "HPMax":0,
-                    "Defence":0
-                }
+        while True:
+            any_progress = False
+            tier_changed = False
+            for key in list(current.keys()):
+                # 对当前天赋持续强化，直到等级不再变化
+                while True:
+                    config = {"ads":key,"times":1,"hexstringheader":"7f30 ", 'request_body_i2':key, "request_body_i3":level, 'requestbodytype':'request_qh'}
+                    rev = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+                    if not rev:
+                        return
+                    tfqh_resp = kpbl_pb2.tfqh_response()
+                    tfqh_resp.ParseFromString(rev[6:])
+                    new_current = {}
+                    for tfxq in tfqh_resp.tf.tfxq:
+                        new_current[tfxq.tfms] = tfxq.tfdj
 
+                    if new_current.get(key, 0) == current[key]:
+                        current = new_current
+                        break  # 该天赋无变化，换下一个
 
-        return 1 if enhanced else 0
+                    any_progress = True
+                    current = new_current
+                    if tfqh_resp.tf.level != level:
+                        level = tfqh_resp.tf.level
+                        print(f"  阶梯升级 -> {level}, {current}")
+                        tier_changed = True
+                        break  # 阶梯变了，重新开始所有天赋
+                if tier_changed:
+                    break
+
+            if not any_progress:
+                print(f"  天赋强化完成 阶梯={level}, {current}")
+                return
         
 
     def execute_story_battle(self, level):
