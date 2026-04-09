@@ -121,6 +121,15 @@ def _execute_fl(account_name, args, **kw):
     return True
 
 
+def _execute_flfull(account_name, args, **kw):
+    from .da_manager import DAManager
+    showres = kw.get('showres', 1)
+    delay = kw.get('delay', 0)
+    ac = kw.get('ac_manager')
+    DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).day_first_login_full()
+    return True
+
+
 def _execute_mr(account_name, args, **kw):
     from .da_manager import DAManager
     showres = kw.get('showres', 0)
@@ -899,6 +908,15 @@ def _batch_fl(mgr, start_from):
     mgr._for_each_account(_fl, "每日首登", start_from=start_from)
 
 
+def _batch_flfull(mgr, start_from):
+    import time as _time
+    from .da_manager import DAManager
+    def _fl(ac, name):
+        DAManager(name, showres=mgr.showres, delay=mgr.delay).day_first_login_full()
+        _time.sleep(60)
+    mgr._for_each_account(_fl, "每日首登(完整)", start_from=start_from)
+
+
 # ── 命令注册表 ──────────────────────────────────────────
 
 COMMANDS = [
@@ -914,6 +932,7 @@ COMMANDS = [
     CommandDef(name="da",    desc="日常任务",   category="日常/资源", execute=_execute_da),
     CommandDef(name="defda", desc="默认日常任务", category="日常/资源", execute=_execute_defda),
     CommandDef(name="fl",    desc="首登奖励",   category="日常/资源", execute=_execute_fl, batch_execute=_batch_fl),
+    CommandDef(name="flfull", desc="首登奖励(完整)", category="日常/资源", execute=_execute_flfull, batch_execute=_batch_flfull),
     CommandDef(name="yl",    desc="游历",       category="日常/资源", usage="[倍数=1] [等级]", execute=_execute_yl, batch_default_args=["20"]),
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),
     CommandDef(name="xyx",   desc="幸运星",     category="日常/资源", execute=_execute_xyx),
