@@ -136,6 +136,7 @@ class StoryBattleManager:
             cap = 10
         else:
             cap = 15
+        enhanced = False
         for key in todo:
             while todo[key]<cap:
                 config = {"ads":key,"times":1,"hexstringheader":"7f30 ", 'request_body_i2':key, "request_body_i3":level, 'requestbodytype':'request_qh'}
@@ -145,11 +146,12 @@ class StoryBattleManager:
                 # print(tfqh_resp)
                 for tfxq in tfqh_resp.tf.tfxq:
                     next_todo[tfxq.tfms] = tfxq.tfdj
-                
+
                 # 对比 todo 和next_todo，若完全一样，则返回0
                 if todo[key] == next_todo[key]:
                     print('未变化，无money')
                     return 0
+                enhanced = True
                 todo = next_todo
                 next_todo = {
                     "Attack":0,
@@ -158,7 +160,7 @@ class StoryBattleManager:
                 }
 
 
-        return 1
+        return 1 if enhanced else 0
         
 
     def execute_story_battle(self, level):

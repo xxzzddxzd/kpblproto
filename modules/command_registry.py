@@ -174,8 +174,8 @@ def _execute_tf(account_name, args, **kw):
     delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
     sbm = StoryBattleManager(account_name, showres=showres, delay=delay, ac_manager=ac)
-    sbm.dotfqh()
-    sbm.dotfqh()
+    while sbm.dotfqh():
+        pass
     return True
 
 
