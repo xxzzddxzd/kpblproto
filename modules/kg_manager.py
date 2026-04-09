@@ -36,7 +36,7 @@ class KGManager:
 
     def _parse_kg(self, res):
         """解析考古响应"""
-        if not res or len(res) <= 6:
+        if not res or len(res) <= 20:
             return None
         resp = kpbl_pb2.kg_response()
         resp.ParseFromString(res[6:])
@@ -53,7 +53,7 @@ class KGManager:
         config = {"ads": f"考古领奖{tier}", "times": 1, "hexstringheader": "e159",
                   "request_body_i2": tier}
         res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
-        if not res or len(res) <= 6:
+        if not res or len(res) <= 20:
             return False
         sc = self.ac_manager.get_status_code(res)
         return sc == 1
@@ -79,19 +79,13 @@ class KGManager:
 
     def claim_all_rewards(self):
         """尝试领取所有可领取的奖励，返回成功领取的数量"""
-        claimed = 0
-        consecutive_fails = 0
-        for tier in range(50):
+        for tier in range(31):
             ok = self.claim_reward(tier)
             if ok:
-                claimed += 1
-                consecutive_fails = 0
                 print(f"  领取奖励 tier {tier} 成功")
             else:
-                consecutive_fails += 1
-                if consecutive_fails >= 5 and claimed > 0:
-                    break  # 已经领过一些，连续失败说明后续未解锁
-        return claimed
+                return 
+        return 
 
     def get_undug_cells(self, board):
         """获取未挖掘的格子坐标列表"""
@@ -145,11 +139,7 @@ class KGManager:
 
         # 1. 领取奖励
         print("== 步骤1: 领取考古奖励 ==")
-        claimed = self.claim_all_rewards()
-        if claimed > 0:
-            print(f"  共领取 {claimed} 个奖励")
-        else:
-            print("  无可领取的奖励")
+        self.claim_all_rewards()
 
         # 2. login一次刷新背包，获取锤子数量并缓存
         self.ac_manager.login(self.account_name)
