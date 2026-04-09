@@ -154,6 +154,54 @@ class StoryBattleManager:
                 return
         
 
+    TALENTS = ["Attack", "HPMax", "Defence"]
+
+    def _tf_request(self, talent, tier):
+        """发送天赋强化请求并解析响应"""
+        config = {"ads": talent, "times": 1, "hexstringheader": "7f30 ",
+                  'request_body_i2': talent, "request_body_i3": tier,
+                  'requestbodytype': 'request_qh'}
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        if not res or len(res) <= 6:
+            return None
+        resp = kpbl_pb2.tfqh_response()
+        resp.ParseFromString(res[6:])
+        return resp
+
+    def dotfn(self):
+        """天赋强化(新版): 不依赖 cap, 循环强化直到无变化"""
+        resp = self._tf_request("Attack", 1)
+        if not resp or not resp.tf.level:
+            return
+        tier = resp.tf.level
+        current = {t.tfms: t.tfdj for t in resp.tf.tfxq}
+        print(f"  tfn 阶梯={tier}, {current}")
+
+        while True:
+            any_progress = False
+            tier_changed = False
+            for talent in self.TALENTS:
+                while True:
+                    resp = self._tf_request(talent, tier)
+                    if not resp:
+                        return
+                    new_cur = {t.tfms: t.tfdj for t in resp.tf.tfxq}
+                    if new_cur.get(talent, 0) == current.get(talent, 0):
+                        current = new_cur
+                        break
+                    any_progress = True
+                    current = new_cur
+                    if resp.tf.level != tier:
+                        tier = resp.tf.level
+                        print(f"  阶梯升级 -> {tier}, {current}")
+                        tier_changed = True
+                        break
+                if tier_changed:
+                    break
+            if not any_progress:
+                print(f"  强化完成 阶梯={tier}, {current}")
+                return
+
     def execute_story_battle(self, level):
         """
         执行剧情战斗（完全按照老代码dojq函数重构）

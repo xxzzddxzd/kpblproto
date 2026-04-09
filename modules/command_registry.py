@@ -187,6 +187,15 @@ def _execute_tf(account_name, args, **kw):
     return True
 
 
+def _execute_tfn(account_name, args, **kw):
+    from .story_battle import StoryBattleManager
+    showres = kw.get('showres', 0)
+    delay = kw.get('delay', 0)
+    ac = kw.get('ac_manager')
+    StoryBattleManager(account_name, showres=showres, delay=delay, ac_manager=ac).dotfn()
+    return True
+
+
 def _execute_pvp(account_name, args, **kw):
     from .da_manager import DAManager
     da = DAManager(account_name, showres=1, delay=0)
@@ -939,6 +948,7 @@ COMMANDS = [
     CommandDef(name="dy",    desc="钓鱼",       category="日常/资源", usage="[区域] [次数] [中止策略=0]", execute=_execute_dy, batchable=False),
     CommandDef(name="cc",    desc="一键传承",   category="日常/资源", execute=_execute_cc, batchable=False),
     CommandDef(name="tf",    desc="天赋强化",   category="日常/资源", execute=_execute_tf),
+    CommandDef(name="tfn",   desc="天赋强化(新版)", category="日常/资源", execute=_execute_tfn),
     CommandDef(name="py",    desc="培育 (交互式)", category="日常/资源", execute=_execute_py, batchable=False),
     CommandDef(name="oi",    desc="使用物品",   category="日常/资源", usage="[物品ID] [数量=1]", execute=_execute_oi, batchable=False),
     CommandDef(name="login", desc="仅登录",     category="日常/资源", execute=_execute_login, batchable=False),
