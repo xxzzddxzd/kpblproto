@@ -142,8 +142,9 @@ class DAManager:
             
         ]
     
-    def petegggacha(self):
-        req = {"ads":"宠物蛋3抽卡10倍","times":1,"hexstringheader":"f14e","request_body_i2":13, 'request_body_i3':10}
+    def petegggacha(self,times):
+        print('egggacha')
+        req = {"ads":"宠物蛋3抽卡10倍","times":times,"hexstringheader":"f14e","request_body_i2":13, 'request_body_i3':10}
         return len(self.ac_manager.do_common_request(self.account_name, req, showres=self.showres))>20
 
     def execute_daily_tasks(self):
