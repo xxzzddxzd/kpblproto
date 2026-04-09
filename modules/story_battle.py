@@ -16,10 +16,10 @@ def sth(hexstring):
 class StoryBattleManager:
     """剧情战斗管理器，专门处理dojq（剧情）战斗逻辑"""
     
-    def __init__(self, account_name, showres=0, delay=0.5):
+    def __init__(self, account_name, showres=0, delay=0.5, ac_manager=None):
         self.account_name = account_name
         self.showres = showres
-        self.ac_manager = ACManager(account_name, delay=delay, showres=showres)
+        self.ac_manager = ac_manager or ACManager(account_name, delay=delay, showres=showres)
         # return self.ac_manager.get_account(account_name, 'gqxx')
     
     def _get_hardcoded_battle_data(self):

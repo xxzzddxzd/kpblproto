@@ -318,7 +318,7 @@ def handle_guild_batch_command(account_name, args):
         # 通用路径：用 _for_each_account 包装 execute()
         batch_args = cmd.batch_default_args or []
         def _run(ac, name):
-            cmd.execute(name, batch_args, showres=mgr.showres, delay=mgr.delay)
+            cmd.execute(name, batch_args, showres=mgr.showres, delay=mgr.delay, ac_manager=ac)
         mgr._for_each_account(_run, cmd.desc or cmd.name, start_from=start)
     return True
 
@@ -396,3 +396,4 @@ if __name__ == "__main__":
 
 
 # scp -r modules/  main.py  proto root@39.107.24.174:/root/kpbln
+# rm -rf modules/__pycache__/ && scp -r modules/  main.py  proto root@79.99.78.80:/root/kpbln

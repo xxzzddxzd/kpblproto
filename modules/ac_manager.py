@@ -83,9 +83,9 @@ class AutoClaimProgressManager:
 class ACChallengeManager:
     """AC挑战管理器，负责执行自动挑战逻辑"""
     
-    def __init__(self, account_name, showres=0, delay=0.5):
+    def __init__(self, account_name, showres=0, delay=0.5, ac_manager=None):
         self.account_name = account_name
-        self.ac_manager = ACManager(account_name, delay=delay, showres=showres)
+        self.ac_manager = ac_manager or ACManager(account_name, delay=delay, showres=showres)
         self.I8_VALUE = self.ac_manager.I8_VALUE
         self.showres = showres
     

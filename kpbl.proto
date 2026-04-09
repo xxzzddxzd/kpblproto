@@ -493,9 +493,67 @@ message miner_tap_response {
     miner_unit unit = 4;
 }
 
-message miner_tap_request{ 
+message miner_tap_request{
     requester1 r1=1;
     bytes i3=3;
+}
+
+// 公会考古请求
+message kg_coordinate {
+    int32 x = 1;
+    int32 y = 2;
+}
+message request_body_for_kg {
+    requester1 r1 = 1;
+    int32 i2 = 2;
+    kg_coordinate i3 = 3;
+}
+
+// 公会考古响应
+message kg_response {
+    message kg_cell {
+        int32 x = 1;
+        int32 y = 2;
+    }
+    message kg_item {
+        repeated kg_cell cells = 1;
+        int32 treasure_type = 2;
+        int32 variant = 3;
+    }
+    message kg_player {
+        int32 pid = 1;
+        string name = 2;
+        int32 level = 3;
+        int32 field4 = 4;
+        int32 field5 = 5;
+        int64 field6 = 6;
+        string guild_name = 8;
+        int32 server_id = 9;
+    }
+    message kg_dug_cell {
+        kg_cell pos = 1;
+        kg_player player = 2;
+        int32 is_completing = 3;
+    }
+    message kg_stat {
+        int32 stat_id = 1;
+        int32 value = 2;
+        int32 variant = 3;
+    }
+    message kg_board {
+        int32 board_id = 1;
+        int32 width = 2;
+        int32 height = 3;
+        repeated kg_item items = 4;
+        repeated kg_dug_cell dug_cells = 5;
+        repeated kg_stat stats = 6;
+        repeated int32 layers = 7;
+    }
+    message kg_boards {
+        kg_board board1 = 1;
+        kg_board board2 = 2;
+    }
+    kg_boards boards = 3;
 }
 
 message request_body_for_jqupdate{
@@ -1129,10 +1187,15 @@ message acmanager_activity_info_response {
             int32 phase = 1;
             int64 timestamp = 2;
         }
+        message type_ad_entry {
+            int32 sub_id = 1;       // 广告子ID，如9735
+            int32 times = 2;        // 次数
+        }
         int32 activity_id = 1;              // 活动ID，如260005
         repeated type_reward_entry rewards = 2;  // 奖励条目
         bytes field3 = 3;
         repeated type_reward_entry field4 = 4;
+        repeated type_ad_entry ads = 5;     // 广告条目（a52c的field3来源）
         int64 field6 = 6;
         int64 expire_time = 7;             // 过期时间
         type_progress progress = 8;        // 进度信息
@@ -1144,6 +1207,23 @@ message acmanager_activity_info_response {
     repeated type_activity activities = 2;
 }
 
+
+// 盲盒机抽奖响应 (c92c)
+message da_mangheji_gacha_response {
+    message type_result {
+        message type_header {
+            int32 status = 1;
+            int32 id = 2;
+        }
+        message type_item {
+            int32 itemid = 2;
+            int32 itemcount = 3;
+        }
+        type_header header = 1;
+        repeated type_item items = 3;
+    }
+    type_result result = 2;
+}
 
 message hd20260330_nd_response{
     message type_i3{
@@ -1220,6 +1300,38 @@ message dungeon_fail_request {
 // 地牢 - 失败响应 (5c33)
 message dungeon_fail_response {
     bytes i2 = 2;               // 奖励信息
+}
+
+// ── 广告奖励 ──────────────────────────────────────
+
+// 广告列表响应 (8b2c → 8c2c)
+message da_ads_list_response {
+    da_ads_activity i2 = 2;             // 活动广告（有时间范围）
+    da_ads_daily_wrapper i3 = 3;        // 每日广告包装
+}
+
+message da_ads_activity {
+    int32 i1 = 1;                       // 广告ID
+    int64 i2 = 2;                       // 开始时间戳
+    int64 i3 = 3;                       // 结束时间戳
+    repeated da_ads_step i5 = 5;        // 奖励阶梯
+}
+
+message da_ads_daily_wrapper {
+    repeated da_ads_daily i37 = 37;     // 每日广告列表
+}
+
+message da_ads_daily {
+    int32 i1 = 1;                       // 广告ID
+    int64 i3 = 3;                       // 时间戳
+    repeated da_ads_step i5 = 5;        // 奖励阶梯
+}
+
+message da_ads_step {
+    int32 i1 = 1;                       // 阶梯ID
+    int32 i2 = 2;                       // 所属广告ID
+    int32 i3 = 3;                       // 前置阶梯ID
+    int32 i4 = 4;                       // 里程碑标记
 }
 
 // ./protoc --python_out=modules/ kpbl.proto

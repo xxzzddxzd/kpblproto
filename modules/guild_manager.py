@@ -450,8 +450,13 @@ class GuildBatchManager:
         # 确保子目录存在
         os.makedirs(self.accounts_dir, exist_ok=True)
         # 先检查公会成员，识别不在公会的账号
-        members = self._get_guild_member_names()
-        not_in_guild = [n for n in names if not self._is_guild_member(n)]
+        members = self._get_guild_member_names() or set()
+        not_in_guild = []
+        for n in names:
+            charaname = self.guild_accounts.get(n, {}).get('charaname', '')
+            if charaname and charaname in members:
+                continue
+            not_in_guild.append(n)
         in_guild_count = total - len(not_in_guild)
         print(f"公会成员: {in_guild_count}  不在公会: {len(not_in_guild)}")
         if not_in_guild:
@@ -465,8 +470,9 @@ class GuildBatchManager:
             if idx + 1 < start_from:
                 continue
             sid = self.guild_accounts[name]['server_id']
-            if self._is_guild_member(name):
-                print(f"[{idx+1}/{total}] {name} (sid={sid}) — 已在公会，跳过")
+            charaname = self.guild_accounts.get(name, {}).get('charaname', '')
+            if charaname and charaname in members:
+                print(f"[{idx+1}/{total}] {name} ({charaname}) — 已在公会，跳过")
                 continue
             print(f"[{idx+1}/{total}] {name} (sid={sid})")
             ac_file = self.guild_account_file(self.leader_account, name)
@@ -509,6 +515,8 @@ class GuildBatchManager:
                         gid = info.guild_basic.guild_detail.guild_id
                         if gid == guild_id:
                             print(f"  ✓ {name} 已加入公会")
+                        elif gid == 0:
+                            print(f"  ✓ {name} 已申请，待审批")
                         else:
                             print(f"  ⚠ {name} 加入异常 (guild_id={gid})")
                     else:
@@ -528,14 +536,27 @@ class GuildBatchManager:
         print(f"批量初始化完成: {total} 个账号")
 
     def batch_join(self, start_from=1):
-        """所有小号加入公会，使用会长的公会ID"""
+        """所有小号加入公会，已在公会的跳过"""
         guild_id = self.get_leader_guild_id()
         if not guild_id:
             print("错误: 无法获取会长的公会ID，无法批量加入公会")
             return False
-        def _join(ac, name):
-            ac.do_common_request(name, {"ads": "加入公会", "times": 1, "hexstringheader": "a375", "request_body_i2": guild_id}, showres=self.showres)
-        self._for_each_account(_join, f"加入公会 {guild_id}", start_from=start_from, check_member=False)
+        # 预先获取公会成员名单
+        members = self._get_guild_member_names() or set()
+        total = len(self.guild_accounts)
+        for i, name in enumerate(self.guild_accounts.keys(), 1):
+            if i < start_from:
+                continue
+            charaname = self.guild_accounts.get(name, {}).get('charaname', '')
+            if charaname and charaname in members:
+                print(f"[{i}/{total}] {name} ({charaname}) — 已在公会，跳过")
+                continue
+            print(f"[{i}/{total}] {name} — 加入公会 {guild_id}")
+            try:
+                ac = ACManager(name, accounts_file=self.accounts_file, showres=self.showres, delay=self.delay)
+                ac.do_common_request(name, {"ads": "加入公会", "times": 1, "hexstringheader": "a375", "request_body_i2": guild_id}, showres=self.showres)
+            except Exception as e:
+                print(f"  ✗ {name} 失败: {e}")
         return True
 
     def batch_donate(self):
@@ -555,6 +576,12 @@ class GuildBatchManager:
             print("没有找到公会船信息")
             self._zscp_boat_id = None
             return None
+        # 找已到达的旧船（用于结算）
+        arrived_boats = [b for b in resp.boats if b.end_time != 0]
+        self._zscp_old_boat_id = arrived_boats[0].boatpara1 if arrived_boats else None
+        if self._zscp_old_boat_id:
+            print(f"旧船(待结算) boatpara1={self._zscp_old_boat_id}")
+        # 找未到达的新船（用于登船+赠票）
         valid_boats = [b for b in resp.boats if b.end_time == 0]
         if not valid_boats:
             print("当前没有可赠送船票的公会船")
@@ -578,6 +605,11 @@ class GuildBatchManager:
             print(f"购买船票: {id}, {count}")
             req = {"ads": "船票购买(3)", "times": 1, "hexstringheader": "6532", "request_body_i2": 2, "request_body_i3": 22100, "request_body_i4": 3}
             print(len(ac.do_common_request(name, req, showres=self.showres)) > 20)
+        # 结算旧船
+        if self._zscp_old_boat_id:
+            req = {"ads": "结算旧船", "times": 1, "hexstringheader": "2162", "request_body_i2": int(self._zscp_old_boat_id)}
+            print(len(ac.do_common_request(name, req, showres=self.showres)) > 20)
+        # 上新船+赠票
         req = {"ads": "上船", "times": 1, "hexstringheader": "1962", "request_body_i2": int(boat_id), "request_body_i3": random.randint(21, 25)}
         print(len(ac.do_common_request(name, req, showres=1)) > 20)
         req = {"ads": "船票赠送", "times": 1, "hexstringheader": "1b62", "request_body_i2": int(boat_id), "request_body_i3": 3}
@@ -630,7 +662,7 @@ class GuildBatchManager:
         print(f"无pipeline配置，使用默认: {default_tasks}")
         return default_tasks
 
-    def _run_task(self, account_name, task):
+    def _run_task(self, account_name, task, ac_manager=None):
         """执行单个任务，统一通过命令注册表分发"""
         from .command_registry import get_command
         parts = task.split()
@@ -647,14 +679,35 @@ class GuildBatchManager:
             self._collect_account_status(account_name)
             return
 
+        # 确保有 ac_manager
+        if ac_manager is None:
+            ac_manager = ACManager(account_name, accounts_file=self.accounts_file,
+                                   showres=self.showres, delay=self.delay)
+
         # pipeline 中 zscp: 首次执行setup（找船+任命船长），之后每账号执行单账号逻辑
         if command == 'zscp':
             boat_id = self._zscp_setup()
             if not boat_id:
                 return
-            ac = ACManager(account_name, accounts_file=self.accounts_file,
-                          showres=self.showres, delay=self.delay)
-            self._zscp_for_account(ac, account_name)
+            self._zscp_for_account(ac_manager, account_name)
+            return
+
+        # pipeline 中 join: 单账号加入公会
+        if command in ('join', 'j'):
+            if not hasattr(self, '_join_guild_id'):
+                self._join_guild_id = self.get_leader_guild_id()
+                self._join_members = self._get_guild_member_names() or set()
+            charaname = self.guild_accounts.get(account_name, {}).get('charaname', '')
+            if charaname and charaname in self._join_members:
+                print(f"  {charaname} 已在公会，跳过")
+                return
+            if self._join_guild_id:
+                ac_manager.do_common_request(account_name, {"ads": "加入公会", "times": 1, "hexstringheader": "a375", "request_body_i2": self._join_guild_id}, showres=self.showres)
+            return
+
+        # pipeline 中 init: 不支持（需要init_func回调），跳过
+        if command == 'init':
+            print(f"  init 不支持在pipeline中执行，请用 gg init")
             return
 
         # 确保独立账号文件存在
@@ -665,7 +718,10 @@ class GuildBatchManager:
             with open(ac_file, 'w') as f:
                 json.dump({account_name: self.guild_accounts[account_name]}, f, indent=4)
 
-        cmd.execute(account_name, command_args, showres=self.showres, delay=self.delay)
+        if not cmd.execute:
+            print(f"  {command} 不支持在pipeline中执行")
+            return
+        cmd.execute(account_name, command_args, showres=self.showres, delay=self.delay, ac_manager=ac_manager)
 
     def _collect_account_status(self, name):
         """收集单个账号的日活/周活/钻石/金币/体力/角色名，保存到guild_accounts"""
@@ -899,6 +955,8 @@ class GuildBatchManager:
                 dashboard.render(overall_start, account_start, do_clear=True)
 
                 all_ok = True
+                ac = ACManager(name, accounts_file=self.accounts_file,
+                              showres=self.showres, delay=self.delay)
                 for ti, task in enumerate(task_list):
                     dashboard.set_task(ti, overall_start, account_start)
                     dashboard.clear_log_area()
@@ -906,7 +964,7 @@ class GuildBatchManager:
                     print(f"  ▸ {task} ...", flush=True)
                     task_start = time.time()
                     try:
-                        self._run_task(name, task)
+                        self._run_task(name, task, ac_manager=ac)
                         dashboard.finish_task(ti, True, time.time() - task_start)
                         dashboard.update_header(overall_start, account_start)
                         print(f"  ✓ {task} ({_fmt_duration(time.time() - task_start)})")

@@ -30,7 +30,8 @@ def _execute_ac(account_name, args, **kw):
     from .ac_manager import ACChallengeManager
     shunwei = int(args[0])
     maxtry = 20 if len(args) < 2 else int(args[1])
-    mgr = ACChallengeManager(account_name)
+    ac = kw.get('ac_manager')
+    mgr = ACChallengeManager(account_name, ac_manager=ac)
     if shunwei == 0:
         ac0_tower = mgr.ac_manager.get_account(account_name, 'ac0_tower_level') or 100101
         todo = (ac0_tower // 100 + 1) * 100 + 1 if ac0_tower % 10 == 0 else ac0_tower + 1
@@ -62,7 +63,8 @@ def _execute_yl(account_name, args, **kw):
     times = int(args[0]) if len(args) > 0 else 1
     print(f"游历参数: 倍数={bio}, 等级={level if level else '从账户获取'}")
     from .yl_manager import YLManager
-    return YLManager(account_name, delay=0, showres=0).do_youli_with_params(bio, level, times, 0)
+    ac = kw.get('ac_manager')
+    return YLManager(account_name, delay=0, showres=0, ac_manager=ac).do_youli_with_params(bio, level, times, 0)
 
 
 def _execute_ylxyx(account_name, args, **kw):
@@ -71,14 +73,25 @@ def _execute_ylxyx(account_name, args, **kw):
     times = int(args[0]) if len(args) > 0 else 1
     print(f"游历参数: 倍数={bio}, 等级={level if level else '从账户获取'}")
     from .yl_manager import YLManager
-    return YLManager(account_name, delay=0, showres=0).do_youli_with_params(bio, level, times, 1)
+    ac = kw.get('ac_manager')
+    return YLManager(account_name, delay=0, showres=0, ac_manager=ac).do_youli_with_params(bio, level, times, 1)
 
 
 def _execute_xyx(account_name, args, **kw):
     from .yl_manager import YLManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
-    YLManager(account_name, showres=showres, delay=delay).xyx_all()
+    ac = kw.get('ac_manager')
+    YLManager(account_name, showres=showres, delay=delay, ac_manager=ac).xyx_all()
+    return True
+
+
+def _execute_dapop(account_name, args, **kw):
+    from .da_manager import DAManager
+    showres = kw.get('showres', 1)
+    delay = kw.get('delay', 0.5)
+    ac = kw.get('ac_manager')
+    DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).claim_popup_deals()
     return True
 
 
@@ -87,21 +100,24 @@ def _execute_da(account_name, args, **kw):
     from .da_manager import DAManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
-    return DAManager(account_name, showres=showres, delay=delay).execute_daily()
+    ac = kw.get('ac_manager')
+    return DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).execute_daily()
 
 
 def _execute_defda(account_name, args, **kw):
     from .da_manager import DAManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
-    return DAManager(account_name, showres=showres, delay=delay).dodefaultdailyquest()
+    ac = kw.get('ac_manager')
+    return DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).dodefaultdailyquest()
 
 
 def _execute_fl(account_name, args, **kw):
     from .da_manager import DAManager
     showres = kw.get('showres', 1)
     delay = kw.get('delay', 0)
-    DAManager(account_name, showres=showres, delay=delay).day_first_login()
+    ac = kw.get('ac_manager')
+    DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).day_first_login()
     return True
 
 
@@ -109,14 +125,16 @@ def _execute_mr(account_name, args, **kw):
     from .da_manager import DAManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
-    return DAManager(account_name, showres=showres, delay=delay).receive_mail()
+    ac = kw.get('ac_manager')
+    return DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).receive_mail()
 
 
 def _execute_ndrwlq(account_name, args, **kw):
     from .rzsg_manager import RZSGManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
-    rzsg = RZSGManager(account_name, showres=showres, delay=delay)
+    ac = kw.get('ac_manager')
+    rzsg = RZSGManager(account_name, showres=showres, delay=delay, ac_manager=ac)
     rzsg.kpblzd()
     rzsg.gacha_n()
     rzsg.licheng()
@@ -130,7 +148,8 @@ def _execute_jq(account_name, args, **kw):
     from .story_battle import StoryBattleManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
-    sbm = StoryBattleManager(account_name, showres=showres, delay=delay)
+    ac = kw.get('ac_manager')
+    sbm = StoryBattleManager(account_name, showres=showres, delay=delay, ac_manager=ac)
     _do_jq_auto(sbm, account_name, level)
     return True
 
@@ -153,7 +172,8 @@ def _execute_tf(account_name, args, **kw):
     from .story_battle import StoryBattleManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
-    sbm = StoryBattleManager(account_name, showres=showres, delay=delay)
+    ac = kw.get('ac_manager')
+    sbm = StoryBattleManager(account_name, showres=showres, delay=delay, ac_manager=ac)
     sbm.dotfqh()
     sbm.dotfqh()
     return True
@@ -470,14 +490,14 @@ def _execute_wdh(account_name, args, **kw):
 
 def _execute_oi(account_name, args, **kw):
     from .da_manager import DAManager
-    da = DAManager(account_name, showres=1, delay=0)
+    da = DAManager(account_name, showres=0, delay=0)
     print("3358412: 书箱子")
     print(da.ac_manager.baginfo_str)
     itemid = int(args[0]) if len(args) > 0 else 3358412
     count = int(args[1]) if len(args) > 1 else 99
     if count == 99:
         while True:
-            if not da.useitem(int(args[0]), 99):
+            if not da.useitem(itemid, 99):
                 break
             print("使用书箱子")
     else:
@@ -547,12 +567,19 @@ def _execute_ggl(account_name, args, **kw):
     DAManager(account_name).ggl()
     return True
 
+def _execute_mhj(account_name, args, **kw):
+    from .da_manager import DAManager
+    ac = kw.get('ac_manager')
+    dm = DAManager(account_name, ac_manager=ac)
+    return dm.mangheji_gacha()
+
 
 def _execute_hd20260330(account_name, args, **kw):
     from .rzsg_manager import RZSGManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
-    RZSGManager(account_name, showres=showres, delay=delay).hd20260330()
+    ac = kw.get('ac_manager')
+    RZSGManager(account_name, showres=showres, delay=delay, ac_manager=ac).hd20260330()
     return True
 
 
@@ -569,10 +596,11 @@ def _execute_dc(account_name, args, **kw):
     from .dungeon_manager import DungeonManager
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0.5)
+    ac = kw.get('ac_manager')
     total_boss = 0
     for i in range(times):
         print(f"\n===== 地牢第 {i+1}/{times} 次 =====")
-        total_boss += DungeonManager(account_name, showres=showres, delay=delay).auto_battle()
+        total_boss += DungeonManager(account_name, showres=showres, delay=delay, ac_manager=ac).auto_battle()
     print(f"\n地牢完成: {times}次, 总Boss通过={total_boss}")
     return True
 
@@ -848,7 +876,14 @@ def _execute_donate_single(account_name, args, **kw):
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
     ac = ACManager(account_name, showres=showres, delay=delay)
-    ac.do_common_request(account_name, {"ads": "工会捐献5", "times": 5, "hexstringheader": "2977"}, showres=showres)
+    ac.do_common_request_list(account_name, [{"ads": "工会捐献5", "times": 5, "hexstringheader": "2977"}], showres=1)
+    return True
+
+
+def _execute_kg(account_name, args, **kw):
+    from .kg_manager import KGManager
+    ac = kw.get('ac_manager')
+    KGManager(account_name, ac_manager=ac).run()
     return True
 
 
@@ -873,6 +908,7 @@ COMMANDS = [
     CommandDef(name="sd",  desc="扫荡副本", category="挑战/战斗", usage="[副本序号] [次数=1]", execute=_execute_sd, batchable=False),
 
     # ── 日常 / 资源 ──
+    CommandDef(name="dapop", desc="特惠弹框领取", category="日常/资源", execute=_execute_dapop),
     CommandDef(name="da",    desc="日常任务",   category="日常/资源", execute=_execute_da),
     CommandDef(name="defda", desc="默认日常任务", category="日常/资源", execute=_execute_defda),
     CommandDef(name="fl",    desc="首登奖励",   category="日常/资源", execute=_execute_fl, batch_execute=_batch_fl),
@@ -903,10 +939,12 @@ COMMANDS = [
     CommandDef(name="zn",    desc="周年庆出售", category="活动/限时", execute=_execute_zn, batchable=False),
     CommandDef(name="zng",   desc="周年庆跨服", category="活动/限时", execute=_execute_zng, batchable=False),
     CommandDef(name="ggl",   desc="公会挂历",   category="活动/限时", execute=_execute_ggl, batchable=False),
+    CommandDef(name="mhj",   desc="盲盒机拿币&抽奖", category="活动/限时", execute=_execute_mhj),
     CommandDef(name="hd20260330", desc="奇妙马戏团", category="活动/限时", execute=_execute_hd20260330),
     CommandDef(name="jl",    desc="劫掠",       category="活动/限时", execute=_execute_jl, batchable=False),
     CommandDef(name="nc",    desc="暖春",       category="活动/限时", execute=_execute_nc, batchable=False),
     CommandDef(name="ncloop", desc="暖春循环",  category="活动/限时", execute=_execute_ncloop, batchable=False),
+    CommandDef(name="kg",    desc="公会考古",   category="活动/限时", execute=_execute_kg),
 
     # ── 组队 / 副本 ──
     CommandDef(name="gl",     desc="宝石副本组队监听", category="组队/副本", usage="[时长(秒)]", execute=_execute_gl, batchable=False),
@@ -929,7 +967,7 @@ COMMANDS = [
     CommandDef(name="ghxs",  desc="公会悬赏查询", category="武道/其他", execute=_execute_ghxs, batchable=False),
 
     # ── 公会批量专属（guild_only） ──
-    CommandDef(name="donate", desc="捐献", aliases=["d"], execute=_execute_donate_single, guild_only=True),
+    CommandDef(name="jz", desc="捐献", aliases=["d"], execute=_execute_donate_single, guild_only=True),
     CommandDef(name="status", desc="收集状态", aliases=["s"], guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_status(start_from=start_from)),
     CommandDef(name="join", desc="加入公会", aliases=["j"], guild_only=True,

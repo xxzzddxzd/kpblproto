@@ -12,9 +12,9 @@ from .kpbltools import ACManager, mask_account
 class YLManager:
     """游历管理器"""
     
-    def __init__(self, account_name, showres=0,delay=1):
+    def __init__(self, account_name, showres=0,delay=1, ac_manager=None):
         self.account_name = account_name
-        self.ac_manager = ACManager(account_name, showres=showres, delay=delay)
+        self.ac_manager = ac_manager or ACManager(account_name, showres=showres, delay=delay)
         self.logger = logging.getLogger(f"YLManager_{account_name}")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())

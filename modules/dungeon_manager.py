@@ -107,10 +107,10 @@ SKILL_TABLE = {
 
 
 class DungeonManager:
-    def __init__(self, account_name, showres=1, delay=0.5):
+    def __init__(self, account_name, showres=1, delay=0.5, ac_manager=None):
         self.account_name = account_name
         self.showres = showres
-        self.ac_manager = ACManager(account_name, showres=showres, delay=delay)
+        self.ac_manager = ac_manager or ACManager(account_name, showres=showres, delay=delay)
 
         # 状态
         self.skills = []          # 当前技能ID列表(hex字符串)
@@ -154,12 +154,9 @@ class DungeonManager:
             resp = kpbl_pb2.dungeon_init_response()
             resp.ParseFromString(res[6:])
             if resp.i1 and not resp.i3:
-                print(f"  init失败, 错误码: {resp.i1}")
                 return None
             if resp.i3:
-                floor = resp.i3 // 1000
-                print(f"  init成功, 楼层: {floor}")
-                return floor
+                return resp.i3 // 1000
         return None
 
     def send_8927(self):
@@ -177,9 +174,7 @@ class DungeonManager:
             "request_body_i2": self._skills_to_bytes(),
             "request_body_i3": self.current_hp,
         }
-        res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
-        print(f"  prepare: 技能{len(self.skills)}个, HP={self.current_hp}")
-        return res
+        return self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
 
     def do_battle(self):
         """5d33 - 执行一次战斗, 返回 (win, hp)"""
@@ -198,7 +193,6 @@ class DungeonManager:
             resp.ParseFromString(res[6:])
             win = (resp.i3 == 1)
             hp = resp.i5 if resp.i5 else 0
-            print(f"  battle {level_id}: {'胜' if win else '败'}, HP={hp}")
             return win, hp
         return False, 0
 
@@ -212,10 +206,7 @@ class DungeonManager:
             "request_body_i2": self._skills_to_bytes(),
             "request_body_i4": self.current_hp,
         }
-        # 第二次及以后的boss，带上累积buff
         if self.current_buff:
-            # buff通过i3传递，但由于是message类型，需要特殊处理
-            # 暂不传buff，观察服务端反应
             pass
 
         res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
@@ -224,7 +215,6 @@ class DungeonManager:
             resp.ParseFromString(res[6:])
             if resp.i5 and resp.i5.i1:
                 self.current_buff = resp.i5
-                print(f"  boss buff: {resp.i5.i1}={resp.i5.i2}")
         return res
 
     def battle_fail(self, level_id):
@@ -236,67 +226,47 @@ class DungeonManager:
             "requestbodytype": "dungeon_fail_request",
             "request_body_i2": level_id,
         }
-        res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
-        print(f"  失败结算: {level_id}")
-        return res
+        return self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
 
     # ── 主循环 ────────────────────────────────────────
 
     def auto_battle(self):
         """自动战斗主循环"""
-        print(f"[{mask_account(self.account_name)}] 开始地牢")
-
         # 1. 初始化
         init_floor = self.init_dungeon()
         if init_floor is None:
-            print(f"[{mask_account(self.account_name)}] init失败")
             return 0
         self.floor = init_floor
 
         # 2. 8927 附加请求
         self.send_8927()
 
-        # 3. 初始选10个技能
+        # 3. 初始选10个技能 + 首次prepare
         self.skills = []
         self._select_skills(10)
-        print(f"  初始技能: {len(self.skills)}个")
-
-        # 4. 首次prepare
         self.prepare_battle()
 
-        # 5. 战斗循环
+        # 4. 战斗循环
         while True:
             self.battle_count += 1
-            print(f"\n--- 战斗 #{self.battle_count} (楼层{self.floor}, 战斗{self.battle_in_floor}) ---")
-
             win, hp = self.do_battle()
 
             if not win:
-                # 失败
                 level_id = self.floor * 1000 + self.battle_in_floor
                 self.battle_fail(level_id)
                 break
 
-            # 更新HP
             self.current_hp = hp
             self.battle_in_floor += 1
 
-            # 第5战(index 4)完成后是boss通关
             if self.battle_in_floor >= 5:
                 self.boss_count += 1
-                print(f"\n=== Boss #{self.boss_count} 通关 (楼层{self.floor}) ===")
-
-                # boss_complete前加1个技能
                 self._select_skills(1)
                 self.boss_complete()
-
-                # 下一楼层: 加2个技能
                 self._select_skills(2)
                 self.floor += 1
                 self.battle_in_floor = 0
-
-                # 下一轮prepare
                 self.prepare_battle()
 
-        print(f"\n[{mask_account(self.account_name)}] 地牢结束: 战斗={self.battle_count}, Boss={self.boss_count}")
+        print(f"[{mask_account(self.account_name)}] 地牢: 楼层{self.floor}, Boss={self.boss_count}")
         return self.boss_count

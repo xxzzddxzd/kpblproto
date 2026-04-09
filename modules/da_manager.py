@@ -14,9 +14,12 @@ from .first_login_requests import FIRST_LOGIN_REQUESTS
 class DAManager:
     """日常任务管理器"""
     
-    def __init__(self, account_name, showres=0, delay=0.5, accounts_file=None):
+    def __init__(self, account_name, showres=0, delay=0.5, accounts_file=None, ac_manager=None):
         self.account_name = account_name
-        self.ac_manager = ACManager(account_name, showres=showres, delay=delay, accounts_file=accounts_file)
+        if ac_manager:
+            self.ac_manager = ac_manager
+        else:
+            self.ac_manager = ACManager(account_name, showres=showres, delay=delay, accounts_file=accounts_file)
         self.logger = logging.getLogger(f"DAManager_{account_name}")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
@@ -37,14 +40,15 @@ class DAManager:
             # {"ads":"中秋x5","hexstringheader":"a52c","times":5,"request_body_i2":20251006,'request_body_i3':9799},
             # {"ads":"周年","hexstringheader":"a52c","times":1,"request_body_i2":202512223,'request_body_i3':3010},
             # {"ads":"周年","hexstringheader":"a52c","times":2,"request_body_i2":202512223,'request_body_i3':3020},
-            {"ads":"魔法币礼包","hexstringheader":"a52c","times":2,"request_body_i2":202601261,'request_body_i3':9859},
+            # {"ads":"魔法币礼包","hexstringheader":"a52c","times":2,"request_body_i2":202601261,'request_body_i3':9859},
             # {"ads":"魔法放大镜礼包","hexstringheader":"a52c","times":5,"request_body_i2":20260126,'request_body_i3':9850},
-            {"ads":"异星矿场广告","hexstringheader":"a52c","times":1,"request_body_i2":2505027,'request_body_i3':1201},
-            {"ads":"星域礼包","hexstringheader":"a52c","times":2,"request_body_i2":2505025,'request_body_i3':1072},
-            {"ads":"星域礼包-武装","hexstringheader":"a52c","times":1,"request_body_i2":2505026,'request_body_i3':1080},
+            # {"ads":"异星矿场广告","hexstringheader":"a52c","times":1,"request_body_i2":2505027,'request_body_i3':1201},
+            # {"ads":"星域礼包","hexstringheader":"a52c","times":2,"request_body_i2":2505025,'request_body_i3':1072},
+            # {"ads":"星域礼包-武装","hexstringheader":"a52c","times":1,"request_body_i2":2505026,'request_body_i3':1080},
+            # {"ads":"星域 挖矿礼包","hexstringheader":"a52c","times":1,"request_body_i2":2505024,'request_body_i3':1090},
+            {"ads":"盲盒机礼包","hexstringheader":"a52c","times":1,"request_body_i2":202512227,'request_body_i3':3010},
+            {"ads":"盲盒机礼包","hexstringheader":"a52c","times":1,"request_body_i2":202512227,'request_body_i3':3020},
 
-            {"ads":"星域 挖矿礼包","hexstringheader":"a52c","times":1,"request_body_i2":2505024,'request_body_i3':1090},
-            {"ads":"暖春礼包","hexstringheader":"a52c","times":1,"request_body_i2":202602161,'request_body_i3':9874},
             {"ads":"yxkc挂机奖励","times":1,"hexstringheader":"0156"},
             {"ads":"yxkc矿洞挂机","times":1,"hexstringheader":"5d78"},
             # {"ads":"周年","hexstringheader":"eb2e"},
@@ -86,16 +90,7 @@ class DAManager:
             {"ads":"免费罗盘x2","times":1,"hexstringheader":"4735","request_body_i2":9310},
             {"ads":"冒险日记免费","times":1,"hexstringheader":"4735","request_body_i2":9320},
             {"ads":"免费贝壳x2","times":1,"hexstringheader":"4735","request_body_i2":9330},
-            {"ads":"免费s特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":14101,"request_body_i3":141,"requestbodytype":"request_body_for_mfssth"},
-            {"ads":"免费钥匙特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":18201,"request_body_i3":182,"requestbodytype":"request_body_for_mfssth"},
-            {"ads":"免费钥匙特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":181},
-            {"ads":"免费钥匙特惠2次","times":2,"hexstringheader":"8f2c","request_body_i2":182},
-            {"ads":"宠物特惠","times":2,"hexstringheader":"8f2c","request_body_i2":191},
-            {"ads":"宠物特惠","times":2,"hexstringheader":"8f2c","request_body_i2":192},
-            {"ads":"神兵魔方特惠","times":2,"hexstringheader":"8f2c","request_body_i2":154},
-            {"ads":"免费书特惠1次","times":1,"hexstringheader":"8f2c","request_body_i2":15301,"request_body_i3":153,"requestbodytype":"request_body_for_mfssth"},
-            {"ads":"免费书特惠1次","times":1,"hexstringheader":"8f2c","request_body_i2":15302,"request_body_i3":153,"requestbodytype":"request_body_for_mfssth"},
-            {"ads":"宠物特惠","times":2,"hexstringheader":"8f2c","request_body_i2":19201,"request_body_i3":192,"requestbodytype":"request_body_for_mfssth"},
+            # 8f2c 特惠弹框已由 claim_popup_deals() 动态处理
             {"ads":"0428活动免费2","times":1,"hexstringheader":"89 2e ","request_body_i2":9130},
             {"ads":"钓鱼广告","times":1,"hexstringheader":"89 2e ","request_body_i2":9110},
 
@@ -171,12 +166,12 @@ class DAManager:
             # 获取配置列表
             requests_config = self.get_daily_config()
             print(f"<{mask_account(self.account_name)}> 开始 daily_config(并发)")
-            self.ac_manager.do_common_request_list(self.account_name, requests_config, showres=self.showres)
+            # self.ac_manager.do_common_request_list(self.account_name, requests_config, showres=self.showres)
             
-            # # 执行每个日常任务请求
-            # for config in requests_config:
-            #     print(f"<{mask_account(self.account_name)}> 开始 {config['ads']}")
-            #     self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+            # 执行每个日常任务请求
+            for config in requests_config:
+                print(f"<{mask_account(self.account_name)}> 开始 {config['ads']}")
+                self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
             
             print(f"<{mask_account(self.account_name)}> 开始 guild_war_reqs")
             for config in self.guild_war_reqs():
@@ -201,16 +196,18 @@ class DAManager:
             print(f"<{mask_account(self.account_name)}> 开始执行圣杯战争点赞")
             self.sbzz_dz()
             print(f"<{mask_account(self.account_name)}> 开始执行武道大会预选")
-            i = 10
-            while i > 0:
-                self.wddh_yuxuan()
-                i -= 1
+
+            self.wddh_yuxuan()
+            
             
             # 副本up基金全部领取
             self.fbup_claim()
 
             # 限时祈愿任务领取
             self.xsqy_claim()
+
+            # 特惠弹框领取
+            self.claim_popup_deals()
 
             return True
         except Exception as e:
@@ -252,6 +249,61 @@ class DAManager:
         for i3 in range(140000, 140051):
             req = {"ads": f"限时祈愿{i3}", "hexstringheader": "9f2c", "times": 1, "request_body_i2": act_id, "request_body_i3": i3}
             self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+
+    def claim_popup_deals(self):
+        """领取特惠弹框奖励：先8b2c获取列表，再8d2c领活动特惠、8f2c领每日特惠"""
+        # 1. 获取特惠列表
+        config = {"ads": "特惠弹框列表", "hexstringheader": "8b2c", "times": 1}
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        if not res or len(res) <= 6:
+            print(f"<{mask_account(self.account_name)}> 获取特惠弹框列表失败")
+            return
+        resp = kpbl_pb2.da_ads_list_response()
+        resp.ParseFromString(res[6:])
+
+        # 2. 收集所有领取请求
+        req_list1 = []
+        req_list2 = []
+        if resp.i2 and resp.i2.i1:
+            ad_id = resp.i2.i1
+            steps = resp.i2.i5
+            print(f"<{mask_account(self.account_name)}> 活动特惠 id={ad_id}, 阶梯={len(steps)}")
+            # for step in steps[:2]:
+            step = steps[0]
+            req_list1.append({"ads": f"活动特惠{ad_id}-{step.i1}", "hexstringheader": "8d2c", "times": 1,
+                                 "requestbodytype": "request_body_for_mfssth",
+                                 "request_body_i2": step.i1, "request_body_i3": ad_id})
+            step = steps[1]
+            req_list2.append({"ads": f"活动特惠{ad_id}-{step.i1}", "hexstringheader": "8d2c", "times": 1,
+                                 "requestbodytype": "request_body_for_mfssth",
+                                 "request_body_i2": step.i1, "request_body_i3": ad_id})
+
+        if resp.i3 and resp.i3.i37:
+            for daily in resp.i3.i37:
+                ad_id = daily.i1
+                steps = daily.i5
+                print(f"<{mask_account(self.account_name)}> 每日特惠 id={ad_id}, 阶梯={len(steps)}")
+                # for step in steps[:4]:
+                step = steps[0]
+                req_list1.append({"ads": f"每日特惠{ad_id}-{step.i1}", "hexstringheader": "8f2c", "times": 1,
+                                     "requestbodytype": "request_body_for_mfssth",
+                                     "request_body_i2": step.i1, "request_body_i3": ad_id})
+                step = steps[1]
+                req_list2.append({"ads": f"每日特惠{ad_id}-{step.i1}", "hexstringheader": "8f2c", "times": 1,
+                                     "requestbodytype": "request_body_for_mfssth",
+                                     "request_body_i2": step.i1, "request_body_i3": ad_id})
+
+        # 3. 一次性并发发送
+        if req_list1 and req_list2:
+            print(f"<{mask_account(self.account_name)}> 特惠弹框领取: {len(req_list1)}个请求")
+            print(req_list1)
+            print(req_list2)
+            for req in req_list1:
+                self.ac_manager.do_common_request(self.account_name, req, showres=1)
+            for req in req_list2:
+                self.ac_manager.do_common_request(self.account_name, req, showres=1)
+            # self.ac_manager.do_common_request_list(self.account_name, req_list1, showres=1)
+            # self.ac_manager.do_common_request_list(self.account_name, req_list2, showres=1)
 
     def execute_daily_tasks_nowk(self):  #周年用
         """
@@ -602,6 +654,9 @@ class DAManager:
         rev = self.ac_manager.do_common_request(self.account_name,req_config,showres=self.showres)
         wddh_resp = kpbl_pb2.wddh_list_response()
         wddh_resp.ParseFromString(rev[6:])
+        if not wddh_resp.pvpplayer:
+            print("武道大会列表为空")
+            return None
         minzhanli = min(wddh_resp.pvpplayer, key=lambda x: x.zhanli)
         print(f"最低战力玩家: {minzhanli.userid} 战力: {minzhanli.zhanli}")
         return minzhanli.userid
@@ -612,12 +667,17 @@ class DAManager:
         return rev
     
     def wddh_yuxuan(self): #预选
-        wddh_resp = self.wddh_info()
-        print(f"排名积分: {wddh_resp.field3.jf}，排名: {wddh_resp.field3.pm}")
-        userid = self.wddh_list()
-        if userid:
-            self.wddh_battle(userid)
-        return True
+        i = 10
+        while i > 0:
+            wddh_resp = self.wddh_info()
+            print(f"排名积分: {wddh_resp.field3.jf}，排名: {wddh_resp.field3.pm}")
+            userid = self.wddh_list()
+            if userid:
+                self.wddh_battle(userid)
+            else:
+                return 
+            i -= 1
+        return 
 
     def day_first_login(self):
         """每日首次登录请求，从 first_login_requests 模块导入"""
@@ -848,3 +908,52 @@ class DAManager:
         print(f"<{mask_account(self.account_name)}> 成功领取 {success_count}/{len(unclaimed)} 封邮件奖励")
         return True
 
+    def claim_activity_ads(self):
+        """动态获取活动广告并领取（9d2c获取 → a52c领取）"""
+        self.ac_manager.fetch_activity_info(self.account_name)
+        adlist = self.ac_manager.get_account(self.account_name, 'adlist') or []
+        if not adlist:
+            print(f"<{mask_account(self.account_name)}> 没有可领取的活动广告")
+            return False
+        print(f"<{mask_account(self.account_name)}> 活动广告: {len(adlist)}条")
+        for ad in adlist:
+            req = {
+                "ads": f"活动广告{ad['activity_id']}-{ad['sub_id']}",
+                "times": ad['times'],
+                "hexstringheader": "a52c",
+                "request_body_i2": ad['activity_id'],
+                "request_body_i3": ad['sub_id'],
+            }
+            print(f"<{mask_account(self.account_name)}> {req['ads']} x{ad['times']}")
+            self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+        return True
+
+    def mangheji_gacha(self):
+        reqs = [
+            {"ads":"盲盒机礼包","hexstringheader":"a52c","times":2,"request_body_i2":202512227,'request_body_i3':3010},
+            {"ads":"盲盒机礼包","hexstringheader":"a52c","times":2,"request_body_i2":202512227,'request_body_i3':3020},
+        ]
+        self.ac_manager.do_common_request_list(self.account_name, reqs, showres=self.showres)
+
+        """盲盒机抽奖"""
+        reqs = [
+            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 107},
+            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 108},
+            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 107},
+            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 108},
+        ]
+        for req in reqs:
+            res = self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+            if not res or len(res) <= 20:
+                print(f"<{mask_account(self.account_name)}> 盲盒机抽奖无响应")
+                # return False
+            else:
+                from .item_names import ITEM_NAMES
+                resp = kpbl_pb2.da_mangheji_gacha_response()
+                resp.ParseFromString(res[6:])
+                if resp.result and resp.result.items:
+                    print(f"<{mask_account(self.account_name)}> 盲盒机获得:")
+                    for item in resp.result.items:
+                        name = ITEM_NAMES.get(item.itemid, f"type:{item.itemid}")
+                        print(f"  {name} x{item.itemcount}")
+        return True

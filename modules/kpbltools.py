@@ -157,13 +157,11 @@ class ACManager:
         self.loaded = False
         self.load_accounts()
         self.showres = showres
+        self._seq_lock = __import__('threading').Lock()
 
         if account and not skip_login:
             account_data = self.get_account(account)
             self.server_id = account_data['server_id'] if account_data and 'server_id' in account_data else 0
-            # if self.check_login_status(account):
-            #     print(f"<{self.mask_account(account)}:{self.server_id}> 复用登录态")
-            # else:
             self.login(account)
     
     def _parse_proto_file(self):
@@ -429,30 +427,7 @@ class ACManager:
                 return False
         
         return True
-    
-    def check_login_status(self, account_name):
-        """
-        检查账户是否已登录（具有encbody, i5_adsid1, server_id）
-        
-        Args:
-            account_name: 账户名称
-            
-        Returns:
-            bool: 账户是否已登录
-        """
-        if not self.check_account_ready(account_name):
-            return False
-        
-        account = self.accounts[account_name]
-        login_fields = ['encbody', 'i5_adsid1', 'server_id']
-        
-        for field in login_fields:
-            if field not in account:
-                # print(f"账户 '{account_name}' 未登录，缺少字段: {field}")
-                return False
-        
-        return True
-    
+
     def common_header_requester1(self, account):
         """
         创建通用的请求头
@@ -472,12 +447,13 @@ class ACManager:
         # if "encbody" in account:
         #     requester.encbody = account["encbody"]
         
-        # 自增 i5_adsid1 并设置
-        if "i5_adsid1" in account:
-            account["i5_adsid1"] += 1
-        else:
-            account["i5_adsid1"] = 1
-        requester.i5_adsid1 = account.get("i5_adsid1")
+        # 自增 i5_adsid1 并设置（线程安全）
+        with self._seq_lock:
+            if "i5_adsid1" in account:
+                account["i5_adsid1"] += 1
+            else:
+                account["i5_adsid1"] = 1
+            requester.i5_adsid1 = account.get("i5_adsid1")
         
         if "server_id" in account:
             requester.server_id = account.get("server_id")
@@ -564,6 +540,8 @@ class ACManager:
             request_body = kpbl_pb2.dungeon_boss_complete_request()
         elif requestbodytype == 'dungeon_fail_request':
             request_body = kpbl_pb2.dungeon_fail_request()
+        elif requestbodytype == 'request_body_for_kg':
+            request_body = kpbl_pb2.request_body_for_kg()
         else:
             request_body = kpbl_pb2.request_body()
         
@@ -1002,11 +980,16 @@ class ACManager:
                 resp = kpbl_pb2.acmanager_activity_info_response()
                 resp.ParseFromString(res[6:])
                 activity_info = {}
+                adlist = []
                 for act in resp.activities:
                     if act.activity_id:
                         activity_info[act.activity_id] = act.expire_time
+                    if act.ads:
+                        for ad in act.ads:
+                            adlist.append({'activity_id': act.activity_id, 'sub_id': ad.sub_id, 'times': ad.times})
                 self.update_account(account_name, 'activity_info', activity_info)
-                print(f"<{self.mask_account(account_name)}> 活动信息: {len(activity_info)}个活动")
+                self.update_account(account_name, 'adlist', adlist)
+                print(f"<{self.mask_account(account_name)}> 活动信息: {len(activity_info)}个活动, 广告: {len(adlist)}条")
                 return activity_info
             except Exception as e:
                 print(f"<{self.mask_account(account_name)}> 解析活动信息出错: {e}")
@@ -1093,11 +1076,13 @@ class ACManager:
             return None
         
         # 非登录请求需要检查登录状态
-        if not is_login_request and not self.check_login_status(account_name):
-            print(f"<{self.mask_account(account_name)}:{self.server_id}> 账户未登录，尝试自动登录...")
-            if not self.login(account_name):
-                print(f"<{self.mask_account(account_name)}:{self.server_id}> 自动登录失败，无法执行请求")
-                return None
+        if not is_login_request and self.check_account_ready(account_name):
+            account = self.accounts[account_name]
+            if not all(f in account for f in ('encbody', 'i5_adsid1', 'server_id')):
+                print(f"<{self.mask_account(account_name)}:{self.server_id}> 账户未登录，尝试自动登录...")
+                if not self.login(account_name):
+                    print(f"<{self.mask_account(account_name)}:{self.server_id}> 自动登录失败，无法执行请求")
+                    return None
         
         times = request_config.get("times", 1)
         self._relogin_attempted = False
