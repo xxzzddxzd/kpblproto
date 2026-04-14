@@ -216,8 +216,6 @@ class TradeManager:
             return resp
         return None
 
-    def assign_captain(self, boat_id, member_charaid=None):
-
     TARGET_ITEMS = {1386015, 1386016}
     TARGET_5605 = 5605
 
