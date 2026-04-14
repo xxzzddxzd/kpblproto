@@ -691,8 +691,9 @@ class DAManager:
         self.ac_manager.do_common_request_list(self.account_name, FIRST_LOGIN_REQUESTS, showres=self.showres)
 
     def day_first_login_full(self):
-        """每日首次登录请求(完整)，并发执行 FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS"""
-        self.ac_manager.do_common_request_list(self.account_name, FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS, showres=self.showres)
+        """每日首次登录请求(完整)，串行执行 FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS"""
+        for req in FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS:
+            self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
 
     def zn_sell(self):
         req_config = {"ads":"周年庆监控","times":1,"hexstringheader":"eb2e"}
