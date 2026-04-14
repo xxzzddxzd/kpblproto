@@ -668,6 +668,16 @@ def _execute_jl(account_name, args, **kw):
 
             TARGET_IDS = {5605} | set(range(1386000, 1386101))
 
+            def _calc_prob(total, target, pick=3):
+                """P(至少1个目标) = 1 - C(N-T,pick)/C(N,pick)"""
+                if total < pick or target <= 0:
+                    return 0.0
+                from math import comb
+                miss = total - target
+                if miss < pick:
+                    return 1.0
+                return 1.0 - comb(miss, pick) / comb(total, pick)
+
             def show_results():
                 if not results:
                     print("没有找到符合条件的船只")
@@ -678,14 +688,17 @@ def _execute_jl(account_name, args, **kw):
                     tag = "🏰" if is_guild else "  "
                     # 过滤guild_slots: 只保留含目标物品的船舱
                     filtered_slots = []
+                    target_count = 0
                     if is_guild and guild_slots:
                         for s in guild_slots:
                             matched = [it for it in s['items'] if isinstance(it, dict) and it['id'] in TARGET_IDS]
+                            target_count += len(matched)
                             if matched:
                                 filtered_slots.append((s, matched))
                     if not filtered_slots and is_guild:
                         continue  # 公会船无匹配物品，跳过
-                    print(f"  {tag}[{idx}] slots:{slotslen} 功勋币:{max_135} 武装令牌:{max_59} 武装宝箱:{max_5604}")
+                    prob = _calc_prob(slotslen, target_count)
+                    print(f"  {tag}[{idx}] slots:{slotslen} 目标:{target_count} 概率:{prob:.0%} | 功勋币:{max_135} 武装令牌:{max_59} 武装宝箱:{max_5604}")
                     for s, matched in filtered_slots:
                         texts = ', '.join(it['text'] for it in matched)
                         print(f"        ⭐舱{s['slotid']}(稀有{s['rarity']}): {texts}")

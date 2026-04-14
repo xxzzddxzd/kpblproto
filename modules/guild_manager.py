@@ -591,6 +591,8 @@ class GuildBatchManager:
         boat_id = valid_boats[0].boatpara1
         print(f"目标船 boatpara1={boat_id}，共 {len(valid_boats)} 艘未到达")
         tm.assign_captain(boat_id)
+        # 刷新货物直到满足条件
+        tm.boat_refresh_until()
         self._zscp_boat_id = boat_id
         return boat_id
 
@@ -963,14 +965,17 @@ class GuildBatchManager:
                     dashboard.update_header(overall_start, account_start)
                     print(f"  ▸ {task} ...", flush=True)
                     task_start = time.time()
+                    req_before = ac.request_count
                     try:
                         self._run_task(name, task, ac_manager=ac)
-                        dashboard.finish_task(ti, True, time.time() - task_start)
+                        req_count = ac.request_count - req_before
+                        dashboard.finish_task(ti, True, time.time() - task_start, req_count)
                         dashboard.update_header(overall_start, account_start)
-                        print(f"  ✓ {task} ({_fmt_duration(time.time() - task_start)})")
+                        print(f"  ✓ {task} ({_fmt_duration(time.time() - task_start)}, {req_count}req)")
                     except Exception as te:
                         import traceback
-                        dashboard.finish_task(ti, False, time.time() - task_start)
+                        req_count = ac.request_count - req_before
+                        dashboard.finish_task(ti, False, time.time() - task_start, req_count)
                         dashboard.update_header(overall_start, account_start)
                         err_msg = str(te)
                         print(f"  ✗ {task} 失败: {err_msg}")
@@ -1027,6 +1032,7 @@ class _PipelineDashboard:
         self.current_task_idx = -1
         self.task_states = [None] * len(task_list)
         self.task_durations = [0.0] * len(task_list)
+        self.task_req_counts = [0] * len(task_list)
         self.header_lines = 0
 
     def set_account(self, idx, name, sid, overall_start):
@@ -1041,9 +1047,10 @@ class _PipelineDashboard:
         self.current_task_idx = task_idx
         self.task_states[task_idx] = 'running'
 
-    def finish_task(self, task_idx, success, duration):
+    def finish_task(self, task_idx, success, duration, req_count=0):
         self.task_states[task_idx] = success
         self.task_durations[task_idx] = duration
+        self.task_req_counts[task_idx] = req_count
 
     def _build_header(self, overall_start, account_start, countdown=0, warning=""):
         """构建header行列表"""
@@ -1081,10 +1088,12 @@ class _PipelineDashboard:
                 icon = "\033[33m▶\033[0m"; suffix = ""
             elif state is True:
                 icon = "\033[32m✓\033[0m"
-                suffix = f" \033[90m({_fmt_duration(self.task_durations[ti])})\033[0m"
+                rc = self.task_req_counts[ti]
+                suffix = f" \033[90m({_fmt_duration(self.task_durations[ti])}, {rc}req)\033[0m"
             else:
                 icon = "\033[31m✗\033[0m"
-                suffix = f" \033[90m({_fmt_duration(self.task_durations[ti])})\033[0m"
+                rc = self.task_req_counts[ti]
+                suffix = f" \033[90m({_fmt_duration(self.task_durations[ti])}, {rc}req)\033[0m"
             lines.append(f"  {icon} {task}{suffix}")
         lines.append(f"\033[90m{'─' * w}\033[0m 日志")
         return lines

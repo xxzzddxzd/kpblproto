@@ -217,6 +217,64 @@ class TradeManager:
         return None
 
     def assign_captain(self, boat_id, member_charaid=None):
+
+    TARGET_ITEMS = {1386015, 1386016}
+    TARGET_5605 = 5605
+
+    def _count_boat_items(self, boat):
+        """统计船上目标物品数量，返回 (1386015+1386016总数, 5605总数)"""
+        count_1386 = 0
+        count_5605 = 0
+        for slot in boat.slots:
+            for ic in slot.items:
+                iid = ic.item.itemid
+                if iid in self.TARGET_ITEMS:
+                    count_1386 += ic.item.itemcount
+                elif iid == self.TARGET_5605:
+                    count_5605 += ic.item.itemcount
+        return count_1386, count_5605
+
+    def boat_refresh_until(self, max_tries=50):
+        """刷新公会船货物，直到 1386015+1386016 >= 3 且 5605 >= 3"""
+        resp = self.getghinfo()
+        if not resp or not resp.boats:
+            print("无法获取公会船信息")
+            return False
+        boat = resp.boats[0]
+        boat_id = boat.boatpara1
+
+        count_1386, count_5605 = self._count_boat_items(boat)
+        print(f"  初始状态: 1386015+1386016={count_1386}, 5605={count_5605}")
+
+        tries = 0
+        while count_1386 < 3 or count_5605 < 3:
+            if tries >= max_tries:
+                print(f"  达到最大刷新次数 {max_tries}，停止")
+                return False
+            config = {
+                "ads": "船货刷新",
+                "times": 1,
+                "hexstringheader": "1762",
+                "request_body_i2": boat_id,
+            }
+            res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+            tries += 1
+            if not res or len(res) <= 20:
+                print(f"  刷新失败，停止")
+                return False
+            resp = kpbl_pb2.jielve_guild_boat_response()
+            resp.ParseFromString(res[6:])
+            if not resp.boats:
+                print(f"  刷新响应无船数据，停止")
+                return False
+            boat = resp.boats[0]
+            count_1386, count_5605 = self._count_boat_items(boat)
+            print(f"  刷新#{tries}: 1386015+1386016={count_1386}, 5605={count_5605}")
+
+        print(f"  条件满足，共刷新 {tries} 次")
+        return True
+
+    def assign_captain(self, boat_id, member_charaid=None):
         """任命船长 (1d62): 会长指定某成员为船长，默认任命自己"""
         if member_charaid is None:
             member_charaid = self.ac_manager.get_account(self.account_name, 'charaid')

@@ -157,6 +157,7 @@ class ACManager:
         self.loaded = False
         self.load_accounts()
         self.showres = showres
+        self.request_count = 0
         self._seq_lock = __import__('threading').Lock()
 
         if account and not skip_login:
@@ -707,6 +708,7 @@ class ACManager:
         for retry in range(max_retries):
             try:
                 response = requests.post(url, headers=headers, data=binary_data, timeout=10)
+                self.request_count += 1
                 if showres:
                     print(f"<{self.mask_account(account_name)}:{self.server_id}> [{describe}:{times} left]Response body: {response.content}")
                 times -= 1
