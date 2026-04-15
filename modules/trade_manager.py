@@ -232,13 +232,24 @@ class TradeManager:
                     count_5605 += ic.item.itemcount
         return count_1386, count_5605
 
-    def boat_refresh_until(self, max_tries=50):
+    def boat_refresh_until(self, max_tries=50, target_boat_id=None):
         """刷新公会船货物，直到 1386015+1386016 >= 3 且 5605 >= 3"""
         resp = self.getghinfo()
         if not resp or not resp.boats:
             print("无法获取公会船信息")
             return False
-        boat = resp.boats[0]
+        # 找到目标船
+        boat = None
+        if target_boat_id:
+            for b in resp.boats:
+                if b.boatpara1 == target_boat_id:
+                    boat = b
+                    break
+            if not boat:
+                print(f"未找到目标船 {target_boat_id}")
+                return False
+        else:
+            boat = resp.boats[0]
         boat_id = boat.boatpara1
 
         count_1386, count_5605 = self._count_boat_items(boat)
@@ -265,7 +276,7 @@ class TradeManager:
             if not resp.boats:
                 print(f"  刷新响应无船数据，停止")
                 return False
-            boat = resp.boats[0]
+            boat = next((b for b in resp.boats if b.boatpara1 == boat_id), resp.boats[0])
             count_1386, count_5605 = self._count_boat_items(boat)
             print(f"  刷新#{tries}: 1386015+1386016={count_1386}, 5605={count_5605}")
 

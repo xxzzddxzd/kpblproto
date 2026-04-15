@@ -592,7 +592,7 @@ class GuildBatchManager:
         print(f"目标船 boatpara1={boat_id}，共 {len(valid_boats)} 艘未到达")
         tm.assign_captain(boat_id)
         # 刷新货物直到满足条件
-        tm.boat_refresh_until()
+        tm.boat_refresh_until(target_boat_id=boat_id)
         self._zscp_boat_id = boat_id
         return boat_id
 

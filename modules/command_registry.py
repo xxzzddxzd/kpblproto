@@ -138,6 +138,15 @@ def _execute_mr(account_name, args, **kw):
     return DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).receive_mail()
 
 
+def _execute_mxzs(account_name, args, **kw):
+    from .da_manager import DAManager
+    showres = kw.get('showres', 0)
+    delay = kw.get('delay', 0)
+    ac = kw.get('ac_manager')
+    DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).mxzs()
+    return True
+
+
 def _execute_ndrwlq(account_name, args, **kw):
     from .rzsg_manager import RZSGManager
     showres = kw.get('showres', 0)
@@ -966,6 +975,7 @@ COMMANDS = [
     CommandDef(name="oi",    desc="使用物品",   category="日常/资源", usage="[物品ID] [数量=1]", execute=_execute_oi, batchable=False),
     CommandDef(name="login", desc="仅登录",     category="日常/资源", execute=_execute_login, batchable=False),
     CommandDef(name="mr",    desc="邮件领取",   category="日常/资源", execute=_execute_mr),
+    CommandDef(name="mxzs",  desc="冒险助手",   category="日常/资源", execute=_execute_mxzs),
     CommandDef(name="ndrwlq", desc="扭蛋任务领取", category="日常/资源", execute=_execute_ndrwlq),
 
     # ── 活动 / 限时 ──

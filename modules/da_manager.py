@@ -967,3 +967,12 @@ class DAManager:
                         name = ITEM_NAMES.get(item.itemid, f"type:{item.itemid}")
                         print(f"  {name} x{item.itemcount}")
         return True
+
+    # ── 冒险助手 ──
+    MXZS_CLAIM_IDS = list(range(1, 14))
+
+    def mxzs(self):
+        """冒险助手：领取奖励(1~13)"""
+        an = self.account_name
+        for cid in self.MXZS_CLAIM_IDS:
+            self.ac_manager.do_common_request(an, {"ads": f"冒险助手-{cid}", "hexstringheader": "9b65", "times": 1, "request_body_i2": cid}, showres=self.showres)
