@@ -975,4 +975,6 @@ class DAManager:
         """冒险助手：领取奖励(1~13)"""
         an = self.account_name
         for cid in self.MXZS_CLAIM_IDS:
-            self.ac_manager.do_common_request(an, {"ads": f"冒险助手-{cid}", "hexstringheader": "9b65", "times": 1, "request_body_i2": cid}, showres=self.showres)
+            res = self.ac_manager.do_common_request(an, {"ads": f"冒险助手-{cid}", "hexstringheader": "9b65", "times": 1, "request_body_i2": cid}, showres=self.showres)
+            if len(res)<20:
+                print(f"<{mask_account(self.account_name)}> 冒险助手-{cid} error")
