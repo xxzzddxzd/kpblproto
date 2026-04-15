@@ -640,6 +640,7 @@ def _execute_jl(account_name, args, **kw):
     if args:
         if args[0] == 'gh':
             from .trade_manager import TradeManager
+            from .item_names import ITEM_NAMES
             trade_xh = TradeManager('xh')
             print("正在获取公会船信息...")
             resp = trade_xh.getghinfo()
@@ -652,9 +653,19 @@ def _execute_jl(account_name, args, **kw):
                 return True
             print(f"找到 {len(valid_boats)} 艘有效的公会船")
             trade = TradeManager(account_name)
+            baginfo_before = trade.ac_manager.get_account(account_name, 'baginfo') or {}
             for boat in valid_boats:
                 print(f"尝试攻击公会船 ID: {boat.boatpara1}, 公会 ID: {boat.boatpara4}")
                 trade.attack_guild_ship(boat.boatpara1, boat.boatpara4)
+            trade.ac_manager.login(account_name)
+            baginfo_after = trade.ac_manager.get_account(account_name, 'baginfo') or {}
+            def _bag_count(v):
+                return v['count'] if isinstance(v, dict) else v
+            diff = {ITEM_NAMES.get(k, k): _bag_count(baginfo_after.get(k, 0)) - _bag_count(baginfo_before.get(k, 0))
+                    for k in set(baginfo_before) | set(baginfo_after)
+                    if _bag_count(baginfo_after.get(k, 0)) != _bag_count(baginfo_before.get(k, 0))}
+            if diff:
+                print(f"背包变化: {diff}")
         elif args[0] == 'sd':
             from .trade_manager import TradeManager
             from .item_names import ITEM_NAMES
