@@ -1050,6 +1050,8 @@ COMMANDS = [
               batch_execute=lambda mgr, start_from: mgr.batch_acp(start_from=start_from)),
     CommandDef(name="xsacpb", desc="悬赏接受后放弃", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acpb(start_from=start_from)),
+    CommandDef(name="xsacpb3", desc="悬赏自动刷非金", guild_only=True,
+              batch_execute=lambda mgr, start_from: mgr.batch_acpb3(start_from=start_from)),
     CommandDef(name="zscp", desc="赠送船票", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_zs_cp(start_from=start_from)),
 ]

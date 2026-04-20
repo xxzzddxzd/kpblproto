@@ -181,11 +181,18 @@ class GuildBatchManager:
                 info = kpbl_pb2.guild_info_response()
                 info.ParseFromString(res[6:])
                 self.guild_member_names = {m.member_name for m in info.guild_basic.members}
+                self._guild_member_levels = {m.member_name: m.level for m in info.guild_basic.members}
                 print(f"公会成员: {len(self.guild_member_names)}人")
                 return self.guild_member_names
         except Exception as e:
             print(f"获取公会成员列表失败: {e}")
         return None
+
+    def _get_guild_member_levels(self):
+        """获取公会成员等级映射 {charaname: level}，带缓存"""
+        if not hasattr(self, '_guild_member_levels') or self._guild_member_levels is None:
+            self._get_guild_member_names()
+        return getattr(self, '_guild_member_levels', None) or {}
 
     def _is_guild_member(self, account_name):
         """判断账号是否属于公会成员（优先用charaname精确匹配，fallback到server_id后4位）"""
@@ -961,6 +968,81 @@ class GuildBatchManager:
         except KeyboardInterrupt:
             print(f"\n已退出，共执行{round_num}轮")
             return True
+
+    def batch_acpb3(self, start_from=1):
+        """自动对所有非103悬赏任务执行接受+放弃，成功继续下一任务，失败换下一成员重试"""
+        from .ghxs_manager import GHXSManager
+
+        member_levels = self._get_guild_member_levels()
+        eligible = []
+        for acname, acc in self.guild_accounts.items():
+            charaname = acc.get('charaname', '')
+            lv = member_levels.get(charaname, 0)
+            if lv < 31:
+                print(f"  跳过 {acname} ({charaname}) Lv{lv} < 31")
+                continue
+            eligible.append(acname)
+        if not eligible:
+            print("没有符合条件的成员 (Lv>=31)")
+            return False
+        print(f"符合条件的成员: {len(eligible)}人")
+
+        ghxs_leader = GHXSManager(self.leader_account, showres=self.showres)
+        member_idx = max(0, start_from - 1)
+
+        while member_idx < len(eligible):
+            resp = ghxs_leader.query()
+            if not resp or not resp.task_entries:
+                print("查询悬赏失败或无任务，结束")
+                break
+
+            non_gold_tasks = [t for t in resp.task_entries if t.task_type_id < 103000]
+            if not non_gold_tasks:
+                print("无非金色任务，结束")
+                break
+
+            type_counts = {}
+            for t in non_gold_tasks:
+                tid = t.task_type_id
+                type_counts[tid] = type_counts.get(tid, 0) + 1
+            summary = ", ".join(
+                f"{ghxs_leader.format_task_type(tid) or tid}x{c}"
+                for tid, c in type_counts.items()
+            )
+            print(f"\n非金任务 {len(non_gold_tasks)}个: {summary}")
+
+            all_tasks_done = True
+            for task in non_gold_tasks:
+                name_str = ghxs_leader.format_task_type(task.task_type_id) or str(task.task_type_id)
+                done = False
+                while member_idx < len(eligible):
+                    acname = eligible[member_idx]
+                    charaname = self.guild_accounts[acname].get('charaname', '')
+                    lv = member_levels.get(charaname, 0)
+                    print(f"[{member_idx+1}/{len(eligible)}] {acname} Lv{lv} — {name_str}")
+                    try:
+                        ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
+                        if ghxs.accept(task.task_uuid, task.task_type_id):
+                            ghxs.abort()
+                            print(f"  ✓ 接受+放弃成功")
+                            done = True
+                            break
+                        else:
+                            print(f"  ✗ 接受失败，换下一成员")
+                            member_idx += 1
+                    except Exception as e:
+                        print(f"  ✗ 异常: {e}，换下一成员")
+                        member_idx += 1
+                if not done:
+                    all_tasks_done = False
+                    break
+            if not all_tasks_done:
+                print("所有成员已用完")
+                break
+            print("本轮非金任务全部处理完，重新获取任务列表...")
+
+        print(f"完成，共使用 {member_idx} 个成员")
+        return True
 
     def batch_status(self, start_from=1):
         """收集每个小号的日活、周活、钻石，保存到guild账号文件"""
