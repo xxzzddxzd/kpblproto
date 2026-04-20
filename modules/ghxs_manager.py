@@ -10,30 +10,14 @@ from .kpbltools import ACManager, mask_account
 class GHXSManager:
     """公会悬赏管理器"""
 
-    # 稀有度映射: type_id前3位 -> (稀有度名称, 次数倍率描述)
-    RARITY_MAP = {
-        101: "白",
-        102: "紫",
-        103: "金",
-    }
-
-    # 任务类型映射: type_id后3位 -> 任务名称
     TASK_TYPE_MAP = {
-        4: "挖矿（50//）",
-        7: "宝石箱",
-        13: "秘宝箱",
-        15: "炼金试剂（/10/）"
+        102006: "金-20次秘宝箱",
+        101013: "紫-秘宝箱",
     }
 
     def format_task_type(self, type_id):
-        """将type_id转为可读名称，如 '紫-10次秘宝箱'"""
-        rarity_code = type_id // 1000
-        task_code = type_id % 1000
-        rarity = self.RARITY_MAP.get(rarity_code)
-        task_name = self.TASK_TYPE_MAP.get(task_code)
-        if rarity and task_name:
-            return f"{rarity}-{task_name}"
-        return None
+        """将type_id转为可读名称"""
+        return self.TASK_TYPE_MAP.get(type_id)
 
     def __init__(self, account_name, delay=0, showres=0):
         self.account_name = account_name
