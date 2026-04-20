@@ -859,8 +859,9 @@ class GuildBatchManager:
         tid_list = list(type_tasks.keys())
         print("可接受的悬赏任务:")
         for idx, tid in enumerate(tid_list):
-            name = ghxs_leader.format_task_type(tid) or str(tid)
-            print(f"  [{idx}] {name} x{len(type_tasks[tid])}")
+            name = ghxs_leader.format_task_type(tid)
+            label = f"{name}({tid})" if name else str(tid)
+            print(f"  [{idx}] {label} x{len(type_tasks[tid])}")
 
         choice = input("选择任务编号: ").strip()
         try:
@@ -914,8 +915,9 @@ class GuildBatchManager:
         tid_list = list(type_tasks.keys())
         print("可接受的悬赏任务:")
         for idx, tid in enumerate(tid_list):
-            name = ghxs_leader.format_task_type(tid) or str(tid)
-            print(f"  [{idx}] {name} x{len(type_tasks[tid])}")
+            name = ghxs_leader.format_task_type(tid)
+            label = f"{name}({tid})" if name else str(tid)
+            print(f"  [{idx}] {label} x{len(type_tasks[tid])}")
 
         choice = input("选择任务编号: ").strip()
         try:

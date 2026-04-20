@@ -859,10 +859,8 @@ def _execute_ghxs(account_name, args, **kw):
         print(f"公会悬赏任务数: {len(resp.task_entries)}")
         for tid, count in type_counts.items():
             name = ghxs.format_task_type(tid)
-            if name:
-                print(f"  {name} x{count}")
-            else:
-                print(f"  {tid} x{count}")
+            label = f"{name}({tid})" if name else str(tid)
+            print(f"  {label} x{count}")
     else:
         print("查询公会悬赏失败")
     return True
