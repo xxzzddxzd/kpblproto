@@ -192,7 +192,7 @@ def _execute_tf(account_name, args, **kw):
     delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
     sbm = StoryBattleManager(account_name, showres=showres, delay=delay, ac_manager=ac)
-    sbm.dotfqh()
+    sbm.dotfn()
     return True
 
 
@@ -1048,8 +1048,10 @@ COMMANDS = [
               batch_execute=lambda mgr, start_from: mgr.batch_daily()),
     CommandDef(name="init", desc="初始化小号", guild_only=True,
               batch_execute=None),  # 需要 init_func，在 handle_guild_batch_command 中特殊处理
-    CommandDef(name="acp", desc="悬赏任务", guild_only=True,
+    CommandDef(name="xsacp", desc="悬赏接受", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acp(start_from=start_from)),
+    CommandDef(name="xsacpb", desc="悬赏接受后放弃", guild_only=True,
+              batch_execute=lambda mgr, start_from: mgr.batch_acpb(start_from=start_from)),
     CommandDef(name="zscp", desc="赠送船票", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_zs_cp(start_from=start_from)),
 ]

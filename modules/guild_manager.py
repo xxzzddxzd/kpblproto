@@ -894,6 +894,62 @@ class GuildBatchManager:
         print("所有账号均未能接受任务")
         return False
 
+    def batch_acpb(self, start_from=1):
+        """依次登录公会小号接受悬赏任务，成功后立即放弃"""
+        from .ghxs_manager import GHXSManager
+
+        ghxs_leader = GHXSManager(self.leader_account, showres=self.showres)
+        resp = ghxs_leader.query()
+        if not resp or not resp.task_entries:
+            print("查询公会悬赏失败或无任务")
+            return False
+
+        type_tasks = {}
+        for task in resp.task_entries:
+            tid = task.task_type_id
+            if tid not in type_tasks:
+                type_tasks[tid] = []
+            type_tasks[tid].append(task)
+
+        tid_list = list(type_tasks.keys())
+        print("可接受的悬赏任务:")
+        for idx, tid in enumerate(tid_list):
+            name = ghxs_leader.format_task_type(tid) or str(tid)
+            print(f"  [{idx}] {name} x{len(type_tasks[tid])}")
+
+        choice = input("选择任务编号: ").strip()
+        try:
+            chosen_tid = tid_list[int(choice)]
+        except (ValueError, IndexError):
+            print("无效编号")
+            return False
+
+        target_task = type_tasks[chosen_tid][0]
+        task_uuid = target_task.task_uuid
+        task_type_id = target_task.task_type_id
+        name_str = ghxs_leader.format_task_type(task_type_id) or str(task_type_id)
+        print(f"目标任务: {name_str} uuid={task_uuid}")
+
+        total = len(self.guild_accounts)
+        for i, acname in enumerate(self.guild_accounts.keys(), 1):
+            if i < start_from:
+                continue
+            sid = self.guild_accounts[acname]['server_id']
+            print(f"[{i}/{total}] {acname} ({sid}) — 接受+放弃悬赏")
+            try:
+                ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
+                if ghxs.accept(task_uuid, task_type_id):
+                    print(f"  ✓ {acname} 接受成功，正在放弃...")
+                    ghxs.abort()
+                    print(f"  ✓ {acname} 已放弃")
+                    return True
+                else:
+                    print(f"  ✗ {acname} 接受失败")
+            except Exception as e:
+                print(f"  ✗ {acname} 异常: {e}")
+        print("所有账号均未能接受任务")
+        return False
+
     def batch_status(self, start_from=1):
         """收集每个小号的日活、周活、钻石，保存到guild账号文件"""
         total = len(self.guild_accounts)

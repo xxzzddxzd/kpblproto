@@ -12,15 +12,17 @@ class GHXSManager:
 
     # 稀有度映射: type_id前3位 -> (稀有度名称, 次数倍率描述)
     RARITY_MAP = {
-        101: "蓝",
+        101: "白",
         102: "紫",
         103: "金",
     }
 
     # 任务类型映射: type_id后3位 -> 任务名称
     TASK_TYPE_MAP = {
+        4: "挖矿（50//）",
         7: "宝石箱",
         13: "秘宝箱",
+        15: "炼金试剂（/10/）"
     }
 
     def format_task_type(self, type_id):
