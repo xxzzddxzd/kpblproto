@@ -1052,7 +1052,7 @@ class GuildBatchManager:
         return True
 
     def batch_xs123r(self, start_from=1):
-        """自动对所有悬赏任务（不区分稀有度）执行接受+放弃，逐个替换"""
+        """查询一次悬赏清单，逐个替换所有任务（不区分稀有度），全部替换完或成员耗尽停止"""
         from .ghxs_manager import GHXSManager
 
         member_levels = self._get_guild_member_levels()
@@ -1070,60 +1070,51 @@ class GuildBatchManager:
         print(f"符合条件的成员: {len(eligible)}人")
 
         ghxs_leader = GHXSManager(self.leader_account, showres=self.showres)
+        resp = ghxs_leader.query()
+        if not resp or not resp.task_entries:
+            print("查询悬赏失败或无任务")
+            return False
+
+        all_tasks = list(resp.task_entries)
+        type_counts = {}
+        for t in all_tasks:
+            tid = t.task_type_id
+            type_counts[tid] = type_counts.get(tid, 0) + 1
+        summary = ", ".join(
+            f"{ghxs_leader.format_task_type(tid) or tid}x{c}"
+            for tid, c in type_counts.items()
+        )
+        print(f"任务清单 {len(all_tasks)}个: {summary}")
+
         member_idx = max(0, start_from - 1)
-
-        while member_idx < len(eligible):
-            resp = ghxs_leader.query()
-            if not resp or not resp.task_entries:
-                print("查询悬赏失败或无任务，结束")
-                break
-
-            all_tasks = list(resp.task_entries)
-            if not all_tasks:
-                print("无任务，结束")
-                break
-
-            type_counts = {}
-            for t in all_tasks:
-                tid = t.task_type_id
-                type_counts[tid] = type_counts.get(tid, 0) + 1
-            summary = ", ".join(
-                f"{ghxs_leader.format_task_type(tid) or tid}x{c}"
-                for tid, c in type_counts.items()
-            )
-            print(f"\n全部任务 {len(all_tasks)}个: {summary}")
-
-            all_tasks_done = True
-            for task in all_tasks:
-                name_str = ghxs_leader.format_task_type(task.task_type_id) or str(task.task_type_id)
-                done = False
-                while member_idx < len(eligible):
-                    acname = eligible[member_idx]
-                    charaname = self.guild_accounts[acname].get('charaname', '')
-                    lv = member_levels.get(charaname, 0)
-                    print(f"[{member_idx+1}/{len(eligible)}] {acname} Lv{lv} — {name_str}")
-                    try:
-                        ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
-                        if ghxs.accept(task.task_uuid, task.task_type_id):
-                            ghxs.abort()
-                            print(f"  ✓ 接受+放弃成功")
-                            done = True
-                            break
-                        else:
-                            print(f"  ✗ 接受失败，换下一成员")
-                            member_idx += 1
-                    except Exception as e:
-                        print(f"  ✗ 异常: {e}，换下一成员")
+        replaced = 0
+        for task_i, task in enumerate(all_tasks):
+            name_str = ghxs_leader.format_task_type(task.task_type_id) or str(task.task_type_id)
+            done = False
+            while member_idx < len(eligible):
+                acname = eligible[member_idx]
+                charaname = self.guild_accounts[acname].get('charaname', '')
+                lv = member_levels.get(charaname, 0)
+                print(f"[{member_idx+1}/{len(eligible)}] {acname} Lv{lv} — ({task_i+1}/{len(all_tasks)}) {name_str}")
+                try:
+                    ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
+                    if ghxs.accept(task.task_uuid, task.task_type_id):
+                        ghxs.abort()
+                        print(f"  ✓ 接受+放弃成功")
+                        replaced += 1
+                        done = True
+                        break
+                    else:
+                        print(f"  ✗ 接受失败，换下一成员")
                         member_idx += 1
-                if not done:
-                    all_tasks_done = False
-                    break
-            if not all_tasks_done:
+                except Exception as e:
+                    print(f"  ✗ 异常: {e}，换下一成员")
+                    member_idx += 1
+            if not done:
                 print("所有成员已用完")
                 break
-            print("本轮任务全部处理完，重新获取任务列表...")
 
-        print(f"完成，共使用 {member_idx} 个成员")
+        print(f"完成，替换 {replaced}/{len(all_tasks)} 个任务，使用 {member_idx} 个成员")
         return True
         """收集每个小号的日活、周活、钻石，保存到guild账号文件"""
         total = len(self.guild_accounts)
