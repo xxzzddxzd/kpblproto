@@ -280,6 +280,10 @@ class GuildBatchManager:
             ("run [起始序号]", "一条龙(按pipeline配置)"),
             ("seq [起始序号] cmd1,cmd2...", "顺序执行多个命令(逗号分隔)"),
             ("pipeline [set 任务列表]", "查看/设置pipeline配置"),
+            ("xsacp [起始序号]", "悬赏接受"),
+            ("xsacpb [起始序号]", "悬赏接受后放弃"),
+            ("xsacpb3 [起始序号]", "悬赏自动刷非金(lv31+)"),
+            ("zscp [起始序号]", "赠送船票"),
             ("check", "检查小号公会状态"), ("status/s", "收集日活/周活/钻石"),
             ("help", "详细帮助"),
         ]:

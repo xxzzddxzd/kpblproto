@@ -972,7 +972,7 @@ COMMANDS = [
     CommandDef(name="defda", desc="默认日常任务", category="日常/资源", execute=_execute_defda),
     CommandDef(name="fl",    desc="首登奖励",   category="日常/资源", execute=_execute_fl, batch_execute=_batch_fl),
     CommandDef(name="flfull", desc="首登奖励(完整)", category="日常/资源", execute=_execute_flfull, batch_execute=_batch_flfull),
-    CommandDef(name="yl",    desc="游历",       category="日常/资源", usage="[倍数=1] [等级]", execute=_execute_yl, batch_default_args=["20"]),
+    CommandDef(name="yl",    desc="游历",       category="日常/资源", usage="[次数=1]", execute=_execute_yl, batch_default_args=["20"]),
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),
     CommandDef(name="xyx",   desc="幸运星",     category="日常/资源", execute=_execute_xyx),
     CommandDef(name="wk",    desc="挖矿",       category="日常/资源", execute=_execute_wk, batchable=False),
