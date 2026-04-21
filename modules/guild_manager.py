@@ -977,7 +977,8 @@ class GuildBatchManager:
             return True
 
     def batch_acpb3(self, start_from=1):
-        """自动对所有非103悬赏任务执行接受+放弃，成功继续下一任务，失败换下一成员重试"""
+        """自动对所有非金悬赏任务执行接受+放弃，一轮完成后等待15秒刷新继续，直到成员耗尽或全为金色"""
+        import time as _time
         from .ghxs_manager import GHXSManager
 
         member_levels = self._get_guild_member_levels()
@@ -996,8 +997,10 @@ class GuildBatchManager:
 
         ghxs_leader = GHXSManager(self.leader_account, showres=self.showres)
         member_idx = max(0, start_from - 1)
+        round_num = 0
 
         while member_idx < len(eligible):
+            round_num += 1
             resp = ghxs_leader.query()
             if not resp or not resp.task_entries:
                 print("查询悬赏失败或无任务，结束")
@@ -1005,7 +1008,7 @@ class GuildBatchManager:
 
             non_gold_tasks = [t for t in resp.task_entries if t.task_type_id < 103000]
             if not non_gold_tasks:
-                print("无非金色任务，结束")
+                print("全部为金色任务，结束")
                 break
 
             type_counts = {}
@@ -1016,7 +1019,8 @@ class GuildBatchManager:
                 f"{ghxs_leader.format_task_type(tid) or tid}x{c}"
                 for tid, c in type_counts.items()
             )
-            print(f"\n非金任务 {len(non_gold_tasks)}个: {summary}")
+            print(f"\n{'='*20} 第{round_num}轮 {'='*20}")
+            print(f"非金任务 {len(non_gold_tasks)}个: {summary}")
 
             all_tasks_done = True
             for task in non_gold_tasks:
@@ -1046,9 +1050,10 @@ class GuildBatchManager:
             if not all_tasks_done:
                 print("所有成员已用完")
                 break
-            print("本轮非金任务全部处理完，重新获取任务列表...")
+            print(f"本轮非金任务全部替换完，等待15秒后刷新...")
+            _time.sleep(15)
 
-        print(f"完成，共使用 {member_idx} 个成员")
+        print(f"完成，共{round_num}轮，使用 {member_idx} 个成员")
         return True
 
     def batch_xs123r(self, start_from=1):
