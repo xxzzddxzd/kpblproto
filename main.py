@@ -303,7 +303,7 @@ def handle_guild_batch_command(account_name, args):
     cmd = get_command(sub)
     if cmd is None or not cmd.batchable:
         print(f"未知的gg子命令: {sub}")
-        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, fl, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsacpb, xsacpb3, zscp, pipeline")
+        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, fl, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
         return False
 
     if cmd.batch_execute:

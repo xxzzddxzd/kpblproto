@@ -283,6 +283,7 @@ class GuildBatchManager:
             ("xsacp [起始序号]", "悬赏接受"),
             ("xsacpb [起始序号]", "悬赏接受后放弃"),
             ("xs12r [起始序号]", "悬赏自动刷非金(lv31+)"),
+            ("xst [起始序号]", "悬赏替换(保留选定任务, lv31+)"),
             ("xs123r [起始序号]", "悬赏全部替换(lv31+)"),
             ("zscp [起始序号]", "赠送船票"),
             ("check", "检查小号公会状态"), ("status/s", "收集日活/周活/钻石"),
@@ -976,6 +977,63 @@ class GuildBatchManager:
             print(f"\n已退出，共执行{round_num}轮")
             return True
 
+    @staticmethod
+    def _summarize_xs_tasks(ghxs_leader, tasks):
+        """按任务类型汇总悬赏任务，返回(type_ids, counts, summary)"""
+        type_counts = {}
+        type_order = []
+        for task in tasks:
+            tid = task.task_type_id
+            if tid not in type_counts:
+                type_order.append(tid)
+                type_counts[tid] = 0
+            type_counts[tid] += 1
+        summary = ", ".join(
+            f"{ghxs_leader.format_task_type(tid) or tid}x{type_counts[tid]}"
+            for tid in type_order
+        )
+        return type_order, type_counts, summary
+
+    def _prompt_keep_xs_task_types(self, ghxs_leader, task_entries):
+        """交互式选择需要保留的悬赏任务类型，返回保留的type_id集合"""
+        type_order, type_counts, _ = self._summarize_xs_tasks(ghxs_leader, task_entries)
+        print("当前悬赏任务:")
+        for idx, tid in enumerate(type_order):
+            label = ghxs_leader.format_task_type(tid) or str(tid)
+            print(f"  [{idx}] {label} x{type_counts[tid]}")
+        print("后续刷新出的同类型任务也会保留")
+
+        while True:
+            raw = input("输入需要保留的编号(空格/逗号分隔，直接回车表示全部替换): ").strip()
+            if not raw:
+                print("未选择保留任务，将替换当前所有非保留任务")
+                return set()
+
+            tokens = raw.replace('，', ',').replace(' ', ',').split(',')
+            keep_tids = set()
+            valid = True
+            for token in tokens:
+                if not token:
+                    continue
+                if not token.isdigit():
+                    valid = False
+                    break
+                idx = int(token)
+                if idx < 0 or idx >= len(type_order):
+                    valid = False
+                    break
+                keep_tids.add(type_order[idx])
+
+            if valid:
+                kept_labels = [ghxs_leader.format_task_type(tid) or str(tid) for tid in type_order if tid in keep_tids]
+                if kept_labels:
+                    print(f"保留任务: {', '.join(kept_labels)}")
+                else:
+                    print("未选择保留任务，将替换当前所有非保留任务")
+                return keep_tids
+
+            print("输入无效，请重新输入编号")
+
     def batch_acpb3(self, start_from=1):
         """自动对所有非金悬赏任务执行接受+放弃，一轮完成后等待15秒刷新继续，直到成员耗尽或全为金色"""
         import time as _time
@@ -1051,6 +1109,90 @@ class GuildBatchManager:
                 print("所有成员已用完")
                 break
             print(f"本轮非金任务全部替换完，等待15秒后刷新...")
+            _time.sleep(15)
+
+        print(f"完成，共{round_num}轮，使用 {member_idx} 个成员")
+        return True
+
+    def batch_xst(self, start_from=1):
+        """交互式选择保留的任务类型，循环替换其余悬赏任务"""
+        import time as _time
+        from .ghxs_manager import GHXSManager
+
+        member_levels = self._get_guild_member_levels()
+        eligible = []
+        for acname, acc in self.guild_accounts.items():
+            charaname = acc.get('charaname', '')
+            lv = member_levels.get(charaname, 0)
+            if lv < 31:
+                print(f"  跳过 {acname} ({charaname}) Lv{lv} < 31")
+                continue
+            eligible.append(acname)
+        if not eligible:
+            print("没有符合条件的成员 (Lv>=31)")
+            return False
+        print(f"符合条件的成员: {len(eligible)}人")
+
+        ghxs_leader = GHXSManager(self.leader_account, showres=self.showres)
+        resp = ghxs_leader.query()
+        if not resp or not resp.task_entries:
+            print("查询悬赏失败或无任务")
+            return False
+
+        keep_tids = self._prompt_keep_xs_task_types(ghxs_leader, resp.task_entries)
+        keep_summary = ", ".join(ghxs_leader.format_task_type(tid) or str(tid) for tid in keep_tids) if keep_tids else "无"
+        print(f"保留规则: {keep_summary}")
+
+        member_idx = max(0, start_from - 1)
+        round_num = 0
+
+        while member_idx < len(eligible):
+            round_num += 1
+            resp = ghxs_leader.query()
+            if not resp or not resp.task_entries:
+                print("查询悬赏失败或无任务，结束")
+                break
+
+            _, _, all_summary = self._summarize_xs_tasks(ghxs_leader, resp.task_entries)
+            replace_tasks = [t for t in resp.task_entries if t.task_type_id not in keep_tids]
+            _, _, replace_summary = self._summarize_xs_tasks(ghxs_leader, replace_tasks)
+
+            print(f"\n{'='*20} 第{round_num}轮 {'='*20}")
+            print(f"当前任务 {len(resp.task_entries)}个: {all_summary}")
+            if not replace_tasks:
+                print("当前任务均为保留任务，结束")
+                break
+            print(f"待替换任务 {len(replace_tasks)}个: {replace_summary}")
+
+            all_tasks_done = True
+            for task in replace_tasks:
+                name_str = ghxs_leader.format_task_type(task.task_type_id) or str(task.task_type_id)
+                done = False
+                while member_idx < len(eligible):
+                    acname = eligible[member_idx]
+                    charaname = self.guild_accounts[acname].get('charaname', '')
+                    lv = member_levels.get(charaname, 0)
+                    print(f"[{member_idx+1}/{len(eligible)}] {acname} Lv{lv} — {name_str}")
+                    try:
+                        ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
+                        if ghxs.accept(task.task_uuid, task.task_type_id):
+                            ghxs.abort()
+                            print("  ✓ 接受+放弃成功")
+                            done = True
+                            break
+                        else:
+                            print("  ✗ 接受失败，换下一成员")
+                            member_idx += 1
+                    except Exception as e:
+                        print(f"  ✗ 异常: {e}，换下一成员")
+                        member_idx += 1
+                if not done:
+                    all_tasks_done = False
+                    break
+            if not all_tasks_done:
+                print("所有成员已用完")
+                break
+            print("本轮待替换任务全部处理完，等待15秒后刷新...")
             _time.sleep(15)
 
         print(f"完成，共{round_num}轮，使用 {member_idx} 个成员")
