@@ -996,11 +996,19 @@ class GuildBatchManager:
 
     def _prompt_keep_xs_task_types(self, ghxs_leader, task_entries):
         """交互式选择需要保留的悬赏任务类型，返回保留的type_id集合"""
-        type_order, type_counts, _ = self._summarize_xs_tasks(ghxs_leader, task_entries)
-        print("当前悬赏任务:")
+        _, current_counts, current_summary = self._summarize_xs_tasks(ghxs_leader, task_entries)
+        type_order = sorted(ghxs_leader.TASK_TYPE_MAP.keys())
+        extra_tids = sorted(tid for tid in current_counts if tid not in ghxs_leader.TASK_TYPE_MAP)
+        type_order.extend(extra_tids)
+
+        if current_summary:
+            print(f"当前悬赏: {current_summary}")
+        print("可保留的悬赏任务类型:")
         for idx, tid in enumerate(type_order):
             label = ghxs_leader.format_task_type(tid) or str(tid)
-            print(f"  [{idx}] {label} x{type_counts[tid]}")
+            current_count = current_counts.get(tid, 0)
+            current_suffix = f" (当前x{current_count})" if current_count else ""
+            print(f"  [{idx}] {label}{current_suffix}")
         print("后续刷新出的同类型任务也会保留")
 
         while True:
