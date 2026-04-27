@@ -41,7 +41,7 @@ class DAManager:
             # {"ads":"周年","hexstringheader":"a52c","times":1,"request_body_i2":202512223,'request_body_i3':3010},
             # {"ads":"周年","hexstringheader":"a52c","times":2,"request_body_i2":202512223,'request_body_i3':3020},
             # {"ads":"魔法币礼包","hexstringheader":"a52c","times":2,"request_body_i2":202601261,'request_body_i3':9859},
-            # {"ads":"魔法放大镜礼包","hexstringheader":"a52c","times":5,"request_body_i2":20260126,'request_body_i3':9850},
+            {"ads":"魔法放大镜礼包","hexstringheader":"a52c","times":5,"request_body_i2":20260427,'request_body_i3':9850},
             # {"ads":"异星矿场广告","hexstringheader":"a52c","times":1,"request_body_i2":2505027,'request_body_i3':1201},
             # {"ads":"星域礼包","hexstringheader":"a52c","times":2,"request_body_i2":2505025,'request_body_i3':1072},
             # {"ads":"星域礼包-武装","hexstringheader":"a52c","times":1,"request_body_i2":2505026,'request_body_i3':1080},
@@ -166,7 +166,7 @@ class DAManager:
             #             req_list.append(req_config)
             # print(f"<{mask_account(self.account_name)}> 开始 adlist(并发): {req_list}")
             # self.ac_manager.do_common_request_list(self.account_name, req_list, showres=1)
-            
+            # self.claim_activity_ads()
             print(f"<{mask_account(self.account_name)}> 开始执行日常任务...")
             # 获取配置列表
             requests_config = self.get_daily_config()
