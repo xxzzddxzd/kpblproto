@@ -40,7 +40,7 @@ class DAManager:
             # {"ads":"中秋x5","hexstringheader":"a52c","times":5,"request_body_i2":20251006,'request_body_i3':9799},
             # {"ads":"周年","hexstringheader":"a52c","times":1,"request_body_i2":202512223,'request_body_i3':3010},
             # {"ads":"周年","hexstringheader":"a52c","times":2,"request_body_i2":202512223,'request_body_i3':3020},
-            # {"ads":"魔法币礼包","hexstringheader":"a52c","times":2,"request_body_i2":202601261,'request_body_i3':9859},
+            {"ads":"魔法币礼包","hexstringheader":"a52c","times":2,"request_body_i2":202604271,'request_body_i3':9859},
             {"ads":"魔法放大镜礼包","hexstringheader":"a52c","times":5,"request_body_i2":20260427,'request_body_i3':9850},
             # {"ads":"异星矿场广告","hexstringheader":"a52c","times":1,"request_body_i2":2505027,'request_body_i3':1201},
             # {"ads":"星域礼包","hexstringheader":"a52c","times":2,"request_body_i2":2505025,'request_body_i3':1072},
