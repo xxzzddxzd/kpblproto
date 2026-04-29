@@ -8,6 +8,8 @@ import logging
 import random
 from .kpbltools import ACManager, mask_account
 
+REFRESH_ZHANLI_REQUEST = {"ads": "刷新战力", "times": 1, "hexstringheader": "4331", "request_body_i2": 259430431}
+
 
 class GuildManager:
     """公会管理器"""
@@ -689,15 +691,15 @@ class GuildBatchManager:
             print(f"未知pipeline任务: {task}")
             return
 
-        # pipeline 中 status 仍走旧逻辑（需要 _collect_account_status）
-        if command in ('status', 's'):
-            self._collect_account_status(account_name)
-            return
-
         # 确保有 ac_manager
         if ac_manager is None:
             ac_manager = ACManager(account_name, accounts_file=self.accounts_file,
                                    showres=self.showres, delay=self.delay)
+
+        # pipeline 中 status 仍走旧逻辑（需要 _collect_account_status）
+        if command in ('status', 's'):
+            self._collect_account_status(account_name, ac=ac_manager)
+            return
 
         # pipeline 中 zscp: 首次执行setup（找船+任命船长），之后每账号执行单账号逻辑
         if command == 'zscp':
@@ -738,15 +740,23 @@ class GuildBatchManager:
             return
         cmd.execute(account_name, command_args, showres=self.showres, delay=self.delay, ac_manager=ac_manager)
 
-    def _collect_account_status(self, name):
-        """收集单个账号的日活/周活/钻石/金币/体力/角色名，保存到guild_accounts"""
+    def _refresh_zhanli(self, ac, name):
+        """执行刷新战力请求，并重新登录让 login 数据落到内存中。"""
+        ac.do_common_request(name, REFRESH_ZHANLI_REQUEST, showres=self.showres)
+        ac.login(name, showloginres=0)
+
+    def _collect_account_status(self, name, ac=None):
+        """收集单个账号的日活/周活/钻石/金币/体力/角色名/战力，保存到guild_accounts"""
         try:
-            ac = ACManager(name, accounts_file=self.accounts_file,
-                          showres=0, delay=self.delay)
+            if ac is None:
+                ac = ACManager(name, accounts_file=self.accounts_file,
+                              showres=0, delay=self.delay)
+            self._refresh_zhanli(ac, name)
             diamond = ac.get_account(name, 'diamon') or 0
             coin = ac.get_account(name, 'coin') or 0
             tl = ac.get_account(name, 'tl') or 0
             charaname = ac.get_account(name, 'charaname') or ''
+            zhanli = ac.get_account(name, 'zhanli') or 0
             gm = GuildManager.__new__(GuildManager)
             gm.account_name = name
             gm.showres = 0
@@ -761,13 +771,14 @@ class GuildBatchManager:
                 self.guild_accounts[name]['diamond'] = diamond
                 self.guild_accounts[name]['coin'] = coin
                 self.guild_accounts[name]['tl'] = tl
+                self.guild_accounts[name]['zhanli'] = zhanli
                 if charaname:
                     self.guild_accounts[name]['charaname'] = charaname
                 self.guild_accounts[name]['status_time'] = int(time.time())
                 baginfo = ac.get_account(name, 'baginfo')
                 if baginfo:
                     self.guild_accounts[name]['baginfo'] = baginfo
-            print(f"    日活:{daily} 周活:{weekly} 💎{diamond} 💰{coin} 体:{tl}")
+            print(f"    日活:{daily} 周活:{weekly} 💎{diamond} 💰{coin} 体:{tl} 战:{self._fmt_zhanli(zhanli)}")
             return (daily, weekly, diamond)
         except Exception as e:
             print(f"    status失败: {e}")
@@ -1271,6 +1282,8 @@ class GuildBatchManager:
 
         print(f"完成，替换 {replaced}/{len(all_tasks)} 个任务，使用 {member_idx} 个成员")
         return True
+
+    def batch_status(self, start_from=1):
         """收集每个小号的日活、周活、钻石，保存到guild账号文件"""
         total = len(self.guild_accounts)
         results = []
