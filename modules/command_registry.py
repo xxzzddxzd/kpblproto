@@ -932,8 +932,12 @@ def _execute_kg(account_name, args, **kw):
     from .kg_manager import KGManager
     from .da_manager import DAManager
     ac = kw.get('ac_manager')
+    kg = KGManager(account_name, ac_manager=ac)
+    if args and args[0] in ('i', 'info'):
+        kg.collect_info()
+        return True
     DAManager(account_name, ac_manager=ac).petegggacha(2)
-    KGManager(account_name, ac_manager=ac).run()
+    kg.run()
     return True
 
 
@@ -1006,7 +1010,7 @@ COMMANDS = [
     CommandDef(name="jl",    desc="劫掠",       category="活动/限时", execute=_execute_jl, batchable=False),
     CommandDef(name="nc",    desc="暖春",       category="活动/限时", execute=_execute_nc, batchable=False),
     CommandDef(name="ncloop", desc="暖春循环",  category="活动/限时", execute=_execute_ncloop, batchable=False),
-    CommandDef(name="kg",    desc="公会考古",   category="活动/限时", execute=_execute_kg),
+    CommandDef(name="kg",    desc="公会考古",   category="活动/限时", usage="[i=只领奖并统计锤子]", execute=_execute_kg),
 
     # ── 组队 / 副本 ──
     CommandDef(name="gl",     desc="宝石副本组队监听", category="组队/副本", usage="[时长(秒)]", execute=_execute_gl, batchable=False),

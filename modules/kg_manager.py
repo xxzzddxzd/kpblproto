@@ -48,6 +48,11 @@ class KGManager:
         res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
         return self._parse_kg(res)
 
+    def enter_kg(self):
+        """1329: 进入考古页面，拉取入口/红点状态"""
+        config = {"ads": "考古入口状态", "times": 1, "hexstringheader": "1329"}
+        return self.ac_manager.do_common_request(self.account_name, config, showres=0)
+
     def claim_reward(self, tier):
         """e159: 领取考古奖励"""
         config = {"ads": f"考古领奖{tier}", "times": 1, "hexstringheader": "e159",
@@ -86,6 +91,23 @@ class KGManager:
             else:
                 return 
         return 
+
+    def get_hammer_count(self):
+        """登录刷新背包后，返回当前考古锤子数量"""
+        self.ac_manager.login(self.account_name)
+        baginfo = self.ac_manager.get_account(self.account_name, 'baginfo') or {}
+        entry = baginfo.get(self.HAMMER_TYPE, 0)
+        return entry.get('count', 0) if isinstance(entry, dict) else entry
+
+    def collect_info(self):
+        """只进入考古、领取任务奖励并统计锤子数量，不抽蛋也不挖掘。"""
+        print("== 考古信息: 进入考古 ==")
+        self.enter_kg()
+        print("== 考古信息: 领取任务奖励 ==")
+        self.claim_all_rewards()
+        hammer = self.get_hammer_count()
+        print(f"== 考古信息: 锤子数量 = {hammer} ==")
+        return hammer
 
     def get_undug_cells(self, board):
         """获取未挖掘的格子坐标列表"""
@@ -133,10 +155,14 @@ class KGManager:
         print("       " + "".join(f"{x} " for x in range(board.width)))
 
     def run(self):
-        """执行考古：领取奖励 → login刷新背包 → 缓存锤子数量 → 自动挖掘"""
-        
-        # 1. 领取奖励
-        print("== 步骤1: 领取考古奖励 ==")
+        """执行考古：进入页面 → 领取奖励 → login刷新背包 → 缓存锤子数量 → 自动挖掘"""
+
+        # 1. 进入考古页面，初始化入口状态
+        print("== 步骤1: 进入考古 ==")
+        self.enter_kg()
+
+        # 2. 领取奖励
+        print("== 步骤2: 领取考古奖励 ==")
         self.claim_all_rewards()
 
 
@@ -144,18 +170,15 @@ class KGManager:
         self.ac_manager.login(self.account_name)
 
 
-        # 2. login一次刷新背包，获取锤子数量并缓存
-        self.ac_manager.login(self.account_name)
-        baginfo = self.ac_manager.get_account(self.account_name, 'baginfo') or {}
-        entry = baginfo.get(self.HAMMER_TYPE, 0)
-        hammer = entry.get('count', 0) if isinstance(entry, dict) else entry
-        print(f"== 步骤2: 锤子数量 = {hammer} ==")
+        # 3. login一次刷新背包，获取锤子数量并缓存
+        hammer = self.get_hammer_count()
+        print(f"== 步骤3: 锤子数量 = {hammer} ==")
         if hammer <= 0:
             print("  没有锤子，结束")
             return
 
-        # 3. 查询棋盘并挖掘
-        print("== 步骤3: 自动挖掘 ==")
+        # 4. 查询棋盘并挖掘
+        print("== 步骤4: 自动挖掘 ==")
         kg = self.query_kg()
         if not kg or not kg.boards.board1.board_id:
             print("  无法获取考古数据")

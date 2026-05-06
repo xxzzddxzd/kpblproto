@@ -303,7 +303,7 @@ def handle_guild_batch_command(account_name, args):
     cmd = get_command(sub)
     if cmd is None or not cmd.batchable:
         print(f"未知的gg子命令: {sub}")
-        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, fl, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
+        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, kg, fl, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
         return False
 
     if cmd.batch_execute:
@@ -316,7 +316,8 @@ def handle_guild_batch_command(account_name, args):
             cmd.batch_execute(mgr, start)
     else:
         # 通用路径：用 _for_each_account 包装 execute()
-        batch_args = cmd.batch_default_args or []
+        arg_start = 2 if len(args) > 1 and args[1].isdigit() else 1
+        batch_args = args[arg_start:] or cmd.batch_default_args or []
         def _run(ac, name):
             cmd.execute(name, batch_args, showres=mgr.showres, delay=mgr.delay, ac_manager=ac)
         mgr._for_each_account(_run, cmd.desc or cmd.name, start_from=start)

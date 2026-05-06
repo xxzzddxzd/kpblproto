@@ -9,6 +9,7 @@ import random
 from .kpbltools import ACManager, mask_account
 
 REFRESH_ZHANLI_REQUEST = {"ads": "刷新战力", "times": 1, "hexstringheader": "4331", "request_body_i2": 259430431}
+KG_HAMMER_TYPE = 151
 
 
 class GuildManager:
@@ -279,6 +280,7 @@ class GuildBatchManager:
             ("yl [起始序号]", "游历(固定20倍)"),
             ("tf [起始序号]", "天赋强化"),
             ("xyx [起始序号]", "幸运星"),
+            ("kg [起始序号] [i]", "公会考古，i=只领奖并统计锤子"),
             ("run [起始序号]", "一条龙(按pipeline配置)"),
             ("seq [起始序号] cmd1,cmd2...", "顺序执行多个命令(逗号分隔)"),
             ("pipeline [set 任务列表]", "查看/设置pipeline配置"),
@@ -312,6 +314,22 @@ class GuildBatchManager:
         elif val >= 1_000_000: return f"{val / 1_000_000:.2f}M"
         elif val >= 1_000: return f"{val / 1_000:.1f}K"
         return str(val)
+
+    @staticmethod
+    def _bag_item_count(baginfo, item_type):
+        if not baginfo:
+            return None
+        if str(item_type) in baginfo:
+            entry = baginfo[str(item_type)]
+        elif item_type in baginfo:
+            entry = baginfo[item_type]
+        else:
+            entry = None
+        if entry is None:
+            return None
+        if isinstance(entry, dict):
+            return entry.get('count', 0)
+        return entry
 
     def batch_info(self, items=None):
         """显示公会信息，成员按名称排序，附带status数据。items: 要显示的物品type列表"""
@@ -377,9 +395,14 @@ class GuildBatchManager:
                     d, w, dm, cn, tl, st_time, is_today, ac_key, baginfo = matched
                     line = f"  {online} [{role}] {m.member_name:20s} ({ac_key:6s}) Lv{m.level:<4d} 战力:{self._fmt_zhanli(m.member_zhanli):>8s} 🔥{m.contribution}"
                     line += f"  | 日:{d} 周:{w} 💎{dm} 💰{cn} 体:{tl}"
+                    hammer = self._bag_item_count(baginfo, KG_HAMMER_TYPE)
+                    if hammer is not None:
+                        line += f" 锤:{hammer}"
                     if items and baginfo:
                         item_parts = []
                         for tid in items:
+                            if tid == KG_HAMMER_TYPE and hammer is not None:
+                                continue
                             entry = baginfo.get(str(tid)) or baginfo.get(tid)
                             if entry and isinstance(entry, dict):
                                 item_parts.append(f"{tid}:{entry.get('count', 0)}")
@@ -778,7 +801,9 @@ class GuildBatchManager:
                 baginfo = ac.get_account(name, 'baginfo')
                 if baginfo:
                     self.guild_accounts[name]['baginfo'] = baginfo
-            print(f"    日活:{daily} 周活:{weekly} 💎{diamond} 💰{coin} 体:{tl} 战:{self._fmt_zhanli(zhanli)}")
+            hammer = self._bag_item_count(ac.get_account(name, 'baginfo'), KG_HAMMER_TYPE)
+            hammer_text = f" 锤:{hammer}" if hammer is not None else ""
+            print(f"    日活:{daily} 周活:{weekly} 💎{diamond} 💰{coin} 体:{tl} 战:{self._fmt_zhanli(zhanli)}{hammer_text}")
             return (daily, weekly, diamond)
         except Exception as e:
             print(f"    status失败: {e}")
@@ -1296,16 +1321,18 @@ class GuildBatchManager:
                 continue
             print(f"  [{i}/{total}] {name} (sid={sid})", end="")
             daily, weekly, diamond = self._collect_account_status(name)
-            results.append((name, sid, daily, weekly, diamond))
+            hammer = self._bag_item_count(self.guild_accounts.get(name, {}).get('baginfo'), KG_HAMMER_TYPE)
+            results.append((name, sid, daily, weekly, diamond, hammer))
         with open(self.accounts_file, 'w') as f:
             json.dump(self.guild_accounts, f, indent=4, ensure_ascii=False)
         valid = [r for r in results if r[2] >= 0]
         if valid:
             total_diamond = sum(r[4] for r in valid)
+            total_hammer = sum(r[5] or 0 for r in valid)
             avg_daily = sum(r[2] for r in valid) / len(valid)
             avg_weekly = sum(r[3] for r in valid) / len(valid)
             print(f"\n══════ 状态汇总 ({len(valid)}人) ══════")
-            print(f"  日活平均: {avg_daily:.1f}  |  周活平均: {avg_weekly:.1f}  |  💎总计: {total_diamond}")
+            print(f"  日活平均: {avg_daily:.1f}  |  周活平均: {avg_weekly:.1f}  |  💎总计: {total_diamond}  |  锤总计: {total_hammer}")
         print(f"已保存到 {self.accounts_file}")
         return results
 
