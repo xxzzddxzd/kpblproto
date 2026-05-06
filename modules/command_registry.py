@@ -827,6 +827,15 @@ def _execute_jl(account_name, args, **kw):
     return True
 
 
+def _execute_grc(account_name, args, **kw):
+    from .trade_manager import TradeManager
+    max_refresh = int(args[0]) if args and args[0].isdigit() else 50
+    showres = kw.get('showres', 0)
+    delay = kw.get('delay', 0)
+    ac = kw.get('ac_manager')
+    return TradeManager(account_name, showres=showres, delay=delay, ac_manager=ac).run_grc(max_refresh=max_refresh)
+
+
 def _execute_nc(account_name, args, **kw):
     from .nuanchun_manager import NuanChunManager
     NuanChunManager(account_name, delay=0, showres=1).doncxh()
@@ -1087,6 +1096,7 @@ COMMANDS = [
     CommandDef(name="mhj",   desc="盲盒机拿币&抽奖", category="活动/限时", execute=_execute_mhj),
     CommandDef(name="hd20260330", desc="奇妙马戏团", category="活动/限时", execute=_execute_hd20260330),
     CommandDef(name="jl",    desc="劫掠",       category="活动/限时", execute=_execute_jl, batchable=False),
+    CommandDef(name="grc",   desc="个人船刷新开船", category="活动/限时", usage="[最大刷新=50]", execute=_execute_grc),
     CommandDef(name="nc",    desc="暖春",       category="活动/限时", execute=_execute_nc, batchable=False),
     CommandDef(name="ncloop", desc="暖春循环",  category="活动/限时", execute=_execute_ncloop, batchable=False),
     CommandDef(name="kg",    desc="公会考古(领奖+挖矿+汇报)", category="活动/限时", usage="[i=只领奖并统计锤子|g=只挖掘]", execute=_execute_kg),

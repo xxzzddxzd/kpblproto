@@ -856,6 +856,53 @@ message jielve_boatinfo_response{ //劫掠船详情
     tpye_i4 i4=4;
 }
 
+// 个人船刷新/开船：8162 返回 repeated cabins=3，7362 返回单个 cabin=3，7762 返回 started_cabin=4。
+message grc_personal_boat_response {
+    message type_status {
+        message type_req {
+            int32 field1 = 1;
+            int32 reqid = 2;
+        }
+        type_req req = 1;
+    }
+
+    message type_cabin {
+        message type_userinfo {
+            int32 charid = 1;
+            string username = 2;
+            int32 level = 3;
+            int32 field4 = 4;
+            int32 field5 = 5;
+            int64 zhanli = 6;
+            string guildname = 8;
+            int32 serverid = 9;
+        }
+
+        message type_item_container {
+            message type_item {
+                int32 itemid = 2;
+                int32 itemcount = 3;
+            }
+            int32 index = 1;
+            type_item item = 2;
+        }
+
+        int32 slot_index = 1;
+        int32 rarity = 2;
+        type_userinfo user = 3;
+        repeated type_item_container items = 4;
+        type_item_container.type_item extra_reward = 5;
+        int32 arrive_time = 6;
+        int32 state = 9;
+        int32 refresh_id = 10;
+        int32 boat_id = 12;
+    }
+
+    type_status status = 2;
+    repeated type_cabin cabins = 3;
+    type_cabin started_cabin = 4;
+}
+
 message huoguo_price_response{
     message type_i3{
         message type_pp_info{

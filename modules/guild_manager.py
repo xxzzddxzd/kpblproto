@@ -310,6 +310,7 @@ class GuildBatchManager:
             ("xyx [起始序号]", "幸运星"),
             ("kg [起始序号] [i|g]", "公会考古：默认领奖+挖矿+汇报，i=只领奖统计锤子，g=只挖掘"),
             ("kgtest/kgt 账号 [dump|score|claim|rewardscan|full] [次数]", "指定账号测试考古日常"),
+            ("grc [起始序号] [最大刷新]", "个人船刷新到功勋币×200后开船"),
             ("run [起始序号]", "一条龙(按pipeline配置)"),
             ("seq [起始序号] cmd1,cmd2...", "顺序执行多个命令(逗号分隔)"),
             ("pipeline [set 任务列表]", "查看/设置pipeline配置"),
@@ -1612,6 +1613,7 @@ class GuildBatchManager:
         print(f"Pipeline 完成: {success_count}/{processed} 成功  总耗时: {_fmt_duration(elapsed)}")
         print(f"已保存到 {self.accounts_file}")
         print(f"{'='*50}")
+        return True
 
 class _PipelineDashboard:
     """Pipeline 终端 Dashboard - 使用ANSI滚动区域"""
