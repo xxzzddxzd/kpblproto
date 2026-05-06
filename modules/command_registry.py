@@ -801,7 +801,7 @@ def _execute_jl(account_name, args, **kw):
             guild_only = False
             if len(args) > 1 and args[1] == 'gh':
                 guild_only = True
-                times = int(args[2]) if len(args) > 2 else 20
+                times = int(args[2]) if len(args) > 2 else 200
             else:
                 times = int(args[1]) if len(args) > 1 else 20
             target = 'xh'
@@ -811,11 +811,16 @@ def _execute_jl(account_name, args, **kw):
 
             def do_search():
                 print("正在搜索符合条件的船只...")
-                new_results = trade_xh.getboat(times, guild_only=guild_only, seen_ids=seen_ids)
+                new_results = trade_xh.getboat(
+                    times,
+                    guild_only=guild_only,
+                    seen_ids=seen_ids,
+                    stop_on_hit=guild_only,
+                )
                 results.extend(new_results)
                 results.sort(key=lambda x: x[0])
 
-            TARGET_IDS = {5605} | set(range(1386000, 1386101))
+            TARGET_IDS = TradeManager.JL_TARGET_ITEM_IDS
 
             def _calc_prob(total, target, pick=3):
                 """P(至少1个目标) = 1 - C(N-T,pick)/C(N,pick)"""
@@ -899,7 +904,7 @@ def _execute_jl(account_name, args, **kw):
 
 def _execute_grc(account_name, args, **kw):
     from .trade_manager import TradeManager
-    max_refresh = int(args[0]) if args and args[0].isdigit() else 50
+    max_refresh = int(args[0]) if args and args[0].isdigit() else TradeManager.GRC_DEFAULT_MAX_REFRESH
     showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
@@ -1166,7 +1171,7 @@ COMMANDS = [
     CommandDef(name="mhj",   desc="盲盒机拿币&抽奖", category="活动/限时", execute=_execute_mhj),
     CommandDef(name="hd20260330", desc="奇妙马戏团", category="活动/限时", execute=_execute_hd20260330),
     CommandDef(name="jl",    desc="劫掠",       category="活动/限时", execute=_execute_jl, batchable=False),
-    CommandDef(name="grc",   desc="个人船刷新开船", category="活动/限时", usage="[最大刷新=50]", execute=_execute_grc),
+    CommandDef(name="grc",   desc="个人船刷新开船", category="活动/限时", usage="[最大刷新=15]", execute=_execute_grc),
     CommandDef(name="nc",    desc="暖春",       category="活动/限时", execute=_execute_nc, batchable=False),
     CommandDef(name="ncloop", desc="暖春循环",  category="活动/限时", execute=_execute_ncloop, batchable=False),
     CommandDef(name="kg",    desc="公会考古(领奖+挖矿+汇报)", category="活动/限时", usage="[i=只领奖并统计锤子|g=只挖掘]", execute=_execute_kg),

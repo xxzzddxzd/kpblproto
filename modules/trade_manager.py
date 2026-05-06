@@ -4,6 +4,7 @@
 """
 
 import logging
+import time
 from .kpbltools import ACManager, mask_account
 import modules.kpbl_pb2 as kpbl_pb2
 
@@ -13,7 +14,11 @@ class TradeManager:
     GRC_TARGET_ITEM_ID = 135
     GRC_TARGET_ITEM_COUNT = 200
     GRC_SLOT_COUNT = 2
-    GRC_ARRIVED_STATE = 7
+    GRC_DEFAULT_MAX_REFRESH = 15
+    GRC_DAILY_SAIL_LIMIT = 4
+    TARGET_ITEMS = {1386015, 1386016}
+    TARGET_5605 = 5605
+    JL_TARGET_ITEM_IDS = TARGET_ITEMS | {TARGET_5605}
     
     def __init__(self, account_name, delay=0, showres=0, ac_manager=None):
         self.account_name = account_name
@@ -85,14 +90,29 @@ class TradeManager:
             for item_id, count in self._grc_item_pairs(cabin)
         )
 
+    def _grc_has_arrived_reward(self, cabin):
+        if not cabin:
+            return False
+        if cabin.arrive_time and cabin.arrive_time <= int(time.time()):
+            return True
+        return False
+
+    def _grc_is_sailing(self, cabin):
+        return bool(cabin and cabin.arrive_time and cabin.arrive_time > int(time.time()))
+
+    def _grc_in_progress_cabins(self, cabins):
+        return [cabin for cabin in cabins if self._grc_is_sailing(cabin)]
+
     def _grc_print_cabin(self, cabin, prefix):
         if not cabin:
             print(f"{prefix}: 无船舱数据")
             return
         hit = "命中" if self._grc_has_target(cabin) else "未命中"
+        arrived = "到港" if self._grc_has_arrived_reward(cabin) else "未到港"
         print(
             f"{prefix}: 舱{cabin.slot_index} 稀有={cabin.rarity} "
-            f"state={cabin.state} refresh_id={cabin.refresh_id} {hit} | {self._grc_items_text(cabin)}"
+            f"field9={cabin.field9} arrive_time={cabin.arrive_time} {arrived} "
+            f"refresh_id={cabin.refresh_id} {hit} | {self._grc_items_text(cabin)}"
         )
 
     def claim_previous_grc_reward(self, slot_index, cabin=None):
@@ -100,8 +120,8 @@ class TradeManager:
         if cabin is None:
             print(f"  舱{slot_index} 未获取到当前状态，跳过到港奖励领取")
             return False, []
-        if cabin.state != self.GRC_ARRIVED_STATE:
-            print(f"  舱{slot_index} 无到港奖励，state={cabin.state}，跳过领取")
+        if not self._grc_has_arrived_reward(cabin):
+            print(f"  舱{slot_index} 无到港奖励，field9={cabin.field9} arrive_time={cabin.arrive_time}，跳过领取")
             return False, []
 
         res = self._grc_raw_request(f"个人船领取到港奖励{slot_index}", "7962", slot_index=slot_index)
@@ -131,7 +151,8 @@ class TradeManager:
         resp = self._grc_request("个人船页面", "8162")
         cabins = self._grc_cabins_from_response(resp)
         if cabins:
-            print(f"个人船页面: {len(cabins)} 个船舱")
+            sail_count = resp.daily_sail_count if resp else 0
+            print(f"个人船页面: {len(cabins)} 个船舱, 今日已启航 {sail_count}/{self.GRC_DAILY_SAIL_LIMIT}")
             for cabin in cabins[:self.GRC_SLOT_COUNT]:
                 self._grc_print_cabin(cabin, "  当前")
         else:
@@ -152,7 +173,11 @@ class TradeManager:
         return False, None
 
     def _grc_prepare_slot(self, slot_index, max_refresh, current_cabin=None):
+        had_arrived_reward = self._grc_has_arrived_reward(current_cabin)
         self.claim_previous_grc_reward(slot_index, current_cabin)
+        if current_cabin and not had_arrived_reward and self._grc_has_target(current_cabin):
+            self._grc_print_cabin(current_cabin, f"  当前可直接开船")
+            return current_cabin, 0
         cabin = self._grc_check_or_refresh_slot(slot_index, f"个人船查看舱{slot_index}")
         self._grc_print_cabin(cabin, f"  查看")
         if self._grc_has_target(cabin):
@@ -167,16 +192,35 @@ class TradeManager:
         print(f"  舱{slot_index} 达到最大刷新次数 {max_refresh}，仍未出现功勋币×{self.GRC_TARGET_ITEM_COUNT}")
         return None, max_refresh
 
-    def run_grc(self, max_refresh=50):
+    def run_grc(self, max_refresh=None):
         """个人船：两舱依次刷新到功勋币×200后开船。"""
+        if max_refresh is None:
+            max_refresh = self.GRC_DEFAULT_MAX_REFRESH
         print("== 个人船刷新开船 ==")
         page_resp = self.enter_grc_page()
-        current_cabins = {
-            cabin.slot_index: cabin
-            for cabin in self._grc_cabins_from_response(page_resp)
-        }
+        cabins = self._grc_cabins_from_response(page_resp)
+        current_cabins = {cabin.slot_index: cabin for cabin in cabins}
+        in_progress = self._grc_in_progress_cabins(cabins)
+        if in_progress:
+            slots = ", ".join(
+                f"舱{cabin.slot_index}(arrive_time={cabin.arrive_time})"
+                for cabin in in_progress
+            )
+            print(f"检测到已有个人船未到港: {slots}，跳过grc")
+            return True
+
+        sail_count = page_resp.daily_sail_count if page_resp else 0
+        remaining_starts = max(0, self.GRC_DAILY_SAIL_LIMIT - sail_count)
+        if remaining_starts <= 0:
+            print(f"今日个人船启航次数已达上限 {sail_count}/{self.GRC_DAILY_SAIL_LIMIT}，跳过grc")
+            return True
+
         results = []
         for slot_index in range(1, self.GRC_SLOT_COUNT + 1):
+            if remaining_starts <= 0:
+                print(f"今日个人船剩余启航次数为0，跳过舱{slot_index}")
+                results.append({"slot": slot_index, "refresh": 0, "started": False, "skipped": True})
+                continue
             print(f"== 舱{slot_index}: 查看并刷新到功勋币×{self.GRC_TARGET_ITEM_COUNT} ==")
             cabin, refresh_count = self._grc_prepare_slot(
                 slot_index,
@@ -188,6 +232,8 @@ class TradeManager:
                 continue
             print(f"== 舱{slot_index}: 条件满足，开船 ==")
             started, started_cabin = self._grc_start_slot(slot_index)
+            if started:
+                remaining_starts -= 1
             results.append({
                 "slot": slot_index,
                 "refresh": refresh_count,
@@ -197,9 +243,12 @@ class TradeManager:
 
         print("== 个人船结果汇报 ==")
         for result in results:
+            if result.get("skipped"):
+                print(f"  舱{result['slot']}: 今日次数不足，已跳过")
+                continue
             status = "已开船" if result["started"] else "未开船"
             print(f"  舱{result['slot']}: 刷新{result['refresh']}次, {status}")
-        return all(result["started"] for result in results)
+        return all(result["started"] or result.get("skipped") for result in results)
     
     def refresh(self):
         """刷新贸易数据"""
@@ -357,32 +406,46 @@ class TradeManager:
             return items_count, max_135, max_59, max_5604, guild_slots
         return 0, 0, 0, 0, []
 
-    def getboat(self, maxtry, guild_only=False, seen_ids=None):
+    def _guild_target_items(self, guild_slots):
+        targets = []
+        for slot in guild_slots:
+            for item in slot.get('items', []):
+                if isinstance(item, dict) and item.get('id') in self.JL_TARGET_ITEM_IDS:
+                    targets.append(item)
+        return targets
+
+    def getboat(self, maxtry, guild_only=False, seen_ids=None, stop_on_hit=False):
         results = []  # (slotslen, max_135, max_59, max_5604, boat, is_guild, guild_slots)
         if seen_ids is None:
             seen_ids = set()
-        while maxtry >= 0:
-            print(f"maxtry: {maxtry}")
-            maxtry -= 1
+        maxtry = max(0, int(maxtry))
+        for attempt in range(1, maxtry + 1):
+            print(f"搜索船只: {attempt}/{maxtry}")
             boats = self.refresh()
+            if not boats:
+                continue
+            hit_this_round = False
             for boat in boats.boats:
-                # 公会船：rare==99，无条件加入
+                # 公会船：只把秘宝碎片/粉箱命中加入结果
                 if boat.rare == 99:
                     boat_key = f"guild_{boat.boatpara1}"
                     if boat_key in seen_ids:
                         continue
                     seen_ids.add(boat_key)
                     slotslen, max_135, max_59, max_5604, guild_slots = self.guild_boatinfo(boat)
-                    # 需要有2个以上稀有度>=5的船舱
-                    high_rarity_count = sum(1 for s in guild_slots if s['rarity'] >= 5)
-                    if high_rarity_count >= 2:
+                    if self._guild_target_items(guild_slots):
                         results.append((slotslen, max_135, max_59, max_5604, boat, True, guild_slots))
+                        hit_this_round = True
                 # 普通船
                 elif not guild_only and boat.rare >= 4 and not boat.boathasjlcount and boat.boatpara5 not in seen_ids:
                     seen_ids.add(boat.boatpara5)
                     slotslen, max_135, max_59, max_5604 = self.boatinfo(boat)
                     if max_135 >= 200 or max_59 >= 200 or max_5604 >= 1:
                         results.append((slotslen, max_135, max_59, max_5604, boat, False, None))
+                        hit_this_round = True
+            if stop_on_hit and hit_this_round:
+                print(f"已命中目标，停止搜索 ({attempt}/{maxtry})")
+                break
         results.sort(key=lambda x: x[0])
         return results
 
@@ -398,9 +461,6 @@ class TradeManager:
             resp.ParseFromString(res[6:])
             return resp
         return None
-
-    TARGET_ITEMS = {1386015, 1386016}
-    TARGET_5605 = 5605
 
     def _count_boat_items(self, boat):
         """统计船上目标物品数量，返回 (1386015+1386016总数, 5605总数)"""

@@ -893,7 +893,7 @@ message grc_personal_boat_response {
         repeated type_item_container items = 4;
         type_item_container.type_item extra_reward = 5;
         int32 arrive_time = 6;
-        int32 state = 9;
+        int32 field9 = 9;
         int32 refresh_id = 10;
         int32 boat_id = 12;
     }
@@ -901,6 +901,8 @@ message grc_personal_boat_response {
     type_status status = 2;
     repeated type_cabin cabins = 3;
     type_cabin started_cabin = 4;
+    int32 daily_sail_count = 5;
+    int64 field6 = 6;
 }
 
 // 个人船到港奖励：7962，request i2=slot_index。响应开头 field2.rewards=3 是本次领取物品。
