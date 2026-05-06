@@ -197,6 +197,16 @@ class GuildBatchManager:
             self._get_guild_member_names()
         return getattr(self, '_guild_member_levels', None) or {}
 
+    def _member_level_for_account(self, account_name, ac_manager=None):
+        """返回账号对应的公会成员等级和角色名。"""
+        charaname = ''
+        if ac_manager is not None:
+            charaname = ac_manager.get_account(account_name, 'charaname') or ''
+        if not charaname:
+            charaname = self.guild_accounts.get(account_name, {}).get('charaname', '')
+        levels = self._get_guild_member_levels()
+        return levels.get(charaname, 0), charaname
+
     def _is_guild_member(self, account_name):
         """判断账号是否属于公会成员（优先用charaname精确匹配，fallback到server_id后4位）"""
         members = self._get_guild_member_names()
@@ -276,6 +286,7 @@ class GuildBatchManager:
             ("join/j [起始序号]", "加入公会"), ("approve", "批准待审核"),
             ("donate/d", "捐献"), ("daily", "日常(捐献+扫荡)"),
             ("da", "日常任务"), ("defda", "默认日常"),
+            ("fl31 [起始序号]", "31级首登+教学跳过"),
             ("jq [起始序号]", "剧情战斗"),
             ("yl [起始序号]", "游历(固定20倍)"),
             ("tf [起始序号]", "天赋强化"),
@@ -750,6 +761,17 @@ class GuildBatchManager:
             print(f"  init 不支持在pipeline中执行，请用 gg init")
             return
 
+        member_level = None
+        member_charaname = ''
+        if command == 'fl31':
+            lv, charaname = self._member_level_for_account(account_name, ac_manager)
+            if lv < 31:
+                name_part = f" ({charaname})" if charaname else ""
+                print(f"  跳过 {account_name}{name_part} Lv{lv} < 31")
+                return
+            member_level = lv
+            member_charaname = charaname
+
         # 确保独立账号文件存在
         import os
         os.makedirs(self.accounts_dir, exist_ok=True)
@@ -761,7 +783,11 @@ class GuildBatchManager:
         if not cmd.execute:
             print(f"  {command} 不支持在pipeline中执行")
             return
-        cmd.execute(account_name, command_args, showres=self.showres, delay=self.delay, ac_manager=ac_manager)
+        execute_kw = {"showres": self.showres, "delay": self.delay, "ac_manager": ac_manager}
+        if command == 'fl31':
+            execute_kw["member_level"] = member_level
+            execute_kw["charaname"] = member_charaname
+        cmd.execute(account_name, command_args, **execute_kw)
 
     def _refresh_zhanli(self, ac, name):
         """执行刷新战力请求，并重新登录让 login 数据落到内存中。"""

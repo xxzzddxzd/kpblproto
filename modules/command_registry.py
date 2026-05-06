@@ -130,6 +130,53 @@ def _execute_flfull(account_name, args, **kw):
     return True
 
 
+def _resolve_fl31_member_level(ac, account_name):
+    if not ac:
+        return None, ''
+    charaname = ac.get_account(account_name, 'charaname') or ''
+    for field in ('member_level', 'level', 'lv', 'player_level'):
+        lv = ac.get_account(account_name, field)
+        if lv is not None:
+            return int(lv), charaname
+    if not charaname:
+        return None, ''
+    try:
+        from . import kpbl_pb2
+        res = ac.do_common_request(
+            account_name,
+            {"ads": "获取公会信息", "times": 1, "hexstringheader": "9575"},
+            showres=0,
+        )
+        if res and len(res) > 20:
+            info = kpbl_pb2.guild_info_response()
+            info.ParseFromString(res[6:])
+            for member in info.guild_basic.members:
+                if member.member_name == charaname:
+                    return member.level, charaname
+    except Exception as e:
+        print(f"  获取等级失败: {e}")
+    return None, charaname
+
+
+def _execute_fl31(account_name, args, **kw):
+    from .da_manager import DAManager
+    showres = kw.get('showres', 1)
+    delay = kw.get('delay', 0)
+    ac = kw.get('ac_manager')
+    manager = DAManager(account_name, showres=showres, delay=delay, ac_manager=ac)
+    member_level = kw.get('member_level')
+    charaname = kw.get('charaname', '')
+    if member_level is None:
+        member_level, charaname = _resolve_fl31_member_level(manager.ac_manager, account_name)
+    if member_level is None or int(member_level) < 31:
+        lv_text = member_level if member_level is not None else '未知'
+        name_part = f" ({charaname})" if charaname else ""
+        print(f"  跳过 {account_name}{name_part} Lv{lv_text} < 31")
+        return True
+    manager.day_first_login_lv31()
+    return True
+
+
 def _execute_mr(account_name, args, **kw):
     from .da_manager import DAManager
     showres = kw.get('showres', 0)
@@ -972,6 +1019,20 @@ def _batch_flfull(mgr, start_from):
     mgr._for_each_account(_fl, "每日首登(完整)", start_from=start_from)
 
 
+def _batch_fl31(mgr, start_from):
+    import time as _time
+    from .da_manager import DAManager
+    def _fl(ac, name):
+        lv, charaname = mgr._member_level_for_account(name, ac)
+        if lv < 31:
+            name_part = f" ({charaname})" if charaname else ""
+            print(f"  跳过 {name}{name_part} Lv{lv} < 31")
+            return
+        DAManager(name, showres=mgr.showres, delay=mgr.delay, ac_manager=ac).day_first_login_lv31()
+        _time.sleep(60)
+    mgr._for_each_account(_fl, "31级首登+教学跳过", start_from=start_from)
+
+
 # ── 命令注册表 ──────────────────────────────────────────
 
 COMMANDS = [
@@ -988,6 +1049,7 @@ COMMANDS = [
     CommandDef(name="defda", desc="默认日常任务", category="日常/资源", execute=_execute_defda),
     CommandDef(name="fl",    desc="首登奖励",   category="日常/资源", execute=_execute_fl, batch_execute=_batch_fl),
     CommandDef(name="flfull", desc="首登奖励(完整)", category="日常/资源", execute=_execute_flfull, batch_execute=_batch_flfull),
+    CommandDef(name="fl31",  desc="31级首登+教学跳过", category="日常/资源", execute=_execute_fl31, batch_execute=_batch_fl31),
     CommandDef(name="yl",    desc="游历",       category="日常/资源", usage="[次数=1]", execute=_execute_yl, batch_default_args=["20"]),
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),
     CommandDef(name="xyx",   desc="幸运星",     category="日常/资源", execute=_execute_xyx),

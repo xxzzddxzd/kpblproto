@@ -9,7 +9,7 @@ import json
 from .kpbltools import ACManager, mask_account
 from .wk_manager import WKManager
 from . import kpbl_pb2
-from .first_login_requests import FIRST_LOGIN_REQUESTS, FIRST_LOGIN_REQUESTS_PLUS
+from .first_login_requests import FIRST_LOGIN_REQUESTS, FIRST_LOGIN_REQUESTS_PLUS, FIRST_LOGIN_LV31_REQUESTS
 
 class DAManager:
     """日常任务管理器"""
@@ -693,6 +693,11 @@ class DAManager:
     def day_first_login_full(self):
         """每日首次登录请求(完整)，串行执行 FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS"""
         for req in FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS:
+            self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+
+    def day_first_login_lv31(self):
+        """31级账号首次登录完整请求，包含教学跳过链路"""
+        for req in FIRST_LOGIN_LV31_REQUESTS:
             self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
 
     def zn_sell(self):
