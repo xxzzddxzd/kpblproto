@@ -189,19 +189,31 @@ def _do_jq_auto(story_battle_manager, account_name, level):
 def _execute_tf(account_name, args, **kw):
     from .story_battle import StoryBattleManager
     showres = kw.get('showres', 0)
-    delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
-    sbm = StoryBattleManager(account_name, showres=showres, delay=delay, ac_manager=ac)
-    sbm.dotfn()
+    old_delay = getattr(ac, 'delay', None) if ac else None
+    if ac:
+        ac.delay = 0
+    try:
+        sbm = StoryBattleManager(account_name, showres=showres, delay=0, ac_manager=ac)
+        sbm.dotfn()
+    finally:
+        if ac and old_delay is not None:
+            ac.delay = old_delay
     return True
 
 
 def _execute_tfn(account_name, args, **kw):
     from .story_battle import StoryBattleManager
     showres = kw.get('showres', 0)
-    delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
-    StoryBattleManager(account_name, showres=showres, delay=delay, ac_manager=ac).dotfn()
+    old_delay = getattr(ac, 'delay', None) if ac else None
+    if ac:
+        ac.delay = 0
+    try:
+        StoryBattleManager(account_name, showres=showres, delay=0, ac_manager=ac).dotfn()
+    finally:
+        if ac and old_delay is not None:
+            ac.delay = old_delay
     return True
 
 

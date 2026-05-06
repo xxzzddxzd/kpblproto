@@ -180,22 +180,28 @@ class StoryBattleManager:
         while True:
             any_progress = False
             tier_changed = False
-            for talent in self.TALENTS:
+            # 阶梯刚升级时 tfxq 可能为空；此时只需要一次探测来推进或确认结束。
+            talents = self.TALENTS if current else self.TALENTS[:1]
+            for talent in talents:
                 while True:
                     resp = self._tf_request(talent, tier)
                     if not resp:
                         return
                     new_cur = {t.tfms: t.tfdj for t in resp.tf.tfxq}
-                    if new_cur.get(talent, 0) == current.get(talent, 0):
+                    if resp.tf.level and resp.tf.level != tier:
+                        any_progress = True
                         current = new_cur
-                        break
-                    any_progress = True
-                    current = new_cur
-                    if resp.tf.level != tier:
                         tier = resp.tf.level
                         print(f"  阶梯升级 -> {tier}, {current}")
                         tier_changed = True
                         break
+                    if new_cur.get(talent, 0) == current.get(talent, 0):
+                        if not current and new_cur:
+                            any_progress = True
+                        current = new_cur
+                        break
+                    any_progress = True
+                    current = new_cur
                 if tier_changed:
                     break
             if not any_progress:
@@ -396,6 +402,4 @@ class StoryBattleManager:
                 print(f"分析战斗结果时出错: {e}")
             # 出错时默认认为成功，保持与老代码一致
             return {"success": True, "status": "(未知结果)"}
-
-
 
