@@ -6,6 +6,7 @@
 import json
 import logging
 import random
+import time
 from .kpbltools import ACManager, mask_account
 
 REFRESH_ZHANLI_REQUEST = {"ads": "刷新战力", "times": 1, "hexstringheader": "4331", "request_body_i2": 259430431}
@@ -307,7 +308,8 @@ class GuildBatchManager:
             ("yl [起始序号]", "游历(固定20倍)"),
             ("tf [起始序号]", "天赋强化"),
             ("xyx [起始序号]", "幸运星"),
-            ("kg [起始序号] [i]", "公会考古，i=只领奖并统计锤子"),
+            ("kg [起始序号] [i|g]", "公会考古：默认领奖+挖矿+汇报，i=只领奖统计锤子，g=只挖掘"),
+            ("kgtest/kgt 账号 [dump|score|claim|rewardscan|full] [次数]", "指定账号测试考古日常"),
             ("run [起始序号]", "一条龙(按pipeline配置)"),
             ("seq [起始序号] cmd1,cmd2...", "顺序执行多个命令(逗号分隔)"),
             ("pipeline [set 任务列表]", "查看/设置pipeline配置"),
@@ -809,6 +811,137 @@ class GuildBatchManager:
         cmd.execute(account_name, command_args, **execute_kw)
         if command == 'fl31':
             self._mark_fl31_done(account_name)
+
+    def _sync_account_snapshot(self, name, ac, extra=None):
+        """把测试过程中刷新到 ACManager 内存里的关键字段同步到公会账号文件。"""
+        if name not in self.guild_accounts:
+            return
+        import time
+        field_map = {
+            'coin': 'coin',
+            'diamon': 'diamond',
+            'tl': 'tl',
+            'zhanli': 'zhanli',
+            'charaname': 'charaname',
+            'charaid': 'charaid',
+            'gqxx': 'gqxx',
+            'kunnan': 'kunnan',
+            'baginfo': 'baginfo',
+            'kg_reward_claimed_date': 'kg_reward_claimed_date',
+            'kg_reward_claimed_tiers': 'kg_reward_claimed_tiers',
+            'kg_reward_claimed_score': 'kg_reward_claimed_score',
+            'kg_reward_claimed_time': 'kg_reward_claimed_time',
+        }
+        for src, dst in field_map.items():
+            value = ac.get_account(name, src)
+            if value is not None:
+                self.guild_accounts[name][dst] = value
+        self.guild_accounts[name]['kgtest_time'] = int(time.time())
+        if extra:
+            self.guild_accounts[name].update(extra)
+        self._save_guild_accounts()
+
+    def run_kg_test(self, account_name, yl_times=1, mode='full'):
+        """指定公会账号测试考古日常：score只观察任务积分，full继续领奖和挖掘。"""
+        if account_name not in self.guild_accounts:
+            print(f"未知公会账号: {account_name}")
+            return False
+        if not self._is_guild_member(account_name):
+            print(f"{account_name} 未在当前会长号成员列表中，仍按指定账号继续测试")
+        mode = (mode or 'full').lower()
+        if mode not in ('full', 'score', 's', 'check', 'dump', 'claim', 'i', 'info', 'rewardscan', 'rs'):
+            print(f"未知kgtest模式: {mode}，可用: dump, score, claim, rewardscan, full")
+            return False
+
+        from .kg_manager import KGManager
+        from .yl_manager import YLManager
+
+        sid = self.guild_accounts[account_name].get('server_id')
+        print(f"== 考古日常测试: {account_name} sid={sid}, 模式={mode}, ylxyx次数={yl_times} ==")
+        ac = ACManager(account_name, accounts_file=self.accounts_file,
+                       showres=self.showres, delay=self.delay)
+        kg = KGManager(account_name, ac_manager=ac)
+        if mode == 'dump':
+            label = f"kgtest_{account_name}_{int(time.time())}"
+            print("== 保存考古原始响应 ==")
+            kg.dump_responses(label=label)
+            return True
+        if mode in ('rewardscan', 'rs'):
+            kg.scan_reward_claims()
+            return True
+        if mode in ('claim', 'i', 'info'):
+            hammer_before = kg.get_hammer_count()
+            hammer_after = kg.collect_info()
+            self._sync_account_snapshot(account_name, ac, {
+                'kgtest_mode': mode,
+                'kgtest_hammer_before': hammer_before,
+                'kgtest_hammer_after_claim': hammer_after,
+            })
+            print(f"== kg i完成: 锤子 {hammer_before} -> {hammer_after} ==")
+            print(f"已保存测试结果到 {self.accounts_file}")
+            return True
+
+        hammer_before = kg.get_hammer_count()
+        tl_before = ac.get_account(account_name, 'tl') or 0
+        print(f"== 初始状态: 体力={tl_before}, 锤子={hammer_before} ==")
+        kg_before = kg.print_status("初始考古")
+        snapshot_before = kg.status_snapshot(kg_before)
+
+        print(f"== 步骤1: ylxyx {yl_times}，预计消耗体力 {100 * yl_times} ==")
+        YLManager(account_name, delay=0, showres=0, ac_manager=ac).do_youli_with_params(
+            bio=20, level=None, times=yl_times, xyx=1
+        )
+        ac.login(account_name, showloginres=0)
+        tl_after_yl = ac.get_account(account_name, 'tl') or 0
+        print(f"== 游历后: 体力={tl_after_yl}, 变化={tl_after_yl - tl_before} ==")
+        hammer_after_yl = kg.get_hammer_count()
+        kg_after_yl = kg.print_status("游历后考古")
+        snapshot_after_yl = kg.status_snapshot(kg_after_yl)
+        kg_changed = snapshot_before != snapshot_after_yl
+        print(f"== 游历后考古快照变化: {kg_changed} ==")
+        if snapshot_before or snapshot_after_yl:
+            print(f"  before: {snapshot_before}")
+            print(f"  after:  {snapshot_after_yl}")
+
+        if mode in ('score', 's', 'check'):
+            self._sync_account_snapshot(account_name, ac, {
+                'kgtest_mode': mode,
+                'kgtest_hammer_before': hammer_before,
+                'kgtest_hammer_after_yl': hammer_after_yl,
+                'kgtest_tl_before': tl_before,
+                'kgtest_tl_after_yl': tl_after_yl,
+                'kgtest_snapshot_before': snapshot_before,
+                'kgtest_snapshot_after_yl': snapshot_after_yl,
+                'kgtest_snapshot_changed': kg_changed,
+            })
+            print(f"已保存测试结果到 {self.accounts_file}")
+            return True
+
+        print("== 步骤2: kg i，进入考古并领取可领任务奖励 ==")
+        hammer_after_claim = kg.collect_info()
+        print(f"== 领奖后: 锤子 {hammer_before} -> {hammer_after_claim} ==")
+        kg.print_status("领奖后考古")
+
+        print("== 步骤3: kg g，使用当前锤子挖掘 ==")
+        dug_count = kg.dig_available(hammer_after_claim)
+        hammer_after_dig = kg.get_hammer_count()
+        print(f"== 测试完成: 挖掘={dug_count}, 剩余锤子={hammer_after_dig} ==")
+
+        self._sync_account_snapshot(account_name, ac, {
+            'kgtest_mode': mode,
+            'kgtest_hammer_before': hammer_before,
+            'kgtest_hammer_after_yl': hammer_after_yl,
+            'kgtest_hammer_after_claim': hammer_after_claim,
+            'kgtest_hammer_after_dig': hammer_after_dig,
+            'kgtest_dug_count': dug_count,
+            'kgtest_tl_before': tl_before,
+            'kgtest_tl_after_yl': tl_after_yl,
+            'kgtest_snapshot_before': snapshot_before,
+            'kgtest_snapshot_after_yl': snapshot_after_yl,
+            'kgtest_snapshot_changed': kg_changed,
+        })
+        print(f"已保存测试结果到 {self.accounts_file}")
+        return True
 
     def _refresh_zhanli(self, ac, name):
         """执行刷新战力请求，并重新登录让 login 数据落到内存中。"""

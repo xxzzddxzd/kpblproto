@@ -640,15 +640,34 @@ class DAManager:
     def sbzz_info(self):
         req_config = {"ads":"圣杯战争信息","times":1,"hexstringheader":"4d7a"}
         rev = self.ac_manager.do_common_request(self.account_name,req_config,showres=self.showres)
-        sbzz_resp = kpbl_pb2.wddh_response()
+        sbzz_resp = kpbl_pb2.sbzz_response()
         sbzz_resp.ParseFromString(rev[6:])
         return sbzz_resp
 
     def sbzz_dz(self): # 圣杯战争点赞
         sbzz_resp = self.sbzz_info()
-        print(sbzz_resp.field3.huojiangren)
-        for huojiangren in sbzz_resp.field3.huojiangren:
-            req_config = {"ads":"圣杯战争点赞","times":1,"hexstringheader":"577a","request_body_i2":huojiangren.id}
+        targets = []
+        seen = set()
+        for zone in sbzz_resp.zones:
+            zone_id = zone.zone_id
+            members = sorted(zone.detail.team.members, key=lambda member: member.slot)
+            for member in members:
+                player_id = member.player.id
+                key = (zone_id, player_id)
+                if not zone_id or not player_id or key in seen:
+                    continue
+                seen.add(key)
+                targets.append(key)
+
+        print(f"圣杯战争点赞目标: {targets}")
+        if not targets:
+            print("圣杯战争点赞目标为空，跳过")
+            return False
+        if len(targets) != 6:
+            print(f"圣杯战争点赞目标数量异常: {len(targets)}，期望 6 个")
+
+        for zone_id, player_id in targets:
+            req_config = {"ads":"圣杯战争点赞","times":1,"hexstringheader":"577a","request_body_i2":player_id,"request_body_i3":zone_id}
             self.ac_manager.do_common_request(self.account_name,req_config,showres=self.showres)
         return True
 

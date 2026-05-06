@@ -437,6 +437,29 @@ message wddh_response {
     type_field3 field3 = 3;
     
 }
+
+// 圣杯战争信息：field13 是 3 个战区，每个战区下有 2 个可点赞玩家
+message sbzz_response {
+    message type_battle_zone {
+        message type_zone_detail {
+            message type_team {
+                message type_member_slot {
+                    message type_player {
+                        int32 id = 1;
+                    }
+                    int32 slot = 1;
+                    type_player player = 2;
+                }
+                repeated type_member_slot members = 6;
+            }
+            type_team team = 9;
+        }
+        int32 zone_id = 1;
+        type_zone_detail detail = 2;
+    }
+    repeated type_battle_zone zones = 13;
+}
+
 //武道对战列表
 message wddh_list_response {
     message type_field3{
@@ -554,6 +577,9 @@ message kg_response {
         kg_board board2 = 2;
     }
     kg_boards boards = 3;
+    int32 field4 = 4;              // observed: 1181
+    int32 mining_task_score = 6;   // 今日挖矿任务积分，observed: 15000
+    int32 field8 = 8;              // observed: 200
 }
 
 message request_body_for_jqupdate{

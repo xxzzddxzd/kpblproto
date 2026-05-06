@@ -33,6 +33,7 @@ def print_usage():
     print("  gg [子命令]                - 公会批量操作")
     print("  gg run                     - 执行pipeline")
     print("  gg seq [起始] cmd1,cmd2... - 顺序执行")
+    print("  gg kgtest/kgt 账号 [dump|score|claim|rewardscan|full] [次数] - 指定账号测试考古日常")
     print("  gg pipeline set [任务...]  - 设置pipeline")
 
 
@@ -294,6 +295,22 @@ def handle_guild_batch_command(account_name, args):
     if sub == 'run':
         return mgr.batch_pipeline(start_from=start)
 
+    # kgtest: 指定一个公会账号跑考古日常测试
+    if sub in ('kgtest', 'kgt'):
+        if len(args) < 2:
+            print("错误: 缺少账号。使用方式: gg kgtest <账号> [dump|score|claim|rewardscan|full] [ylxyx次数=1]")
+            return False
+        mode = 'full'
+        yl_times = 1
+        if len(args) > 2:
+            if args[2].isdigit():
+                yl_times = int(args[2])
+            else:
+                mode = args[2]
+                if len(args) > 3 and args[3].isdigit():
+                    yl_times = int(args[3])
+        return mgr.run_kg_test(args[1], yl_times=yl_times, mode=mode)
+
     # init: 特殊处理，需要 run_new_account_sample 回调
     if sub == 'init':
         mgr.batch_init(run_new_account_sample, start_from=start)
@@ -303,7 +320,7 @@ def handle_guild_batch_command(account_name, args):
     cmd = get_command(sub)
     if cmd is None or not cmd.batchable:
         print(f"未知的gg子命令: {sub}")
-        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, kg, fl, flfull, fl31, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
+        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, kg, kgtest/kgt, fl, flfull, fl31, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
         return False
 
     if cmd.batch_execute:
