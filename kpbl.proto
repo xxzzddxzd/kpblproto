@@ -903,6 +903,23 @@ message grc_personal_boat_response {
     type_cabin started_cabin = 4;
 }
 
+// 个人船到港奖励：7962，request i2=slot_index。响应开头 field2.rewards=3 是本次领取物品。
+message grc_personal_boat_reward_response {
+    message type_result {
+        message type_req {
+            int32 field1 = 1;
+            int32 reqid = 2;
+        }
+        message type_item {
+            int32 itemid = 2;
+            int32 itemcount = 3;
+        }
+        type_req req = 1;
+        repeated type_item rewards = 3;
+    }
+    type_result result = 2;
+}
+
 message huoguo_price_response{
     message type_i3{
         message type_pp_info{

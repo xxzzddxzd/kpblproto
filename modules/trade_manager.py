@@ -13,6 +13,7 @@ class TradeManager:
     GRC_TARGET_ITEM_ID = 135
     GRC_TARGET_ITEM_COUNT = 200
     GRC_SLOT_COUNT = 2
+    GRC_ARRIVED_STATE = 7
     
     def __init__(self, account_name, delay=0, showres=0, ac_manager=None):
         self.account_name = account_name
@@ -29,12 +30,25 @@ class TradeManager:
         resp.ParseFromString(res[6:])
         return resp
 
+    def _parse_grc_reward_response(self, res):
+        if not res or len(res) <= 6:
+            return None
+        resp = kpbl_pb2.grc_personal_boat_reward_response()
+        resp.ParseFromString(res[6:])
+        return resp
+
     def _grc_request(self, ads, header, slot_index=None):
         config = {"ads": ads, "times": 1, "hexstringheader": header}
         if slot_index is not None:
             config["request_body_i2"] = int(slot_index)
         res = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
         return self._parse_grc_response(res)
+
+    def _grc_raw_request(self, ads, header, slot_index=None):
+        config = {"ads": ads, "times": 1, "hexstringheader": header}
+        if slot_index is not None:
+            config["request_body_i2"] = int(slot_index)
+        return self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
 
     def _grc_cabins_from_response(self, resp):
         if not resp:
@@ -56,8 +70,11 @@ class TradeManager:
         return [(item.item.itemid, item.item.itemcount) for item in cabin.items]
 
     def _grc_items_text(self, cabin):
+        return self._grc_item_pairs_text(self._grc_item_pairs(cabin))
+
+    def _grc_item_pairs_text(self, pairs):
         parts = []
-        for item_id, count in self._grc_item_pairs(cabin):
+        for item_id, count in pairs:
             name = self.item_list.get(item_id, f"#{item_id}")
             parts.append(f"{name}×{count}")
         return ", ".join(parts) if parts else "空"
@@ -78,9 +95,35 @@ class TradeManager:
             f"state={cabin.state} refresh_id={cabin.refresh_id} {hit} | {self._grc_items_text(cabin)}"
         )
 
-    def claim_previous_grc_reward(self, slot_index):
-        # TODO: 领取上一次个人船到达奖励。grc.chlz 未录到该请求，后续补充。
-        return False
+    def claim_previous_grc_reward(self, slot_index, cabin=None):
+        """7962: 领取上一次个人船到港奖励。"""
+        if cabin is None:
+            print(f"  舱{slot_index} 未获取到当前状态，跳过到港奖励领取")
+            return False, []
+        if cabin.state != self.GRC_ARRIVED_STATE:
+            print(f"  舱{slot_index} 无到港奖励，state={cabin.state}，跳过领取")
+            return False, []
+
+        res = self._grc_raw_request(f"个人船领取到港奖励{slot_index}", "7962", slot_index=slot_index)
+        if not res:
+            print(f"  舱{slot_index} 到港奖励领取失败: 无响应")
+            return False, []
+
+        body = res[6:] if len(res) > 6 else b""
+        if not body.startswith(b"\x12"):
+            try:
+                status = self.ac_manager.get_status_code(res)
+            except Exception:
+                status = None
+            print(f"  舱{slot_index} 到港奖励未领取: status={status}, len={len(res)}")
+            return False, []
+
+        reward_resp = self._parse_grc_reward_response(res)
+        rewards = []
+        if reward_resp:
+            rewards = [(item.itemid, item.itemcount) for item in reward_resp.result.rewards]
+        print(f"  舱{slot_index} 到港奖励领取成功: {self._grc_item_pairs_text(rewards)}")
+        return True, rewards
 
     def enter_grc_page(self):
         """进入开船入口和个人船页面，返回当前个人船页面响应。"""
@@ -108,8 +151,8 @@ class TradeManager:
         print(f"  舱{slot_index} 开船响应未解析到船舱")
         return False, None
 
-    def _grc_prepare_slot(self, slot_index, max_refresh):
-        self.claim_previous_grc_reward(slot_index)
+    def _grc_prepare_slot(self, slot_index, max_refresh, current_cabin=None):
+        self.claim_previous_grc_reward(slot_index, current_cabin)
         cabin = self._grc_check_or_refresh_slot(slot_index, f"个人船查看舱{slot_index}")
         self._grc_print_cabin(cabin, f"  查看")
         if self._grc_has_target(cabin):
@@ -127,11 +170,19 @@ class TradeManager:
     def run_grc(self, max_refresh=50):
         """个人船：两舱依次刷新到功勋币×200后开船。"""
         print("== 个人船刷新开船 ==")
-        self.enter_grc_page()
+        page_resp = self.enter_grc_page()
+        current_cabins = {
+            cabin.slot_index: cabin
+            for cabin in self._grc_cabins_from_response(page_resp)
+        }
         results = []
         for slot_index in range(1, self.GRC_SLOT_COUNT + 1):
             print(f"== 舱{slot_index}: 查看并刷新到功勋币×{self.GRC_TARGET_ITEM_COUNT} ==")
-            cabin, refresh_count = self._grc_prepare_slot(slot_index, max_refresh)
+            cabin, refresh_count = self._grc_prepare_slot(
+                slot_index,
+                max_refresh,
+                current_cabin=current_cabins.get(slot_index),
+            )
             if not cabin:
                 results.append({"slot": slot_index, "refresh": refresh_count, "started": False})
                 continue
