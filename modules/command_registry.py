@@ -1023,12 +1023,16 @@ def _batch_fl31(mgr, start_from):
     import time as _time
     from .da_manager import DAManager
     def _fl(ac, name):
+        if mgr._is_fl31_done(name):
+            print(f"  跳过 {name}，已执行过fl31")
+            return
         lv, charaname = mgr._member_level_for_account(name, ac)
         if lv < 31:
             name_part = f" ({charaname})" if charaname else ""
             print(f"  跳过 {name}{name_part} Lv{lv} < 31")
             return
         DAManager(name, showres=mgr.showres, delay=mgr.delay, ac_manager=ac).day_first_login_lv31()
+        mgr._mark_fl31_done(name)
         _time.sleep(60)
     mgr._for_each_account(_fl, "31级首登+教学跳过", start_from=start_from)
 

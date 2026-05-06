@@ -290,7 +290,8 @@ class ACManager:
                 # 只保存指定的字段
                 for field in ['s1', 'udid', 'server_id', 'acstr', 'py_session',  'i5_adsid1',
                               'daily_activity', 'weekly_activity', 'diamond', 'coin', 'tl',
-                              'charaname', 'charaid', 'status_time', 'kunnan', 'gqxx']:
+                              'charaname', 'charaid', 'status_time', 'kunnan', 'gqxx',
+                              'fl31_done', 'fl31_done_time']:
                     if field in account_data:
                         filtered_account[field] = account_data[field]
                 filtered_accounts[account_name] = filtered_account

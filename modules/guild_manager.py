@@ -10,6 +10,8 @@ from .kpbltools import ACManager, mask_account
 
 REFRESH_ZHANLI_REQUEST = {"ads": "刷新战力", "times": 1, "hexstringheader": "4331", "request_body_i2": 259430431}
 KG_HAMMER_TYPE = 151
+FL31_DONE_FLAG = "fl31_done"
+FL31_DONE_TIME = "fl31_done_time"
 
 
 class GuildManager:
@@ -155,6 +157,10 @@ class GuildBatchManager:
             self.guild_accounts = json.load(f)
         print(f"加载了 {len(self.guild_accounts)} 个公会小号 ({self.accounts_file})")
 
+    def _save_guild_accounts(self):
+        with open(self.accounts_file, 'w') as f:
+            json.dump(self.guild_accounts, f, indent=4, ensure_ascii=False)
+
     def _get_guild_name(self):
         """获取公会名称（带缓存）"""
         if self.guild_name:
@@ -206,6 +212,16 @@ class GuildBatchManager:
             charaname = self.guild_accounts.get(account_name, {}).get('charaname', '')
         levels = self._get_guild_member_levels()
         return levels.get(charaname, 0), charaname
+
+    def _is_fl31_done(self, account_name):
+        return bool(self.guild_accounts.get(account_name, {}).get(FL31_DONE_FLAG))
+
+    def _mark_fl31_done(self, account_name):
+        import time
+        if account_name in self.guild_accounts:
+            self.guild_accounts[account_name][FL31_DONE_FLAG] = True
+            self.guild_accounts[account_name][FL31_DONE_TIME] = int(time.time())
+            self._save_guild_accounts()
 
     def _is_guild_member(self, account_name):
         """判断账号是否属于公会成员（优先用charaname精确匹配，fallback到server_id后4位）"""
@@ -764,6 +780,9 @@ class GuildBatchManager:
         member_level = None
         member_charaname = ''
         if command == 'fl31':
+            if self._is_fl31_done(account_name):
+                print(f"  跳过 {account_name}，已执行过fl31")
+                return
             lv, charaname = self._member_level_for_account(account_name, ac_manager)
             if lv < 31:
                 name_part = f" ({charaname})" if charaname else ""
@@ -788,6 +807,8 @@ class GuildBatchManager:
             execute_kw["member_level"] = member_level
             execute_kw["charaname"] = member_charaname
         cmd.execute(account_name, command_args, **execute_kw)
+        if command == 'fl31':
+            self._mark_fl31_done(account_name)
 
     def _refresh_zhanli(self, ac, name):
         """执行刷新战力请求，并重新登录让 login 数据落到内存中。"""
