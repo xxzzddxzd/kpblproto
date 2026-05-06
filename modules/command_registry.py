@@ -6,6 +6,9 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional, List
 
+FL31_DONE_FLAG = "fl31_done"
+FL31_DONE_TIME = "fl31_done_time"
+
 
 @dataclass
 class CommandDef:
@@ -158,11 +161,77 @@ def _resolve_fl31_member_level(ac, account_name):
     return None, charaname
 
 
+def _fl31_account_file(account_name, ac_manager=None):
+    from pathlib import Path
+    if ac_manager is not None and getattr(ac_manager, 'accounts_file', None):
+        return Path(ac_manager.accounts_file)
+    default_file = Path(f'ac_{account_name}.json')
+    if default_file.exists():
+        return default_file
+    candidates = sorted(Path('.').glob(f'ac_*/{account_name}.json'))
+    return candidates[0] if candidates else default_file
+
+
+def _is_fl31_done_in_account_file(account_name, ac_manager=None):
+    if ac_manager is not None:
+        account = ac_manager.get_account(account_name)
+        if isinstance(account, dict) and account.get(FL31_DONE_FLAG):
+            return True
+    import json
+    path = _fl31_account_file(account_name, ac_manager)
+    if not path.exists():
+        return False
+    try:
+        with path.open('r') as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f"  读取 {path} 的fl31标记失败: {e}")
+        return False
+    account = data.get(account_name, {})
+    return isinstance(account, dict) and bool(account.get(FL31_DONE_FLAG))
+
+
+def _mark_fl31_done_in_account_file(account_name, ac_manager=None):
+    import json
+    import time
+    done_time = int(time.time())
+    account = None
+    if ac_manager is not None:
+        account = ac_manager.get_account(account_name)
+        if isinstance(account, dict):
+            account[FL31_DONE_FLAG] = True
+            account[FL31_DONE_TIME] = done_time
+
+    path = _fl31_account_file(account_name, ac_manager)
+    data = {}
+    if path.exists():
+        try:
+            with path.open('r') as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"  写入 {path} 的fl31标记失败，原文件读取失败: {e}")
+            return
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    entry = data.setdefault(account_name, dict(account) if isinstance(account, dict) else {})
+    if not isinstance(entry, dict):
+        entry = {}
+        data[account_name] = entry
+    entry[FL31_DONE_FLAG] = True
+    entry[FL31_DONE_TIME] = done_time
+    with path.open('w') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+
 def _execute_fl31(account_name, args, **kw):
     from .da_manager import DAManager
     showres = kw.get('showres', 1)
     delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
+    if _is_fl31_done_in_account_file(account_name, ac):
+        print(f"  跳过 {account_name}，已执行过fl31")
+        return True
     manager = DAManager(account_name, showres=showres, delay=delay, ac_manager=ac)
     member_level = kw.get('member_level')
     charaname = kw.get('charaname', '')
@@ -174,6 +243,7 @@ def _execute_fl31(account_name, args, **kw):
         print(f"  跳过 {account_name}{name_part} Lv{lv_text} < 31")
         return True
     manager.day_first_login_lv31()
+    _mark_fl31_done_in_account_file(account_name, manager.ac_manager)
     return True
 
 
@@ -1042,7 +1112,7 @@ def _batch_fl31(mgr, start_from):
             print(f"  跳过 {name}{name_part} Lv{lv} < 31")
             return
         DAManager(name, showres=mgr.showres, delay=mgr.delay, ac_manager=ac).day_first_login_lv31()
-        mgr._mark_fl31_done(name)
+        mgr._mark_fl31_done(name, ac)
         _time.sleep(60)
     mgr._for_each_account(_fl, "31级首登+教学跳过", start_from=start_from)
 

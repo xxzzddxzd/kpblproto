@@ -331,7 +331,7 @@ class KGManager:
             if not board.board_id:
                 continue
             layers = list(board.layers)
-            print(f"== {label}: board{idx} id={board.board_id} {board.width}x{board.height} layers={layers} 已挖={len(board.dug_cells)} 宝物={len(board.items)} ==")
+            print(f"== {label}: board{idx} id={board.board_id} {board.width}x{board.height} layers={layers} 已挖={len(board.dug_cells)} 宝物={self._treasure_progress_text(board)} ==")
             if board.stats:
                 printed_stats = True
                 stats = ", ".join(f"{s.stat_id}:{s.value}" + (f"/{s.variant}" if s.variant else "") for s in board.stats)
@@ -378,15 +378,72 @@ class KGManager:
 
     def get_undug_cells(self, board):
         """获取未挖掘的格子坐标列表"""
-        dug_set = set()
-        for dc in board.dug_cells:
-            dug_set.add((dc.pos.x, dc.pos.y))
+        dug_set = self._dug_set(board)
         undug = []
         for y in range(board.height):
             for x in range(board.width):
                 if (x, y) not in dug_set:
                     undug.append((x, y))
         return undug
+
+    def _dug_set(self, board):
+        return {(dc.pos.x, dc.pos.y) for dc in board.dug_cells}
+
+    def _board_key(self, board):
+        return (board.board_id, tuple(board.layers), board.width, board.height)
+
+    def _board_layer(self, board):
+        return board.layers[0] if board.layers else 0
+
+    def _treasure_progress(self, board):
+        """返回(已发现宝物数, 当前层宝物总数)。stats 目前表现为本层宝物列表。"""
+        found = len(board.items)
+        total = len(board.stats) if board.stats else found
+        return found, max(total, found)
+
+    def _treasure_progress_text(self, board):
+        found, total = self._treasure_progress(board)
+        if total:
+            return f"{found}/{total}"
+        return str(found)
+
+    def _is_layer_complete(self, board):
+        found, total = self._treasure_progress(board)
+        return total > 0 and found >= total and not self._incomplete_treasures(board)
+
+    def _item_cells(self, item):
+        return [(c.x, c.y) for c in item.cells]
+
+    def _remaining_item_cells(self, board, item):
+        dug = self._dug_set(board)
+        cells = self._item_cells(item)
+        return [cell for cell in cells if cell not in dug]
+
+    def _covered_item_cells(self, board, item):
+        dug = self._dug_set(board)
+        return sum(1 for cell in self._item_cells(item) if cell in dug)
+
+    def _incomplete_treasures(self, board):
+        treasures = []
+        for item in board.items:
+            cells = self._item_cells(item)
+            if not cells:
+                continue
+            remaining = self._remaining_item_cells(board, item)
+            if remaining:
+                treasures.append((item, remaining, len(cells) - len(remaining), len(cells)))
+        return treasures
+
+    def _treasure_label(self, item):
+        suffix = f"/{item.variant}" if item.variant else ""
+        return f"type={item.treasure_type}{suffix}"
+
+    def _ordered_undug_cells(self, board):
+        undug = self.get_undug_cells(board)
+        dig_order = sorted(undug, key=lambda c: (c[1], c[0]))
+        phase1 = [c for c in dig_order if (c[0] + c[1]) % 2 == 0]
+        phase2 = [c for c in dig_order if (c[0] + c[1]) % 2 == 1]
+        return undug, phase1 + phase2
 
     def print_board(self, board):
         """打印棋盘状态"""
@@ -396,16 +453,15 @@ class KGManager:
             for c in item.cells:
                 treasure_map[(c.x, c.y)] = item.treasure_type
         # 构建已挖掘集合
-        dug_set = set()
+        dug_set = self._dug_set(board)
         completing_set = set()
         for dc in board.dug_cells:
-            dug_set.add((dc.pos.x, dc.pos.y))
             if dc.is_completing:
                 completing_set.add((dc.pos.x, dc.pos.y))
 
         total = board.width * board.height
         dug_count = len(dug_set)
-        print(f"  棋盘 {board.board_id} ({board.width}x{board.height}), 已挖 {dug_count}/{total}, 宝物 {len(board.items)} 个")
+        print(f"  棋盘 {board.board_id} ({board.width}x{board.height}), 已挖 {dug_count}/{total}, 宝物 {self._treasure_progress_text(board)} 个")
         for y in range(board.height - 1, -1, -1):
             row = f"  y={y}: "
             for x in range(board.width):
@@ -437,39 +493,145 @@ class KGManager:
             return 0
 
         board = kg.boards.board1
-        layer = board.layers[0] if board.layers else 0
+        layer = self._board_layer(board)
         if not layer:
             print("  无法获取层数")
             return 0
 
-        self.print_board(board)
-        undug = self.get_undug_cells(board)
-        print(f"  层 {layer}, 未挖 {len(undug)} 格, 锤子 {hammer}")
-
-        # 间隔1挖掘（棋盘格式: 先挖偶数位置，再挖奇数位置）
-        dig_order = sorted(undug, key=lambda c: (c[1], c[0]))
-        # 间隔1: 先挖 (x+y)%2==0 的格子，再挖其余
-        phase1 = [c for c in dig_order if (c[0] + c[1]) % 2 == 0]
-        phase2 = [c for c in dig_order if (c[0] + c[1]) % 2 == 1]
-        ordered = phase1 + phase2
-
         dug_count = 0
-        for x, y in ordered:
-            if hammer <= 0:
+        while hammer > 0:
+            layer = self._board_layer(board)
+            if not layer:
+                print("  无法获取层数")
                 break
-            result = self.dig(layer, x, y)
-            hammer -= 1
-            dug_count += 1
-            if result and result.boards.board1.board_id:
-                new_board = result.boards.board1
-                new_items = len(new_board.items)
-                old_items = len(board.items)
-                found = f", 发现宝物! ({old_items}->{new_items})" if new_items > old_items else ""
-                board = new_board
-            else:
-                found = ""
-            print(f"  挖掘 ({x},{y}) 剩余锤子 {hammer}{found}")
-            time.sleep(0.3)
+            if self._is_layer_complete(board):
+                print(f"  层 {layer} 宝物已全部发现 ({self._treasure_progress_text(board)})，先查询是否已切到新层")
+                refreshed = self.query_kg()
+                if refreshed and refreshed.boards.board1.board_id and self._board_key(refreshed.boards.board1) != self._board_key(board):
+                    old_board = board
+                    board = refreshed.boards.board1
+                    print(f"  查询到新矿图: layer {self._board_layer(old_board)}->{self._board_layer(board)}, board {old_board.board_id}->{board.board_id}")
+                    continue
+                print("  未查询到新层，停止挖掘以避免继续消耗旧层空格")
+                break
+
+            incomplete = self._incomplete_treasures(board)
+            if incomplete:
+                self.print_board(board)
+                summary = ", ".join(
+                    f"{self._treasure_label(item)} {covered}/{total}"
+                    for item, _, covered, total in incomplete
+                )
+                print(f"  优先补完已发现宝物: {summary}")
+                replan = False
+                stop_after_complete = False
+                for item, remaining, covered, total in incomplete:
+                    ordered_remaining = sorted(remaining, key=lambda c: (c[1], c[0]))
+                    print(f"  补完 {self._treasure_label(item)} {covered}/{total}: {ordered_remaining}")
+                    for x, y in ordered_remaining:
+                        if hammer <= 0:
+                            break
+                        old_board = board
+                        old_key = self._board_key(old_board)
+                        old_found, old_total = self._treasure_progress(old_board)
+                        result = self.dig(layer, x, y)
+                        hammer -= 1
+                        dug_count += 1
+                        found_text = ""
+                        if result and result.boards.board1.board_id:
+                            new_board = result.boards.board1
+                            new_key = self._board_key(new_board)
+                            new_found, new_total = self._treasure_progress(new_board)
+                            if new_found > old_found:
+                                found_text = f", 发现宝物! ({old_found}/{old_total}->{new_found}/{new_total})"
+                            board = new_board
+                            if new_key != old_key:
+                                print(f"  补挖宝物 ({x},{y}) 剩余锤子 {hammer}{found_text}")
+                                print(f"  矿图已更新: layer {self._board_layer(old_board)}->{self._board_layer(new_board)}, board {old_board.board_id}->{new_board.board_id}，重新规划")
+                                replan = True
+                                break
+                            if self._is_layer_complete(new_board):
+                                print(f"  补挖宝物 ({x},{y}) 剩余锤子 {hammer}{found_text}")
+                                print(f"  当前层宝物已全部挖完 ({self._treasure_progress_text(new_board)})，重新查询矿图")
+                                refreshed = self.query_kg()
+                                if refreshed and refreshed.boards.board1.board_id:
+                                    refreshed_board = refreshed.boards.board1
+                                    if self._board_key(refreshed_board) != new_key:
+                                        board = refreshed_board
+                                        print(f"  查询到新矿图: layer {self._board_layer(new_board)}->{self._board_layer(refreshed_board)}, board {new_board.board_id}->{refreshed_board.board_id}")
+                                        replan = True
+                                    else:
+                                        stop_after_complete = True
+                                else:
+                                    stop_after_complete = True
+                                break
+                        print(f"  补挖宝物 ({x},{y}) 剩余锤子 {hammer}{found_text}")
+                        time.sleep(0.3)
+                    if replan or stop_after_complete or hammer <= 0:
+                        break
+                if stop_after_complete:
+                    print("  未查询到新层，停止挖掘以避免继续消耗旧层空格")
+                    break
+                continue
+
+            self.print_board(board)
+            undug, ordered = self._ordered_undug_cells(board)
+            print(f"  层 {layer}, 未挖 {len(undug)} 格, 宝物 {self._treasure_progress_text(board)}, 锤子 {hammer}")
+            if not ordered:
+                print("  当前层没有可挖格子，结束")
+                break
+
+            replan = False
+            stop_after_complete = False
+            for x, y in ordered:
+                if hammer <= 0:
+                    break
+                old_board = board
+                old_key = self._board_key(old_board)
+                old_found, old_total = self._treasure_progress(old_board)
+                result = self.dig(layer, x, y)
+                hammer -= 1
+                dug_count += 1
+                found_text = ""
+                if result and result.boards.board1.board_id:
+                    new_board = result.boards.board1
+                    new_key = self._board_key(new_board)
+                    new_found, new_total = self._treasure_progress(new_board)
+                    if new_found > old_found:
+                        found_text = f", 发现宝物! ({old_found}/{old_total}->{new_found}/{new_total})"
+                    board = new_board
+                    if new_key != old_key:
+                        print(f"  挖掘 ({x},{y}) 剩余锤子 {hammer}{found_text}")
+                        print(f"  矿图已更新: layer {self._board_layer(old_board)}->{self._board_layer(new_board)}, board {old_board.board_id}->{new_board.board_id}，重新规划")
+                        replan = True
+                        break
+                    if new_found > old_found and self._incomplete_treasures(new_board):
+                        print(f"  挖掘 ({x},{y}) 剩余锤子 {hammer}{found_text}")
+                        print("  新发现宝物尚未挖完，切换为补完宝物")
+                        replan = True
+                        break
+                    if self._is_layer_complete(new_board):
+                        print(f"  挖掘 ({x},{y}) 剩余锤子 {hammer}{found_text}")
+                        print(f"  当前层宝物已全部挖完 ({self._treasure_progress_text(new_board)})，重新查询矿图")
+                        refreshed = self.query_kg()
+                        if refreshed and refreshed.boards.board1.board_id:
+                            refreshed_board = refreshed.boards.board1
+                            if self._board_key(refreshed_board) != new_key:
+                                board = refreshed_board
+                                print(f"  查询到新矿图: layer {self._board_layer(new_board)}->{self._board_layer(refreshed_board)}, board {new_board.board_id}->{refreshed_board.board_id}")
+                                replan = True
+                            else:
+                                stop_after_complete = True
+                        else:
+                            stop_after_complete = True
+                        break
+                print(f"  挖掘 ({x},{y}) 剩余锤子 {hammer}{found_text}")
+                time.sleep(0.3)
+            if stop_after_complete:
+                print("  未查询到新层，停止挖掘以避免继续消耗旧层空格")
+                break
+            if not replan:
+                break
 
         print(f"== 完成: 共挖 {dug_count} 格 ==")
         self.print_board(board)

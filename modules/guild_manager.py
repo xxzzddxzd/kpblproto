@@ -214,15 +214,76 @@ class GuildBatchManager:
         levels = self._get_guild_member_levels()
         return levels.get(charaname, 0), charaname
 
-    def _is_fl31_done(self, account_name):
-        return bool(self.guild_accounts.get(account_name, {}).get(FL31_DONE_FLAG))
+    def _read_fl31_flag_from_account_file(self, account_name):
+        import json
+        import os
+        ac_file = self.guild_account_file(self.leader_account, account_name)
+        if not os.path.exists(ac_file):
+            return False, None
+        try:
+            with open(ac_file, 'r') as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"  读取 {ac_file} 的fl31标记失败: {e}")
+            return False, None
+        account = data.get(account_name, {})
+        if not isinstance(account, dict):
+            return False, None
+        return bool(account.get(FL31_DONE_FLAG)), account.get(FL31_DONE_TIME)
 
-    def _mark_fl31_done(self, account_name):
+    def _write_fl31_flag_to_account_file(self, account_name, done_time):
+        import json
+        import os
+        os.makedirs(self.accounts_dir, exist_ok=True)
+        ac_file = self.guild_account_file(self.leader_account, account_name)
+        data = {}
+        if os.path.exists(ac_file):
+            try:
+                with open(ac_file, 'r') as f:
+                    data = json.load(f)
+            except Exception as e:
+                print(f"  写入 {ac_file} 的fl31标记失败，原文件读取失败: {e}")
+                return
+        base = self.guild_accounts.get(account_name, {})
+        account = data.setdefault(account_name, dict(base))
+        if not isinstance(account, dict):
+            account = dict(base)
+            data[account_name] = account
+        for key, value in base.items():
+            account.setdefault(key, value)
+        account[FL31_DONE_FLAG] = True
+        account[FL31_DONE_TIME] = done_time
+        with open(ac_file, 'w') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+
+    def _is_fl31_done(self, account_name):
+        account = self.guild_accounts.get(account_name, {})
+        if account.get(FL31_DONE_FLAG):
+            done_time = account.get(FL31_DONE_TIME)
+            if done_time is not None:
+                self._write_fl31_flag_to_account_file(account_name, done_time)
+            return True
+        done, done_time = self._read_fl31_flag_from_account_file(account_name)
+        if done and account_name in self.guild_accounts:
+            self.guild_accounts[account_name][FL31_DONE_FLAG] = True
+            if done_time is not None:
+                self.guild_accounts[account_name][FL31_DONE_TIME] = done_time
+            self._save_guild_accounts()
+        return done
+
+    def _mark_fl31_done(self, account_name, ac_manager=None):
         import time
+        done_time = int(time.time())
         if account_name in self.guild_accounts:
             self.guild_accounts[account_name][FL31_DONE_FLAG] = True
-            self.guild_accounts[account_name][FL31_DONE_TIME] = int(time.time())
+            self.guild_accounts[account_name][FL31_DONE_TIME] = done_time
             self._save_guild_accounts()
+        self._write_fl31_flag_to_account_file(account_name, done_time)
+        if ac_manager is not None:
+            account = ac_manager.get_account(account_name)
+            if isinstance(account, dict):
+                account[FL31_DONE_FLAG] = True
+                account[FL31_DONE_TIME] = done_time
 
     def _is_guild_member(self, account_name):
         """判断账号是否属于公会成员（优先用charaname精确匹配，fallback到server_id后4位）"""
@@ -811,7 +872,7 @@ class GuildBatchManager:
             execute_kw["charaname"] = member_charaname
         cmd.execute(account_name, command_args, **execute_kw)
         if command == 'fl31':
-            self._mark_fl31_done(account_name)
+            self._mark_fl31_done(account_name, ac_manager)
 
     def _sync_account_snapshot(self, name, ac, extra=None):
         """把测试过程中刷新到 ACManager 内存里的关键字段同步到公会账号文件。"""
