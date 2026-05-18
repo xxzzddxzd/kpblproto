@@ -1314,7 +1314,8 @@ class DAManager:
             },
             {"ads": "盲盒机设置头像", "times": 1, "hexstringheader": "9b75", "request_body_i2": 271387},
         ]
-        self.ac_manager.do_common_request_list(self.account_name, tx_reqs, showres=self.showres)
+        for q in tx_reqs:
+            self.ac_manager.do_common_request(self.account_name, q, showres=self.showres)
         return True
 
     # ── 冒险助手 ──
