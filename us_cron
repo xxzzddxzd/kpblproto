@@ -6,6 +6,7 @@ LC_ALL=en_US.UTF-8
 # Timezone note:
 # - This file is installed on the US server, whose cron timezone is UTC-8.
 # - The schedule below is designed in UTC. Cron weekdays are converted to US local day.
+# - Cron weekday numbers: 0=Sunday, 1=Monday, ..., 6=Saturday.
 #
 # UTC schedule summary:
 # - Monday 00:00: dh flfull, then dh gg flfull. This window takes about one hour.
@@ -67,25 +68,25 @@ LC_ALL=en_US.UTF-8
 35 22 * * 1-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; /root/.pyenv/versions/3.12.13/bin/python main.py dh defda >> /root/kpbln/cron_us.log 2>&1
 
 # dh da.
-1 0 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da >> /root/kpbln/cron_us.log 2>&1
+1 0 * * 0,2-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da >> /root/kpbln/cron_us.log 2>&1
 
 # dh grc.
-10 1 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc >> /root/kpbln/cron_us.log 2>&1
+10 1 * * 0,2-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc >> /root/kpbln/cron_us.log 2>&1
 
 # dh ac 0.
-20 1 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+20 1 * * 0,2-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
 
 # dh jl gh.
-8,14,20 2 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh jl gh >> /root/kpbln/cron_us.log 2>&1
+8,14,20 2 * * 0,2-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh jl gh >> /root/kpbln/cron_us.log 2>&1
 
 # dh ac 0.
-20 4 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+20 4 * * 0,2-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
 
 # dh ac 0.
-20 7 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+20 7 * * 0,2-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
 
 # dh da.
-2 8 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da >> /root/kpbln/cron_us.log 2>&1
+2 8 * * 0,2-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da >> /root/kpbln/cron_us.log 2>&1
 
 
 # ===== Install notes =====
