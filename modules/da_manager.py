@@ -99,7 +99,6 @@ class DAManager:
             {"ads":"锦鲤2","times":1,"hexstringheader":"b92c","request_body_i2":102},
             {"ads":"锦鲤3","times":1,"hexstringheader":"b92c","request_body_i2":103},
             # {"ads":"骰子广告","times":1,"hexstringheader":"2f35","request_body_i2":9211},
-            {"ads":"公会讨伐奖励", "times":1, "hexstringheader":"2b77"}, 
             {"ads":"公会船票购买(D)", "times":1, "hexstringheader":"6532", "request_body_i2":1, "request_body_i3":10601, "request_body_i4":2},
             {"ads":"公会船票购买(W)", "times":1, "hexstringheader":"6532", "request_body_i2":1, "request_body_i3":12301, "request_body_i4":1}, 
             {"ads":"公会宝石购买(W)", "times":1, "hexstringheader":"6532", "request_body_i2":1, "request_body_i3":11200, "request_body_i4":1}, 
@@ -367,6 +366,58 @@ class DAManager:
             opened_count += 1
             print(self._format_petchest_result(open_res, opened_count, lp, zs, use_diamond), flush=True)
 
+    @classmethod
+    def _parse_scalar_fields(cls, data):
+        fields = {}
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if wire_type == 0:
+                fields[field_no] = value
+        return fields
+
+    @classmethod
+    def _extract_guild_conquest_tasks(cls, response):
+        tasks = []
+        body = response[6:]
+        for field_no, wire_type, value in cls._iter_proto_fields(body):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for inner_field_no, inner_wire_type, inner_value in cls._iter_proto_fields(value):
+                if inner_field_no == 18 and inner_wire_type == 2:
+                    task = cls._parse_scalar_fields(inner_value)
+                    if task.get(1):
+                        tasks.append(task)
+            break
+        return tasks
+
+    def claim_guild_conquest_rewards(self):
+        """领取公会讨伐任务奖励和累积奖励。"""
+        print(f"<{mask_account(self.account_name)}> 开始领取公会讨伐奖励")
+        state_req = {"ads": "公会讨伐列表", "times": 1, "hexstringheader": "e575"}
+        state_res = self.ac_manager.do_common_request(self.account_name, state_req, showres=self.showres)
+        if not state_res or len(state_res) <= 6:
+            print(f"<{mask_account(self.account_name)}> 公会讨伐列表获取失败")
+        else:
+            try:
+                tasks = self._extract_guild_conquest_tasks(state_res)
+                claimable_tasks = [
+                    task for task in tasks
+                    if task.get(5) == 1 and task.get(6) != 1
+                ]
+                if claimable_tasks:
+                    task_ids = [task.get(1) for task in claimable_tasks]
+                    print(f"<{mask_account(self.account_name)}> 公会讨伐任务可领取: {task_ids}")
+                    for task in claimable_tasks:
+                        task_id = task.get(1)
+                        req = {"ads": f"公会讨伐任务{task_id}", "times": 1, "hexstringheader": "ed75", "request_body_i2": task_id}
+                        self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+                else:
+                    print(f"<{mask_account(self.account_name)}> 公会讨伐任务没有未领取奖励")
+            except Exception as e:
+                print(f"<{mask_account(self.account_name)}> 公会讨伐任务列表解析失败: {e}")
+
+        cumulative_req = {"ads": "公会讨伐累积奖励", "times": 1, "hexstringheader": "2b77"}
+        self.ac_manager.do_common_request(self.account_name, cumulative_req, showres=self.showres)
+
     def execute_daily_tasks(self):
         """
         执行所有日常任务
@@ -437,6 +488,8 @@ class DAManager:
             print(f"<{mask_account(self.account_name)}> 开始执行个人船刷新开船")
             from .trade_manager import TradeManager
             TradeManager(self.account_name, showres=self.showres, ac_manager=self.ac_manager).run_grc()
+
+            self.claim_guild_conquest_rewards()
 
             return True
         except Exception as e:
@@ -654,6 +707,7 @@ class DAManager:
         print('扫荡')
         for dt in range(1, 5):
             self.saodang(dt, 0, 4)
+        self.dodungeon_auto_battle()
         print('开箱子')
         self.ac_manager.openBox(71, 5)
         self.dopetqh()
@@ -674,6 +728,20 @@ class DAManager:
         req_config = {"ads":"锦鲤","times":1,"hexstringheader":"b92c","request_body_i2":102}
         req_config = {"ads":"锦鲤","times":1,"hexstringheader":"b92c","request_body_i2":103}
         return 1
+
+    def dodungeon_auto_battle(self, times=3):
+        print(f"开始执行地牢自动战斗 x{times}...")
+        from .dungeon_manager import DungeonManager
+        total_boss = 0
+        for i in range(times):
+            print(f"\n===== 地牢第 {i+1}/{times} 次 =====")
+            total_boss += DungeonManager(
+                self.account_name,
+                showres=self.showres,
+                ac_manager=self.ac_manager,
+            ).auto_battle()
+        print(f"\n地牢完成: {times}次, 总Boss通过={total_boss}")
+        return total_boss
     # def dailyforkpkpj(self): # 卡皮转蛋日常
         
     def dobuypvp(self):

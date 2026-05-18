@@ -1,0 +1,99 @@
+SHELL=/bin/bash
+PYTHONIOENCODING=utf-8
+LANG=en_US.UTF-8
+LC_ALL=en_US.UTF-8
+
+# Timezone note:
+# - This file is installed on the US server, whose cron timezone is UTC-8.
+# - The schedule below is designed in UTC. Cron weekdays are converted to US local day.
+#
+# UTC schedule summary:
+# - Monday 00:00: dh flfull, then dh gg flfull. This window takes about one hour.
+# - Monday 01:00: dh gg run.
+# - Monday 06:35: delayed post-window tasks: dh gg zscp, xh gg zscp, dh da, dh grc, dh ac 0, dh defda.
+# - Monday 08:01: dh da.
+# - Monday 09:10: dh grc.
+# - Monday 09:20, 12:20, 15:20: dh ac 0.
+# - Monday 10:08, 10:14, 10:20: dh jl gh.
+# - Monday 16:02: dh da.
+# - Tuesday-Sunday 00:00: dh fl, xh gg zscp, dh da, dh grc, dh ac 0.
+# - Tuesday-Sunday 01:00: dh gg run.
+# - Tuesday-Sunday 06:35: dh gg zscp, dh ac 0, dh defda.
+# - Tuesday-Sunday 08:01: dh da.
+# - Tuesday-Sunday 09:10: dh grc.
+# - Tuesday-Sunday 09:20, 12:20, 15:20: dh ac 0.
+# - Tuesday-Sunday 10:08, 10:14, 10:20: dh jl gh.
+# - Tuesday-Sunday 16:02: dh da.
+# - No dh or dh gg commands are scheduled after UTC 16:05.
+
+# dh flfull, then dh gg flfull.
+0 16 * * 0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh flfull ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg flfull >> /root/kpbln/cron_us.log 2>&1
+
+# dh gg run.
+0 17 * * 0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg run >> /root/kpbln/cron_us.log 2>&1
+
+# dh gg zscp, xh gg zscp, dh da, dh grc, dh ac 0, dh defda.
+35 22 * * 0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py xh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; /root/.pyenv/versions/3.12.13/bin/python main.py dh defda >> /root/kpbln/cron_us.log 2>&1
+
+# dh da.
+1 0 * * 1 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da >> /root/kpbln/cron_us.log 2>&1
+
+# dh grc.
+10 1 * * 1 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc >> /root/kpbln/cron_us.log 2>&1
+
+# dh ac 0.
+20 1 * * 1 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+
+# dh jl gh.
+8,14,20 2 * * 1 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh jl gh >> /root/kpbln/cron_us.log 2>&1
+
+# dh ac 0.
+20 4 * * 1 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+
+# dh ac 0.
+20 7 * * 1 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+
+# dh da.
+2 8 * * 1 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da >> /root/kpbln/cron_us.log 2>&1
+
+
+# dh fl, xh gg zscp, dh da, dh grc, dh ac 0.
+0 16 * * 1-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh fl ; /root/.pyenv/versions/3.12.13/bin/python main.py xh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+
+# dh gg run.
+0 17 * * 1-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg run >> /root/kpbln/cron_us.log 2>&1
+
+# dh gg zscp, dh ac 0, dh defda.
+35 22 * * 1-6 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; /root/.pyenv/versions/3.12.13/bin/python main.py dh defda >> /root/kpbln/cron_us.log 2>&1
+
+# dh da.
+1 0 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da >> /root/kpbln/cron_us.log 2>&1
+
+# dh grc.
+10 1 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc >> /root/kpbln/cron_us.log 2>&1
+
+# dh ac 0.
+20 1 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+
+# dh jl gh.
+8,14,20 2 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh jl gh >> /root/kpbln/cron_us.log 2>&1
+
+# dh ac 0.
+20 4 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+
+# dh ac 0.
+20 7 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 >> /root/kpbln/cron_us.log 2>&1
+
+# dh da.
+2 8 * * 2-0 cd /root/kpbln/ ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da >> /root/kpbln/cron_us.log 2>&1
+
+
+# ===== Install notes =====
+# Backup current crontab:
+# crontab -l > /root/kpbln/crontab.backup.$(date +\%Y\%m\%d_\%H\%M\%S)
+#
+# Import this file as the active crontab:
+# crontab /root/kpbln/us_cron
+#
+# Verify:
+# crontab -l
