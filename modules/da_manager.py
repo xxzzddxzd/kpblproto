@@ -641,15 +641,16 @@ class DAManager:
             self.ac_manager.do_common_request(self.account_name,req_config,showres=self.showres)
         return True
 
-    def sbzz_info(self):
+    def sbzz_info(self, zone_id=None):
         req_config = {"ads":"圣杯战争信息","times":1,"hexstringheader":"4d7a"}
+        if zone_id:
+            req_config["request_body_i3"] = zone_id
         rev = self.ac_manager.do_common_request(self.account_name,req_config,showres=self.showres)
         sbzz_resp = kpbl_pb2.sbzz_response()
         sbzz_resp.ParseFromString(rev[6:])
         return sbzz_resp
 
-    def sbzz_dz(self): # 圣杯战争点赞
-        sbzz_resp = self.sbzz_info()
+    def _sbzz_like_targets(self, sbzz_resp):
         targets = []
         seen = set()
         for zone in sbzz_resp.zones:
@@ -662,7 +663,11 @@ class DAManager:
                     continue
                 seen.add(key)
                 targets.append(key)
+        return targets
 
+    def sbzz_dz(self): # 圣杯战争点赞
+        sbzz_resp = self.sbzz_info()
+        targets = self._sbzz_like_targets(sbzz_resp)
         print(f"圣杯战争点赞目标: {targets}")
         if not targets:
             print("圣杯战争点赞目标为空，跳过")
@@ -670,9 +675,21 @@ class DAManager:
         if len(targets) != 6:
             print(f"圣杯战争点赞目标数量异常: {len(targets)}，期望 6 个")
 
+        targets_by_zone = {}
         for zone_id, player_id in targets:
-            req_config = {"ads":"圣杯战争点赞","times":1,"hexstringheader":"577a","request_body_i2":player_id,"request_body_i3":zone_id}
-            self.ac_manager.do_common_request(self.account_name,req_config,showres=self.showres)
+            targets_by_zone.setdefault(zone_id, []).append(player_id)
+
+        for zone_id in sorted(targets_by_zone, reverse=True):
+            zone_resp = self.sbzz_info(zone_id)
+            zone_targets = [
+                player_id
+                for refreshed_zone_id, player_id in self._sbzz_like_targets(zone_resp)
+                if refreshed_zone_id == zone_id
+            ] or targets_by_zone[zone_id]
+            print(f"圣杯战争战区{zone_id}点赞目标: {zone_targets}")
+            for player_id in zone_targets:
+                req_config = {"ads":"圣杯战争点赞","times":1,"hexstringheader":"577a","request_body_i2":player_id,"request_body_i3":zone_id}
+                self.ac_manager.do_common_request(self.account_name,req_config,showres=self.showres)
         return True
 
 
