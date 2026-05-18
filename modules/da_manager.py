@@ -1280,10 +1280,10 @@ class DAManager:
 
         """盲盒机抽奖"""
         reqs = [
-            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 107},
-            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 108},
-            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 107},
-            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 108},
+            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 109},
+            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 110},
+            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 109},
+            {"ads": "盲盒机抽奖","times": 1,"hexstringheader": "c92c","request_body_i2": 1,"request_body_i3": 110},
         ]
         for req in reqs:
             res = self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
