@@ -36,6 +36,7 @@ class DAManager:
         return [
             {"ads":"活动日历签到","times":1,"hexstringheader":"d32b","request_body_i2":250},
             # {"ads":"骰子广告","times":1,"hexstringheader":"2f35","request_body_i2":9218},
+            {"ads":"pingu广告","hexstringheader":"a52c","times":1,"request_body_i2":202605183,'request_body_i3':6011},
             {"ads":"hd20260330广告","hexstringheader":"a52c","times":1,"request_body_i2":202603301,'request_body_i3':9735},
             # {"ads":"中秋x5","hexstringheader":"a52c","times":5,"request_body_i2":20251006,'request_body_i3':9799},
             # {"ads":"周年","hexstringheader":"a52c","times":1,"request_body_i2":202512223,'request_body_i3':3010},
@@ -146,6 +147,225 @@ class DAManager:
         print('egggacha')
         req = {"ads":"宠物蛋3抽卡10倍","times":times,"hexstringheader":"f14e","request_body_i2":13, 'request_body_i3':10}
         return len(self.ac_manager.do_common_request(self.account_name, req, showres=self.showres))>20
+
+    def _do_petchest_request(self, ads, hexstringheader):
+        req = {"ads": ads, "times": 1, "hexstringheader": hexstringheader}
+        res = self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+        return res if res and len(res) > 6 else None
+
+    @staticmethod
+    def _read_varint(data, pos, end):
+        value = 0
+        shift = 0
+        while pos < end:
+            byte = data[pos]
+            pos += 1
+            value |= (byte & 0x7f) << shift
+            if not byte & 0x80:
+                return value, pos
+            shift += 7
+        raise ValueError("truncated varint")
+
+    @classmethod
+    def _iter_proto_fields(cls, data):
+        pos = 0
+        end = len(data)
+        while pos < end:
+            key, pos = cls._read_varint(data, pos, end)
+            field_no = key >> 3
+            wire_type = key & 0x07
+            if wire_type == 0:
+                value, pos = cls._read_varint(data, pos, end)
+            elif wire_type == 1:
+                value = data[pos:pos + 8]
+                pos += 8
+            elif wire_type == 2:
+                length, pos = cls._read_varint(data, pos, end)
+                value = data[pos:pos + length]
+                pos += length
+            elif wire_type == 5:
+                value = data[pos:pos + 4]
+                pos += 4
+            else:
+                raise ValueError(f"unsupported wire type: {wire_type}")
+            yield field_no, wire_type, value
+
+    @classmethod
+    def _parse_petchest_reward_item(cls, data):
+        item_id = 0
+        count = 0
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if wire_type != 0:
+                continue
+            if field_no == 2:
+                item_id = value
+            elif field_no == 3:
+                count = value
+        return item_id, count
+
+    @classmethod
+    def _parse_petchest_item_update(cls, data):
+        item_type = None
+        count = None
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for item_field_no, item_wire_type, item_value in cls._iter_proto_fields(value):
+                if item_wire_type != 0:
+                    continue
+                if item_field_no == 2:
+                    item_type = item_value
+                elif item_field_no in (3, 5):
+                    count = item_value
+        if item_type is None or count is None:
+            return None
+        return item_type, count
+
+    @classmethod
+    def _parse_petchest_currency_candidate(cls, data):
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for item_field_no, item_wire_type, item_value in cls._iter_proto_fields(value):
+                if item_wire_type == 0 and item_field_no == 2:
+                    return item_value
+        return None
+
+    @classmethod
+    def _parse_petchest_delta_type(cls, data):
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if wire_type == 0 and field_no == 2:
+                return value
+        return None
+
+    @classmethod
+    def _extract_petchest_balances(cls, response):
+        balances = {}
+        currency_candidate = None
+        delta_types = set()
+        body = response[6:]
+        for field_no, wire_type, value in cls._iter_proto_fields(body):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for inner_field_no, inner_wire_type, inner_value in cls._iter_proto_fields(value):
+                if inner_wire_type != 2:
+                    continue
+                if inner_field_no == 7:
+                    item_update = cls._parse_petchest_item_update(inner_value)
+                    if item_update:
+                        item_type, count = item_update
+                        balances[item_type] = count
+                elif inner_field_no == 2:
+                    currency_candidate = cls._parse_petchest_currency_candidate(inner_value)
+                elif inner_field_no == 32:
+                    delta_type = cls._parse_petchest_delta_type(inner_value)
+                    if delta_type is not None:
+                        delta_types.add(delta_type)
+            if currency_candidate is not None and 2 in delta_types:
+                balances[2] = currency_candidate
+        return balances
+
+    @staticmethod
+    def _petchest_fragment_rarity(item_id):
+        if str(item_id).startswith("320"):
+            return item_id // 1000 % 10
+        return None
+
+    @classmethod
+    def _extract_petchest_high_rare_fragments(cls, response, min_rarity=6):
+        rewards = {}
+        body = response[6:]
+        for field_no, wire_type, value in cls._iter_proto_fields(body):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for inner_field_no, inner_wire_type, inner_value in cls._iter_proto_fields(value):
+                if inner_field_no != 3 or inner_wire_type != 2:
+                    continue
+                item_id, count = cls._parse_petchest_reward_item(inner_value)
+                rarity = cls._petchest_fragment_rarity(item_id)
+                if rarity is None or rarity < min_rarity or count <= 0:
+                    continue
+                key = (rarity, item_id)
+                rewards[key] = rewards.get(key, 0) + count
+        return [(item_id, rarity, count) for (rarity, item_id), count in sorted(rewards.items())]
+
+    @classmethod
+    def _extract_petchest_status(cls, response):
+        status = {}
+        body = response[6:]
+        for field_no, wire_type, value in cls._iter_proto_fields(body):
+            if field_no != 3 or wire_type != 2:
+                continue
+            for inner_field_no, inner_wire_type, inner_value in cls._iter_proto_fields(value):
+                if inner_wire_type != 0:
+                    continue
+                if inner_field_no == 2:
+                    status["level"] = inner_value
+                elif inner_field_no == 3:
+                    status["level_progress"] = inner_value
+                elif inner_field_no == 6:
+                    status["accumulated_progress"] = inner_value
+            if status:
+                break
+        return status
+
+    @classmethod
+    def _format_petchest_drop_list(cls, response):
+        drops = cls._extract_petchest_high_rare_fragments(response)
+        if not drops:
+            return ""
+        drop_text = ",".join(f"{item_id}(r{rarity})x{count}" for item_id, rarity, count in drops)
+        return f"，drop_list=[{drop_text}]"
+
+    @classmethod
+    def _format_petchest_result(cls, response, opened_count, lp=None, zs=None, show_zs=False):
+        status = cls._extract_petchest_status(response)
+        level = status.get("level", "?")
+        level_progress = status.get("level_progress", "?")
+        accumulated_progress = status.get("accumulated_progress", "?")
+        result = f"[LV{level}][{level_progress}][{accumulated_progress}]【lp:{lp if lp is not None else '?'}】"
+        if show_zs:
+            result += f"【zs:{zs if zs is not None else '?'}】"
+        return f"{result}已开{opened_count}{cls._format_petchest_drop_list(response)}"
+
+    def petchest_round(self, diamond_clicks=0):
+        """执行一轮宠物宝箱：点箱子、3次免费进阶、0~3次钻石进阶、打开。"""
+        if diamond_clicks < 0 or diamond_clicks > 3:
+            raise ValueError("diamond_clicks must be between 0 and 3")
+
+        token_res = self._do_petchest_request("宠物宝箱-点箱子", "c94f")
+        if not token_res:
+            return False
+        lp = self._extract_petchest_balances(token_res).get(59)
+        zs = None
+
+        for step in range(1, 4):
+            if not self._do_petchest_request(f"宠物宝箱-免费进阶{step}", "c54f"):
+                return False
+
+        for step in range(1, diamond_clicks + 1):
+            diamond_res = self._do_petchest_request(f"宠物宝箱-钻石进阶{step}", "c54f")
+            if not diamond_res:
+                return False
+            zs = self._extract_petchest_balances(diamond_res).get(2, zs)
+
+        open_res = self._do_petchest_request("宠物宝箱-打开", "bd4f")
+        if not open_res:
+            return False
+        return open_res, lp, zs
+
+    def petchest(self, use_diamond=False):
+        """持续执行宠物宝箱，直到用户 Ctrl+C。"""
+        diamond_clicks = 3 if use_diamond else 0
+        opened_count = 0
+        while True:
+            result = self.petchest_round(diamond_clicks)
+            if not result:
+                print(f"<{mask_account(self.account_name)}> 宠物宝箱执行失败，停止")
+                return False
+            open_res, lp, zs = result
+            opened_count += 1
+            print(self._format_petchest_result(open_res, opened_count, lp, zs, use_diamond), flush=True)
 
     def execute_daily_tasks(self):
         """

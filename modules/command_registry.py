@@ -278,6 +278,26 @@ def _execute_ndrwlq(account_name, args, **kw):
     return True
 
 
+def _parse_petchest_use_diamond(args):
+    if not args:
+        try:
+            answer = input("是否使用钻石进阶？默认不使用 [y/N]: ").strip().lower()
+        except EOFError:
+            return False
+    else:
+        answer = str(args[0]).strip().lower()
+    return answer in ("y", "yes", "1", "true", "t", "use", "diamond", "zs", "是", "使用", "钻石")
+
+
+def _execute_petchest(account_name, args, **kw):
+    from .da_manager import DAManager
+    showres = kw.get('showres', 0)
+    delay = kw.get('delay', 0)
+    ac = kw.get('ac_manager')
+    use_diamond = _parse_petchest_use_diamond(args)
+    return DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).petchest(use_diamond=use_diamond)
+
+
 def _execute_jq(account_name, args, **kw):
     level = int(args[0]) if len(args) >= 1 else 0
     from .story_battle import StoryBattleManager
@@ -1148,6 +1168,7 @@ COMMANDS = [
     CommandDef(name="tf",    desc="天赋强化",   category="日常/资源", execute=_execute_tf),
     CommandDef(name="tfn",   desc="天赋强化(新版)", category="日常/资源", execute=_execute_tfn),
     CommandDef(name="py",    desc="培育 (交互式)", category="日常/资源", execute=_execute_py, batchable=False),
+    CommandDef(name="petchest", desc="宠物宝箱", category="日常/资源", usage="[是否使用钻石=y/N]", execute=_execute_petchest, batchable=False),
     CommandDef(name="oi",    desc="使用物品",   category="日常/资源", usage="[物品ID] [数量=1]", execute=_execute_oi, batchable=False),
     CommandDef(name="login", desc="仅登录",     category="日常/资源", execute=_execute_login, batchable=False),
     CommandDef(name="mr",    desc="邮件领取",   category="日常/资源", execute=_execute_mr),
