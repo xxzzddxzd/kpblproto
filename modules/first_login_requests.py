@@ -19,6 +19,7 @@ FIRST_LOGIN_REQUESTS = [
     {"ads":"fl_12", "times":1, "hexstringheader":"0d62"},  # 16-req.bin
     {"ads":"fl_13", "times":1, "hexstringheader":"8162"},  # 17-req.bin
     {"ads":"fl_14", "times":1, "hexstringheader":"bb4f"},  # 18-req.bin
+    {"ads":"fl_kpkpj_mail", "times":1, "hexstringheader":"b52d"},  # 触发卡皮卡皮机奖励补发
 ]
 
 FIRST_LOGIN_REQUESTS_PLUS = [
@@ -61,7 +62,6 @@ FIRST_LOGIN_REQUESTS_PLUS = [
     {"ads":"fl_51", "times":1, "hexstringheader":"4331", "request_body_i2": -226818558},  # 56-req.bin
     {"ads":"fl_52", "times":1, "hexstringheader":"2135"},  # 57-req.bin
     {"ads":"fl_53", "times":1, "hexstringheader":"af28"},  # 58-req.bin
-    {"ads":"fl_54", "times":1, "hexstringheader":"b52d"},  # 59-req.bin
     {"ads":"fl_55", "times":1, "hexstringheader":"7d2e"},  # 60-req.bin
     {"ads":"fl_56", "times":1, "hexstringheader":"932c"},  # 62-req.bin
     {"ads":"fl_57", "times":1, "hexstringheader":"a727"},  # 63-req.bin

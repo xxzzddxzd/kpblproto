@@ -1273,8 +1273,8 @@ class DAManager:
 
     def mangheji_gacha(self):
         reqs = [
-            {"ads":"盲盒机礼包","hexstringheader":"a52c","times":2,"request_body_i2":202512227,'request_body_i3':3010},
-            {"ads":"盲盒机礼包","hexstringheader":"a52c","times":2,"request_body_i2":202512227,'request_body_i3':3020},
+            {"ads":"盲盒机礼包","hexstringheader":"a52c","times":2,"request_body_i2":202512228,'request_body_i3':3010},
+            {"ads":"盲盒机礼包","hexstringheader":"a52c","times":2,"request_body_i2":202512228,'request_body_i3':3020},
         ]
         self.ac_manager.do_common_request_list(self.account_name, reqs, showres=self.showres)
 
@@ -1299,6 +1299,22 @@ class DAManager:
                     for item in resp.result.items:
                         name = ITEM_NAMES.get(item.itemid, f"type:{item.itemid}")
                         print(f"  {name} x{item.itemcount}")
+        tx_reqs = [
+            {"ads": "盲盒机头像领取", "times": 1, "hexstringheader": "9d27", "request_body_i2": 1, "request_body_i3": 1059},
+            {
+                "ads": "盲盒机头像解锁",
+                "times": 1,
+                "hexstringheader": "9b27",
+                "requestbodytype": "request_body_allint1",
+                "request_body_i2": 1059,
+                "request_body_i3": 2,
+                "request_body_i4": 1,
+                "request_body_i5": 2,
+                "request_body_i6": 3,
+            },
+            {"ads": "盲盒机设置头像", "times": 1, "hexstringheader": "9b75", "request_body_i2": 271387},
+        ]
+        self.ac_manager.do_common_request_list(self.account_name, tx_reqs, showres=self.showres)
         return True
 
     # ── 冒险助手 ──

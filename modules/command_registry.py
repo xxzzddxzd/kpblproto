@@ -744,8 +744,10 @@ def _execute_ggl(account_name, args, **kw):
 
 def _execute_mhj(account_name, args, **kw):
     from .da_manager import DAManager
+    showres = kw.get('showres', 0)
+    delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
-    dm = DAManager(account_name, ac_manager=ac)
+    dm = DAManager(account_name, showres=showres, delay=delay, ac_manager=ac)
     return dm.mangheji_gacha()
 
 
