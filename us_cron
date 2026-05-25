@@ -2,6 +2,8 @@ SHELL=/bin/bash
 PYTHONIOENCODING=utf-8
 LANG=en_US.UTF-8
 LC_ALL=en_US.UTF-8
+PYTHON_BIN=/root/.pyenv/versions/3.12.13/bin/python
+CRON_LOG=/root/kpbln/cron_us.log
 
 # Timezone note:
 # - This file is installed on the US server, whose cron timezone is EDT (UTC-4).
@@ -26,67 +28,68 @@ LC_ALL=en_US.UTF-8
 # - Tuesday-Sunday 10:08, 10:14, 10:20: dh jl gh.
 # - Tuesday-Sunday 16:02: dh da.
 # - No dh or dh gg commands are scheduled after UTC 16:05.
+# - Cron log only records timestamp and command; command stdout/stderr is discarded.
 
 # dh flfull, then dh gg flfull.
-0 20 * * 0 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh flfull ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg flfull ; } >> /root/kpbln/cron_us.log 2>&1
+0 20 * * 0 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh flfull' >> $CRON_LOG ; $PYTHON_BIN main.py dh flfull >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg flfull' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg flfull >/dev/null 2>&1
 
 # dh gg run.
-0 21 * * 0 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg run ; } >> /root/kpbln/cron_us.log 2>&1
+0 21 * * 0 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg run' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg run >/dev/null 2>&1
 
 # dh gg zscp, xh gg zscp, dh da, dh grc, dh ac 0, dh defda.
-35 2 * * 1 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py xh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; /root/.pyenv/versions/3.12.13/bin/python main.py dh defda ; } >> /root/kpbln/cron_us.log 2>&1
+35 2 * * 1 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg zscp >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py xh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py xh gg zscp >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ; $PYTHON_BIN main.py dh da >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh grc' >> $CRON_LOG ; $PYTHON_BIN main.py dh grc >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh defda' >> $CRON_LOG ; $PYTHON_BIN main.py dh defda >/dev/null 2>&1
 
 # dh da.
-1 4 * * 1 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da ; } >> /root/kpbln/cron_us.log 2>&1
+1 4 * * 1 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ; $PYTHON_BIN main.py dh da >/dev/null 2>&1
 
 # dh grc.
-10 5 * * 1 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc ; } >> /root/kpbln/cron_us.log 2>&1
+10 5 * * 1 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh grc' >> $CRON_LOG ; $PYTHON_BIN main.py dh grc >/dev/null 2>&1
 
 # dh ac 0.
-20 5 * * 1 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; } >> /root/kpbln/cron_us.log 2>&1
+20 5 * * 1 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1
 
 # dh jl gh.
-8,14,20 6 * * 1 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh jl gh ; } >> /root/kpbln/cron_us.log 2>&1
+8,14,20 6 * * 1 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh jl gh' >> $CRON_LOG ; $PYTHON_BIN main.py dh jl gh >/dev/null 2>&1
 
 # dh ac 0.
-20 8 * * 1 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; } >> /root/kpbln/cron_us.log 2>&1
+20 8 * * 1 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1
 
 # dh ac 0.
-20 11 * * 1 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; } >> /root/kpbln/cron_us.log 2>&1
+20 11 * * 1 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1
 
 # dh da.
-2 12 * * 1 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da ; } >> /root/kpbln/cron_us.log 2>&1
+2 12 * * 1 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ; $PYTHON_BIN main.py dh da >/dev/null 2>&1
 
 
 # dh fl, xh gg zscp, dh da, dh grc, dh ac 0.
-2 20 * * 1-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh fl ; /root/.pyenv/versions/3.12.13/bin/python main.py xh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; } >> /root/kpbln/cron_us.log 2>&1
+2 20 * * 1-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh fl' >> $CRON_LOG ; $PYTHON_BIN main.py dh fl >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py xh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py xh gg zscp >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ; $PYTHON_BIN main.py dh da >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh grc' >> $CRON_LOG ; $PYTHON_BIN main.py dh grc >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1
 
 # dh gg run.
-0 21 * * 1-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg run ; } >> /root/kpbln/cron_us.log 2>&1
+0 21 * * 1-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg run' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg run >/dev/null 2>&1
 
 # dh gg zscp, dh ac 0, dh defda.
-35 2 * * 0,2-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh gg zscp ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; /root/.pyenv/versions/3.12.13/bin/python main.py dh defda ; } >> /root/kpbln/cron_us.log 2>&1
+35 2 * * 0,2-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg zscp >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh defda' >> $CRON_LOG ; $PYTHON_BIN main.py dh defda >/dev/null 2>&1
 
 # dh da.
-1 4 * * 0,2-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da ; } >> /root/kpbln/cron_us.log 2>&1
+1 4 * * 0,2-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ; $PYTHON_BIN main.py dh da >/dev/null 2>&1
 
 # dh grc.
-10 5 * * 0,2-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh grc ; } >> /root/kpbln/cron_us.log 2>&1
+10 5 * * 0,2-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh grc' >> $CRON_LOG ; $PYTHON_BIN main.py dh grc >/dev/null 2>&1
 
 # dh ac 0.
-20 5 * * 0,2-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; } >> /root/kpbln/cron_us.log 2>&1
+20 5 * * 0,2-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1
 
 # dh jl gh.
-8,14,20 6 * * 0,2-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh jl gh ; } >> /root/kpbln/cron_us.log 2>&1
+8,14,20 6 * * 0,2-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh jl gh' >> $CRON_LOG ; $PYTHON_BIN main.py dh jl gh >/dev/null 2>&1
 
 # dh ac 0.
-20 8 * * 0,2-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; } >> /root/kpbln/cron_us.log 2>&1
+20 8 * * 0,2-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1
 
 # dh ac 0.
-20 11 * * 0,2-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh ac 0 ; } >> /root/kpbln/cron_us.log 2>&1
+20 11 * * 0,2-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1
 
 # dh da.
-2 12 * * 0,2-6 cd /root/kpbln/ ; { /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z' ; /root/.pyenv/versions/3.12.13/bin/python main.py dh da ; } >> /root/kpbln/cron_us.log 2>&1
+2 12 * * 0,2-6 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ; $PYTHON_BIN main.py dh da >/dev/null 2>&1
 
 
 # ===== Install notes =====
