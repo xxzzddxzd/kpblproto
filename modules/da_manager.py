@@ -9,7 +9,11 @@ import json
 from .kpbltools import ACManager, mask_account
 from .wk_manager import WKManager
 from . import kpbl_pb2
-from .first_login_requests import FIRST_LOGIN_REQUESTS, FIRST_LOGIN_REQUESTS_PLUS, FIRST_LOGIN_LV31_REQUESTS
+from .first_login_requests import (
+    FIRST_LOGIN_REQUESTS,
+    FIRST_LOGIN_REQUESTS_FULL,
+    FIRST_LOGIN_LV31_REQUESTS,
+)
 
 class DAManager:
     """日常任务管理器"""
@@ -1019,9 +1023,34 @@ class DAManager:
         self.ac_manager.do_common_request_list(self.account_name, FIRST_LOGIN_REQUESTS, showres=self.showres)
 
     def day_first_login_full(self):
-        """每日首次登录请求(完整)，串行执行 FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS"""
-        for req in FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS:
+        """每日首次登录请求(完整)，串行执行 FIRST_LOGIN_REQUESTS_FULL"""
+        for req in FIRST_LOGIN_REQUESTS_FULL:
             self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+
+    def day_first_login_full_one(self, selector):
+        """执行完整首登列表里的单个请求，selector 可为序号或 ads。"""
+        if selector is None:
+            print("缺少 flfull 请求序号")
+            return False
+        req = None
+        if isinstance(selector, int) or str(selector).isdigit():
+            index = int(selector)
+            if index < 0 or index >= len(FIRST_LOGIN_REQUESTS_FULL):
+                print(f"flfull 序号超出范围: {index}, 可用 0-{len(FIRST_LOGIN_REQUESTS_FULL) - 1}")
+                return False
+            req = FIRST_LOGIN_REQUESTS_FULL[index]
+        else:
+            selector = str(selector)
+            for item in FIRST_LOGIN_REQUESTS_FULL:
+                if item.get("ads") == selector:
+                    req = item
+                    break
+            if req is None:
+                print(f"找不到 flfull 请求: {selector}")
+                return False
+        print(f"执行 flfull 单请求: {req.get('ads')} {req.get('hexstringheader')}")
+        self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+        return True
 
     def day_first_login_lv31(self):
         """31级账号首次登录完整请求，包含教学跳过链路"""

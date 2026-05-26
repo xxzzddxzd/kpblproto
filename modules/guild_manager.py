@@ -753,6 +753,23 @@ class GuildBatchManager:
             return False
         self._for_each_account(self._zscp_for_account, "赠送船票", start_from=start_from)
 
+    def batch_grc(self, start_from=1, max_refresh=None):
+        """个人船刷新开船：逐个小号刷新到目标奖励后开船。"""
+        from .trade_manager import TradeManager
+
+        def _grc(ac, name):
+            TradeManager(
+                name,
+                showres=self.showres,
+                delay=self.delay,
+                ac_manager=ac,
+            ).run_grc(max_refresh=max_refresh)
+
+        desc = "个人船刷新开船"
+        if max_refresh is not None:
+            desc += f"(最大刷新{max_refresh})"
+        self._for_each_account(_grc, desc, start_from=start_from)
+
     def batch_daily(self):
         """捐献+扫荡"""
         def _daily(ac, name):

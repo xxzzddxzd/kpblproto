@@ -129,7 +129,10 @@ def _execute_flfull(account_name, args, **kw):
     showres = kw.get('showres', 1)
     delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
-    DAManager(account_name, showres=showres, delay=delay, ac_manager=ac).day_first_login_full()
+    da = DAManager(account_name, showres=showres, delay=delay, ac_manager=ac)
+    if args:
+        return da.day_first_login_full_one(args[0])
+    da.day_first_login_full()
     return True
 
 
@@ -393,7 +396,11 @@ def _execute_dy(account_name, args, **kw):
 def _execute_wk(account_name, args, **kw):
     print("开始执行挖矿...")
     from .wk_manager import WKManager
-    return WKManager(account_name).start_mining(False)
+    showres = kw.get('showres', 0)
+    wk = WKManager(account_name, showres=showres)
+    if args and args[0].lower() in ('1', 'one', 'once', 'single'):
+        return wk.mine_once(False)
+    return wk.start_mining(False)
 
 
 def _execute_yb(account_name, args, **kw):
@@ -1159,12 +1166,12 @@ COMMANDS = [
     CommandDef(name="da",    desc="日常任务",   category="日常/资源", execute=_execute_da),
     CommandDef(name="defda", desc="默认日常任务", category="日常/资源", execute=_execute_defda),
     CommandDef(name="fl",    desc="首登奖励",   category="日常/资源", execute=_execute_fl, batch_execute=_batch_fl),
-    CommandDef(name="flfull", desc="首登奖励(完整)", category="日常/资源", execute=_execute_flfull, batch_execute=_batch_flfull),
+    CommandDef(name="flfull", desc="首登奖励(完整)", category="日常/资源", usage="[单请求序号/ads]", execute=_execute_flfull, batch_execute=_batch_flfull),
     CommandDef(name="fl31",  desc="31级首登+教学跳过", category="日常/资源", execute=_execute_fl31, batch_execute=_batch_fl31),
     CommandDef(name="yl",    desc="游历",       category="日常/资源", usage="[次数=1]", execute=_execute_yl, batch_default_args=["20"]),
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),
     CommandDef(name="xyx",   desc="幸运星",     category="日常/资源", execute=_execute_xyx),
-    CommandDef(name="wk",    desc="挖矿",       category="日常/资源", execute=_execute_wk, batchable=False),
+    CommandDef(name="wk",    desc="挖矿",       category="日常/资源", usage="[once=只点一次]", execute=_execute_wk, batchable=False),
     CommandDef(name="dy",    desc="钓鱼",       category="日常/资源", usage="[区域] [次数] [中止策略=0]", execute=_execute_dy, batchable=False),
     CommandDef(name="cc",    desc="一键传承",   category="日常/资源", execute=_execute_cc, batchable=False),
     CommandDef(name="tf",    desc="天赋强化",   category="日常/资源", execute=_execute_tf),

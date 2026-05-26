@@ -32,9 +32,9 @@ class WKManager:
         # 可以继续添加其他类型映射
     }
 
-    def __init__(self, account_name, showres=0):
+    def __init__(self, account_name, showres=0, ac_manager=None):
         self.account_name = account_name
-        self.ac_manager = ACManager(account_name)
+        self.ac_manager = ac_manager or ACManager(account_name)
         self.logger = logging.getLogger(f"WKManager_{account_name}")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
@@ -48,6 +48,8 @@ class WKManager:
         """获取挖矿地图"""
         wakuang_config = {"ads": "查询状态", "times": 1, "hexstringheader": "4d4f"}
         response = self.ac_manager.do_common_request(self.account_name, wakuang_config, showres=self.showres)
+        if not response:
+            return None
         miner_resp = kpbl_pb2.miner_main_response()
         miner_resp.ParseFromString(response[6:])
         return miner_resp
@@ -850,6 +852,74 @@ class WKManager:
                 return False
         
         return True
+
+    def mine_once(self, print_table=False):
+        """只执行一次挖矿点击，用于验证单次挖矿带来的任务积分变化。"""
+        try:
+            self.last_once_action = None
+            miner_map = self.getminermap()
+            if not miner_map or not hasattr(miner_map, 'unit') or not miner_map.unit:
+                print(f"<{mask_account(self.account_name)}> 无法获取有效的挖矿地图")
+                return False
+
+            minelevel = miner_map.unit.minerlevel
+            self.parse_miner_map(
+                miner_map,
+                print_table=print_table,
+                header=f"<{mask_account(self.account_name)}> 第{minelevel}层矿区状态",
+            )
+            strategy = self.analyze_miner_plan_new(miner_map)
+
+            if strategy['next_position']:
+                next_row, next_col = strategy['next_position']
+                row_real = next_row + 1
+                col_real = next_col + 1
+                print(f"<{mask_account(self.account_name)}> 单次挖矿位置[{row_real},{col_real}]")
+                updated_map = self.tapminer(row_real, col_real)
+                if not updated_map or not hasattr(updated_map, 'unit') or not updated_map.unit:
+                    print(f"<{mask_account(self.account_name)}> 单次挖矿失败")
+                    return False
+                self.clicked_positions.add((next_row, next_col))
+                self.last_once_action = "mine"
+                return True
+
+            if strategy['has_k']:
+                print(f"<{mask_account(self.account_name)}> 已发现K，先完成本层")
+                for k_row, k_col in strategy['k_positions']:
+                    row_real = k_row + 1
+                    col_real = k_col + 1
+                    print(f"<{mask_account(self.account_name)}> 点击K位置[{row_real},{col_real}]")
+                    self.tapminer(row_real, col_real)
+                updated_map = self.tapK()
+                if not updated_map or not hasattr(updated_map, 'unit') or not updated_map.unit:
+                    print(f"<{mask_account(self.account_name)}> 点击K失败")
+                    return False
+                response = self.tapDoor()
+                if not response or len(response) < 20:
+                    print(f"<{mask_account(self.account_name)}> 进入下一层失败")
+                    return False
+                self.clicked_positions.clear()
+                self.bomb_clicked_this_level = False
+                print(f"<{mask_account(self.account_name)}> 已进入下一层")
+                self.last_once_action = "clear_k"
+                return True
+
+            if strategy['has_bombs']:
+                bomb_row, bomb_col = strategy['bombs'][0]
+                row_real = bomb_row + 1
+                col_real = bomb_col + 1
+                print(f"<{mask_account(self.account_name)}> 没有普通可挖位置，单次点击炸弹[{row_real},{col_real}]")
+                updated_map = self.tapB(row_real, col_real)
+                ok = bool(updated_map and hasattr(updated_map, 'unit') and updated_map.unit)
+                if ok:
+                    self.last_once_action = "bomb"
+                return ok
+
+            print(f"<{mask_account(self.account_name)}> 没有可挖的位置")
+            return False
+        except Exception as e:
+            print(f"<{mask_account(self.account_name)}> 单次挖矿执行失败: {e}")
+            return False
 
     def start_mining(self, print_table=False):
         """

@@ -295,6 +295,12 @@ def handle_guild_batch_command(account_name, args):
     if sub == 'run':
         return mgr.batch_pipeline(start_from=start)
 
+    # grc: 个人船刷新开船，参数为 gg grc [起始序号] [最大刷新=15]
+    if sub == 'grc':
+        max_refresh = int(args[2]) if len(args) > 2 and args[2].isdigit() else None
+        mgr.batch_grc(start_from=start, max_refresh=max_refresh)
+        return True
+
     # kgtest: 指定一个公会账号跑考古日常测试
     if sub in ('kgtest', 'kgt'):
         if len(args) < 2:
