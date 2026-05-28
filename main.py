@@ -282,6 +282,17 @@ def handle_guild_batch_command(account_name, args):
     mgr = GuildBatchManager(account_name, showres=0, delay=0.3)
     start = int(args[1]) if len(args) > 1 and args[1].isdigit() else 1
 
+    # 逗号分隔的快捷批量任务：gg grc,kg,s  等价于  gg seq grc,kg,s
+    if ',' in sub or '，' in sub:
+        seq_args = sub.replace('，', ',')
+        if len(args) > 1 and args[1].isdigit():
+            start = int(args[1])
+        task_list = [t.strip() for t in seq_args.split(',') if t.strip()]
+        if not task_list:
+            print("错误: 缺少可执行的任务列表。使用方式: gg cmd1,cmd2... [起始序号]")
+            return False
+        return mgr.batch_pipeline(start_from=start, task_list=task_list)
+
     # seq: 需要消费所有外部参数
     if sub == 'seq':
         seq_args = " ".join(args[2:]).replace('，', ',')
@@ -326,7 +337,7 @@ def handle_guild_batch_command(account_name, args):
     cmd = get_command(sub)
     if cmd is None or not cmd.batchable:
         print(f"未知的gg子命令: {sub}")
-        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, kg, kgtest/kgt, grc, fl, flfull, fl31, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
+        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, kg, kgtest/kgt, grc, ghgrc, fl, flfull, fl31, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
         return False
 
     if cmd.batch_execute:
