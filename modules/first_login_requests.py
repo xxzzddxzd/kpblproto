@@ -20,6 +20,7 @@ FIRST_LOGIN_REQUESTS = [
     {"ads":"fl_13", "times":1, "hexstringheader":"8162"},  # 17-req.bin
     {"ads":"fl_14", "times":1, "hexstringheader":"bb4f"},  # 18-req.bin
     {"ads":"fl_kpkpj_mail", "times":1, "hexstringheader":"b52d"},  # 触发卡皮卡皮机奖励补发
+    {"ads":"flfull_67", "times":1, "hexstringheader":"057d", "request_body_i2": 2, "request_body_i3": 22, "request_body_i4": 120260525}
 ]
 
 FIRST_LOGIN_REQUESTS_PLUS = [
@@ -77,86 +78,74 @@ FIRST_LOGIN_REQUESTS_PLUS = [
 ]
 
 FIRST_LOGIN_REQUESTS_FULL = [
-    {"ads":"flfull_0", "times":1, "hexstringheader":"c12b"},  # 1-req.bin
-    {"ads":"flfull_1", "times":1, "hexstringheader":"e935"},  # 2-req.bin
-    {"ads":"flfull_2", "times":1, "hexstringheader":"bb27", "requestbodytype":"request_body_for_stringi3", "request_body_i3": 'heroList'},  # 3-req.bin
-    {"ads":"flfull_3", "times":1, "hexstringheader":"bb27", "requestbodytype":"request_body_for_stringi3", "request_body_i3": 'collection'},  # 4-req.bin
-    {"ads":"flfull_4", "times":1, "hexstringheader":"912c"},  # 5-req.bin
-    {"ads":"flfull_5", "times":1, "hexstringheader":"3f35"},  # 6-req.bin
-    {"ads":"flfull_6", "times":1, "hexstringheader":"cd4f"},  # 7-req.bin
-    {"ads":"flfull_7", "times":1, "hexstringheader":"b12c"},  # 8-req.bin
-    {"ads":"flfull_8", "times":1, "hexstringheader":"b72c"},  # 9-req.bin
-    {"ads":"flfull_9", "times":1, "hexstringheader":"054f"},  # 10-req.bin
-    {"ads":"flfull_10", "times":1, "hexstringheader":"9d2c"},  # 11-req.bin
-    {"ads":"flfull_11", "times":1, "hexstringheader":"1329"},  # 12-req.bin
-    {"ads":"flfull_12", "times":1, "hexstringheader":"2179", "request_body_i2": 1},  # 14-req.bin
-    {"ads":"flfull_13", "times":1, "hexstringheader":"bb7a"},  # 15-req.bin
-    {"ads":"flfull_14", "times":1, "hexstringheader":"4d7a", "request_body_i2": 1},  # 16-req.bin
-    {"ads":"flfull_15", "times":1, "hexstringheader":"bb27", "requestbodytype":"request_body_for_stringi3", "request_body_i3": 'talentApexNode'},  # 17-req.bin
-    {"ads":"flfull_16", "times":1, "hexstringheader":"bf2c"},  # 18-req.bin
-    {"ads":"flfull_17", "times":1, "hexstringheader":"bb27", "requestbodytype":"request_body_for_stringi3", "request_body_i3": 'Theme'},  # 19-req.bin
-    {"ads":"flfull_18", "times":1, "hexstringheader":"bb4f"},  # 20-req.bin
-    {"ads":"flfull_19", "times":1, "hexstringheader":"9165"},  # 21-req.bin
-    {"ads":"flfull_20", "times":1, "hexstringheader":"1929"},  # 22-req.bin
-    {"ads":"flfull_21", "times":1, "hexstringheader":"9b2c"},  # 23-req.bin
-    {"ads":"flfull_22", "times":1, "hexstringheader":"9575"},  # 24-req.bin
-    {"ads":"flfull_23", "times":1, "hexstringheader":"dd2b"},  # 25-req.bin
-    {"ads":"flfull_24", "times":1, "hexstringheader":"214e"},  # 26-req.bin
-    {"ads":"flfull_25", "times":1, "hexstringheader":"9f27"},  # 27-req.bin
-    {"ads":"flfull_26", "times":1, "hexstringheader":"f177"},  # 28-req.bin
-    {"ads":"flfull_27", "times":1, "hexstringheader":"4d4f"},  # 29-req.bin
-    {"ads":"flfull_28", "times":1, "hexstringheader":"8330"},  # 30-req.bin
-    {"ads":"flfull_29", "times":1, "hexstringheader":"3933", "requestbodytype":"request_body_allint1", "request_body_i2": 4, "request_body_i3": 1, "request_body_i4": 1, "request_body_i5": 1},  # 31-req.bin
-    {"ads":"flfull_30", "times":1, "hexstringheader":"3933", "requestbodytype":"request_body_allint1", "request_body_i2": 13, "request_body_i3": 1, "request_body_i4": 1, "request_body_i5": 9},  # 32-req.bin
-    {"ads":"flfull_31", "times":1, "hexstringheader":"892c"},  # 34-req.bin
-    {"ads":"flfull_32", "times":1, "hexstringheader":"8b2c"},  # 35-req.bin
-    {"ads":"flfull_33", "times":1, "hexstringheader":"6932", "request_body_i2": 1},  # 36-req.bin
-    {"ads":"flfull_34", "times":1, "hexstringheader":"6932", "request_body_i2": 4},  # 37-req.bin
-    {"ads":"flfull_35", "times":1, "hexstringheader":"6932", "request_body_i2": 6},  # 39-req.bin
-    {"ads":"flfull_36", "times":1, "hexstringheader":"e32b"},  # 40-req.bin
-    {"ads":"flfull_37", "times":1, "hexstringheader":"4331", "requestbodytype":"request_body_for_stringi3", "request_body_i2": 2954734, "request_body_i3": '1104'},  # 41-req.bin
-    {"ads":"flfull_38", "times":1, "hexstringheader":"8d27"},  # 42-req.bin
-    {"ads":"flfull_39", "times":1, "hexstringheader":"1f2d"},  # 43-req.bin
-    {"ads":"flfull_40", "times":1, "hexstringheader":"4d36"},  # 44-req.bin
-    {"ads":"flfull_41", "times":1, "hexstringheader":"c72c"},  # 45-req.bin
-    {"ads":"flfull_42", "times":1, "hexstringheader":"7729"},  # 46-req.bin
-    {"ads":"flfull_43", "times":1, "hexstringheader":"a730"},  # 47-req.bin
-    {"ads":"flfull_44", "times":1, "hexstringheader":"e12e"},  # 48-req.bin
-    {"ads":"flfull_45", "times":1, "hexstringheader":"eb2e"},  # 49-req.bin
-    {"ads":"flfull_46", "times":1, "hexstringheader":"5d44"},  # 50-req.bin
-    {"ads":"flfull_47", "times":1, "hexstringheader":"2550"},  # 51-req.bin
-    {"ads":"flfull_48", "times":1, "hexstringheader":"2135"},  # 52-req.bin
-    {"ads":"flfull_49", "times":1, "hexstringheader":"af28"},  # 53-req.bin
-    {"ads":"flfull_50", "times":1, "hexstringheader":"b52d"},  # 54-req.bin
-    {"ads":"flfull_51", "times":1, "hexstringheader":"7d2e"},  # 55-req.bin
-    {"ads":"flfull_52", "times":1, "hexstringheader":"932c"},  # 57-req.bin
-    {"ads":"flfull_53", "times":1, "hexstringheader":"8d30"},  # 58-req.bin
-    {"ads":"flfull_54", "times":1, "hexstringheader":"993a"},  # 59-req.bin
-    {"ads":"flfull_55", "times":1, "hexstringheader":"9f3a"},  # 60-req.bin
-    {"ads":"flfull_56", "times":1, "hexstringheader":"0529"},  # 61-req.bin
-    {"ads":"flfull_57", "times":1, "hexstringheader":"017d"},  # 62-req.bin
-    {"ads":"flfull_58", "times":1, "hexstringheader":"cd76", "request_body_i2": 1},  # 63-req.bin
-    {"ads":"flfull_59", "times":1, "hexstringheader":"cd76", "request_body_i2": 2},  # 64-req.bin
-    {"ads":"flfull_60", "times":1, "hexstringheader":"c976"},  # 65-req.bin
-    {"ads":"flfull_61", "times":1, "hexstringheader":"c15d", "request_body_i3": 1},  # 66-req.bin
-    {"ads":"flfull_62", "times":1, "hexstringheader":"c15d", "request_body_i2": 1, "request_body_i3": 1},  # 67-req.bin
-    {"ads":"flfull_63", "times":1, "hexstringheader":"a33a"},  # 68-req.bin
-    {"ads":"flfull_64", "times":1, "hexstringheader":"a727"},  # 70-req.bin
-    {"ads":"flfull_65", "times":1, "hexstringheader":"f12c"},  # 73-req.bin
-    {"ads":"flfull_66", "times":1, "hexstringheader":"737d"},  # 74-req.bin
-    {"ads":"flfull_67", "times":1, "hexstringheader":"cb2c"},  # 78-req.bin
-    {"ads":"flfull_68", "times":1, "hexstringheader":"d959"},  # 80-req.bin
-    {"ads":"flfull_69", "times":1, "hexstringheader":"0f29", "request_body_i2": 3915099},  # 81-req.bin
-    {"ads":"flfull_70", "times":1, "hexstringheader":"8d27", "requestbodytype":"request_qh", "request_body_i2": '\x04\x01\x02\x05\x17\x18\x19)'},  # 100-req.bin
-    {"ads":"flfull_71", "times":1, "hexstringheader":"7727"},  # 101-req.bin
-    {"ads":"flfull_72", "times":1, "hexstringheader":"0d62"},  # 109-req.bin
-    {"ads":"flfull_73", "times":1, "hexstringheader":"8162"},  # 110-req.bin
-    {"ads":"flfull_74", "times":1, "hexstringheader":"0f2b"},  # 112-req.bin
-    {"ads":"flfull_75", "times":1, "hexstringheader":"057d", "request_body_i2": 2, "request_body_i3": 22, "request_body_i4": 120260525},  # 114-req.bin
-    {"ads":"flfull_76", "times":1, "hexstringheader":"3f33", "requestbodytype":"request_body_allint1", "request_body_i2": 1002, "request_body_i3": 1, "request_body_i4": 1, "request_body_i6": 1},  # 118-req.bin
-    {"ads":"flfull_77", "times":1, "hexstringheader":"1329", "request_body_i2": 3915100},  # 119-req.bin
+    {"ads":"fl_0", "times":1, "hexstringheader":"bb27"},  # 1-req.bin
+    {"ads":"fl_1", "times":1, "hexstringheader":"d72b"},  # 2-req.bin
+    {"ads":"fl_2", "times":1, "hexstringheader":"b72c"},  # 3-req.bin
+    {"ads":"fl_3", "times":1, "hexstringheader":"9d2c"},  # 4-req.bin
+    {"ads":"fl_4", "times":1, "hexstringheader":"cd4f"},  # 5-req.bin
+    {"ads":"fl_5", "times":1, "hexstringheader":"b12c"},  # 7-req.bin
+    {"ads":"fl_6", "times":1, "hexstringheader":"054f"},  # 8-req.bin
+    {"ads":"fl_7", "times":1, "hexstringheader":"1329"},  # 9-req.bin
+    {"ads":"fl_8", "times":1, "hexstringheader":"e935"},  # 10-req.bin
+    {"ads":"fl_9", "times":1, "hexstringheader":"2179", "request_body_i2": 1},  # 11-req.bin
+    {"ads":"fl_10", "times":1, "hexstringheader":"bb7a"},  # 12-req.bin
+    {"ads":"fl_11", "times":1, "hexstringheader":"4d7a", "request_body_i2": 1},  # 13-req.bin
+    {"ads":"fl_12", "times":1, "hexstringheader":"8162"},  # 14-req.bin
+    {"ads":"fl_13", "times":1, "hexstringheader":"bf2c"},  # 15-req.bin
+    {"ads":"fl_14", "times":1, "hexstringheader":"0d62"},  # 16-req.bin
+    {"ads":"fl_15", "times":1, "hexstringheader":"9165"},  # 17-req.bin
+    {"ads":"fl_16", "times":1, "hexstringheader":"bb4f"},  # 18-req.bin
+    {"ads":"fl_17", "times":1, "hexstringheader":"1929"},  # 19-req.bin
+    {"ads":"fl_18", "times":1, "hexstringheader":"9b2c"},  # 20-req.bin
+    {"ads":"fl_19", "times":1, "hexstringheader":"214e"},  # 21-req.bin
+    {"ads":"fl_20", "times":1, "hexstringheader":"9575"},  # 22-req.bin
+    {"ads":"fl_21", "times":1, "hexstringheader":"dd2b"},  # 23-req.bin
+    {"ads":"fl_22", "times":1, "hexstringheader":"9f27"},  # 24-req.bin
+    {"ads":"fl_23", "times":1, "hexstringheader":"f177"},  # 25-req.bin
+    {"ads":"fl_24", "times":1, "hexstringheader":"3933", "request_body_i2": 4, "request_body_i3": 1, "request_body_i4": 1},  # 26-req.bin
+    {"ads":"fl_25", "times":1, "hexstringheader":"8330"},  # 27-req.bin
+    {"ads":"fl_26", "times":1, "hexstringheader":"4d4f"},  # 28-req.bin
+    {"ads":"fl_27", "times":1, "hexstringheader":"3f35"},  # 29-req.bin
+    {"ads":"fl_28", "times":1, "hexstringheader":"3933", "request_body_i2": 13, "request_body_i3": 1, "request_body_i4": 1},  # 30-req.bin
+    {"ads":"fl_29", "times":1, "hexstringheader":"4d36"},  # 32-req.bin
+    {"ads":"fl_30", "times":1, "hexstringheader":"7729"},  # 33-req.bin
+    {"ads":"fl_31", "times":1, "hexstringheader":"c72c"},  # 34-req.bin
+    {"ads":"fl_32", "times":1, "hexstringheader":"a730"},  # 35-req.bin
+    {"ads":"fl_33", "times":1, "hexstringheader":"e12e"},  # 36-req.bin
+    {"ads":"fl_34", "times":1, "hexstringheader":"eb2e"},  # 37-req.bin
+    {"ads":"fl_35", "times":1, "hexstringheader":"5d44"},  # 38-req.bin
+    {"ads":"fl_36", "times":1, "hexstringheader":"2550"},  # 39-req.bin
+    {"ads":"fl_37", "times":1, "hexstringheader":"892c"},  # 40-req.bin
+    {"ads":"fl_38", "times":1, "hexstringheader":"017d"},  # 41-req.bin
+    {"ads":"fl_39", "times":1, "hexstringheader":"cd76", "request_body_i2": 1},  # 42-req.bin
+    {"ads":"fl_40", "times":1, "hexstringheader":"6932", "request_body_i2": 1},  # 43-req.bin
+    {"ads":"fl_41", "times":1, "hexstringheader":"8b2c"},  # 44-req.bin
+    {"ads":"fl_42", "times":1, "hexstringheader":"c15d", "request_body_i3": 1},  # 45-req.bin
+    {"ads":"fl_43", "times":1, "hexstringheader":"cd76", "request_body_i2": 2},  # 46-req.bin
+    {"ads":"fl_44", "times":1, "hexstringheader":"c976"},  # 47-req.bin
+    {"ads":"fl_45", "times":1, "hexstringheader":"c15d", "request_body_i2": 1, "request_body_i3": 1},  # 48-req.bin
+    {"ads":"fl_46", "times":1, "hexstringheader":"0529"},  # 49-req.bin
+    {"ads":"fl_47", "times":1, "hexstringheader":"6932", "request_body_i2": 4},  # 50-req.bin
+    {"ads":"fl_48", "times":1, "hexstringheader":"6932", "request_body_i2": 6},  # 51-req.bin
+    {"ads":"fl_49", "times":1, "hexstringheader":"e32b"},  # 52-req.bin
+    {"ads":"fl_50", "times":1, "hexstringheader":"a727"},  # 53-req.bin
+    {"ads":"fl_51", "times":1, "hexstringheader":"737d"},  # 58-req.bin
+    {"ads":"fl_52", "times":1, "hexstringheader":"1f2d"},  # 60-req.bin
+    {"ads":"fl_53", "times":1, "hexstringheader":"cb2c"},  # 61-req.bin
+    {"ads":"fl_54", "times":1, "hexstringheader":"8d27"},  # 62-req.bin
+    {"ads":"fl_55", "times":1, "hexstringheader":"4331", "request_body_i2": 3586707},  # 63-req.bin
+    {"ads":"fl_56", "times":1, "hexstringheader":"2135"},  # 64-req.bin
+    {"ads":"fl_57", "times":1, "hexstringheader":"af28"},  # 65-req.bin
+    {"ads":"fl_58", "times":1, "hexstringheader":"d959"},  # 66-req.bin
+    {"ads":"fl_59", "times":1, "hexstringheader":"b52d"},  # 67-req.bin
+    {"ads":"fl_60", "times":1, "hexstringheader":"0f29", "request_body_i2": 4244488},  # 68-req.bin
+    {"ads":"fl_61", "times":1, "hexstringheader":"7d2e"},  # 69-req.bin
+    {"ads":"fl_62", "times":1, "hexstringheader":"932c"},  # 70-req.bin
+    {"ads":"fl_63", "times":1, "hexstringheader":"8d30"},  # 72-req.bin
+    {"ads":"fl_64", "times":1, "hexstringheader":"a33a"},  # 73-req.bin
+    {"ads":"fl_65", "times":1, "hexstringheader":"9f3a"},  # 74-req.bin
+    {"ads":"fl_66", "times":1, "hexstringheader":"993a"},  # 75-req.bin
 ]
-
 FIRST_LOGIN_LV31_REQUESTS = [
     {"ads":"fl31_0", "times":1, "hexstringheader":"bb27"},  # 1-req.bin
     {"ads":"fl31_1", "times":1, "hexstringheader":"3f35"},  # 2-req.bin
