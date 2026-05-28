@@ -372,7 +372,7 @@ class GuildBatchManager:
             ("kg [起始序号] [i|g]", "公会考古：默认领奖+挖矿+汇报，i=只领奖统计锤子，g=只挖掘"),
             ("kgtest/kgt 账号 [dump|score|claim|rewardscan|full] [次数]", "指定账号测试考古日常"),
             ("grc [起始序号] [最大刷新=15]", "个人船刷新到功勋币×200后开船"),
-            ("ghgrc [起始序号]", "个人UR船开船，不刷新功勋币"),
+            ("ghgrc [起始序号]", "个人船刷新到UR后开船，不刷功勋200"),
             ("run [起始序号]", "一条龙(按pipeline配置)"),
             ("seq [起始序号] cmd1,cmd2...", "顺序执行多个命令(逗号分隔)"),
             ("pipeline [set 任务列表]", "查看/设置pipeline配置"),

@@ -139,12 +139,12 @@ class TradeManager:
         if not cabin:
             print(f"{prefix}: 无船舱数据")
             return
-        hit = "命中" if self._grc_has_target(cabin) else "未命中"
+        target_hit = "命中" if self._grc_has_target(cabin) else "未命中"
         arrived = "到港" if self._grc_has_arrived_reward(cabin) else "未到港"
         print(
             f"{prefix}: 舱{cabin.slot_index} 稀有={cabin.rarity} "
             f"field9={cabin.field9} arrive_time={cabin.arrive_time} {arrived} "
-            f"refresh_id={cabin.refresh_id} {hit} | {self._grc_items_text(cabin)}"
+            f"refresh_id={cabin.refresh_id} 功勋200={target_hit} | {self._grc_items_text(cabin)}"
         )
 
     def claim_previous_grc_reward(self, slot_index, cabin=None):
@@ -224,6 +224,29 @@ class TradeManager:
         print(f"  舱{slot_index} 达到最大刷新次数 {max_refresh}，仍未出现功勋币×{self.GRC_TARGET_ITEM_COUNT}")
         return None, max_refresh
 
+    def _grc_prepare_ur_slot(self, slot_index, current_cabin=None, max_refresh=None):
+        had_arrived_reward = self._grc_has_arrived_reward(current_cabin)
+        self.claim_previous_grc_reward(slot_index, current_cabin)
+        if current_cabin and not had_arrived_reward and self._grc_is_ur(current_cabin):
+            self._grc_print_cabin(current_cabin, f"  当前UR可直接开船")
+            return current_cabin, 0
+
+        cabin = self._grc_check_or_refresh_slot(slot_index, f"个人船查看舱{slot_index}")
+        self._grc_print_cabin(cabin, f"  查看")
+        if self._grc_is_ur(cabin):
+            return cabin, 0
+
+        refresh_count = 0
+        while max_refresh is None or refresh_count < max_refresh:
+            refresh_count += 1
+            cabin = self._grc_check_or_refresh_slot(slot_index, f"个人船刷新UR舱{slot_index}")
+            self._grc_print_cabin(cabin, f"  刷新UR#{refresh_count}")
+            if self._grc_is_ur(cabin):
+                return cabin, refresh_count
+
+        print(f"  舱{slot_index} 达到最大刷新次数 {max_refresh}，仍未出现UR船")
+        return None, refresh_count
+
     def run_grc(self, max_refresh=None):
         """个人船：两舱依次刷新到功勋币×200后开船。"""
         if max_refresh is None:
@@ -282,20 +305,20 @@ class TradeManager:
             print(f"  舱{result['slot']}: 刷新{result['refresh']}次, {status}")
         return all(result["started"] or result.get("skipped") for result in results)
 
-    def run_ghgrc(self):
-        """个人船：不刷新货物，只在当前船为UR时开船。"""
-        print("== 个人UR船开船 ==")
+    def run_ghgrc(self, max_refresh=None):
+        """个人船：刷新到UR后开船，不要求功勋币×200。"""
+        print("== 个人UR船刷新开船 ==")
         page_resp = self.enter_grc_page()
         cabins = self._grc_cabins_from_response(page_resp)
         current_cabins = {cabin.slot_index: cabin for cabin in cabins}
         in_progress = self._grc_in_progress_cabins(cabins)
-        if in_progress:
+        in_progress_slots = {cabin.slot_index for cabin in in_progress}
+        if in_progress_slots:
             slots = ", ".join(
                 f"舱{cabin.slot_index}(arrive_time={cabin.arrive_time})"
                 for cabin in in_progress
             )
-            print(f"检测到已有个人船未到港: {slots}，跳过ghgrc")
-            return True
+            print(f"检测到已有个人船未到港: {slots}，这些舱跳过，其他舱继续")
 
         sail_count = page_resp.daily_sail_count if page_resp else 0
         remaining_starts = max(0, self.GRC_DAILY_SAIL_LIMIT - sail_count)
@@ -303,48 +326,36 @@ class TradeManager:
             print(f"今日个人船启航次数已达上限 {sail_count}/{self.GRC_DAILY_SAIL_LIMIT}，跳过ghgrc")
             return True
 
-        claimed_any = False
-        for slot_index in range(1, self.GRC_SLOT_COUNT + 1):
-            cabin = current_cabins.get(slot_index)
-            if self._grc_has_arrived_reward(cabin):
-                self.claim_previous_grc_reward(slot_index, cabin)
-                claimed_any = True
-
-        if claimed_any:
-            page_resp = self.enter_grc_page()
-            cabins = self._grc_cabins_from_response(page_resp)
-            current_cabins = {cabin.slot_index: cabin for cabin in cabins}
-
-        candidates = []
-        for slot_index in range(1, self.GRC_SLOT_COUNT + 1):
-            cabin = current_cabins.get(slot_index)
-            self._grc_print_cabin(cabin, f"  UR检查")
-            if self._grc_is_ur(cabin):
-                candidates.append((slot_index, cabin))
-            else:
-                rarity = cabin.rarity if cabin else None
-                print(f"  舱{slot_index}: 不是UR船(rarity={rarity})，不刷新，跳过")
-
-        if not candidates:
-            print("没有可开的UR个人船")
-            return True
-
         if not self.ensure_grc_tickets(self.GRC_MIN_TICKET_COUNT):
             print("船票不足且购买失败，停止ghgrc")
             return False
 
         results = []
-        for slot_index, cabin in candidates:
+        for slot_index in range(1, self.GRC_SLOT_COUNT + 1):
             if remaining_starts <= 0:
                 print(f"今日个人船剩余启航次数为0，跳过舱{slot_index}")
-                results.append({"slot": slot_index, "started": False, "skipped": True})
+                results.append({"slot": slot_index, "started": False, "skipped": "今日次数不足"})
                 continue
-            print(f"== 舱{slot_index}: UR船，开船 ==")
+            if slot_index in in_progress_slots:
+                print(f"舱{slot_index} 已有个人船未到港，跳过该舱")
+                results.append({"slot": slot_index, "started": False, "skipped": "已有个人船未到港"})
+                continue
+            print(f"== 舱{slot_index}: 刷新到UR后开船 ==")
+            cabin, refresh_count = self._grc_prepare_ur_slot(
+                slot_index,
+                current_cabin=current_cabins.get(slot_index),
+                max_refresh=max_refresh,
+            )
+            if not cabin:
+                results.append({"slot": slot_index, "refresh": refresh_count, "started": False})
+                continue
+            print(f"== 舱{slot_index}: 已是UR，开船 ==")
             started, started_cabin = self._grc_start_slot(slot_index)
             if started:
                 remaining_starts -= 1
             results.append({
                 "slot": slot_index,
+                "refresh": refresh_count,
                 "started": started,
                 "items": self._grc_item_pairs(started_cabin or cabin),
             })
@@ -352,10 +363,10 @@ class TradeManager:
         print("== 个人UR船结果汇报 ==")
         for result in results:
             if result.get("skipped"):
-                print(f"  舱{result['slot']}: 今日次数不足，已跳过")
+                print(f"  舱{result['slot']}: {result['skipped']}，已跳过")
                 continue
             status = "已开船" if result["started"] else "未开船"
-            print(f"  舱{result['slot']}: {status}")
+            print(f"  舱{result['slot']}: 刷新{result.get('refresh', 0)}次, {status}")
         return True
     
     def refresh(self):
