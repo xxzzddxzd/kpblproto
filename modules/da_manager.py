@@ -1023,8 +1023,8 @@ class DAManager:
         self.ac_manager.do_common_request_list(self.account_name, FIRST_LOGIN_REQUESTS, showres=self.showres)
 
     def day_first_login_full(self):
-        """每日首次登录请求(完整)，批量执行 FIRST_LOGIN_REQUESTS_FULL"""
-        self.ac_manager.do_common_request_list(self.account_name, FIRST_LOGIN_REQUESTS_FULL, showres=self.showres)
+        """每日首次登录请求(完整)，批量执行 FIRST_LOGIN_REQUESTS_FULL，仅输出异常请求。"""
+        self.ac_manager.do_common_request_list(self.account_name, FIRST_LOGIN_REQUESTS_FULL, showres=0)
 
     def day_first_login_full_one(self, selector):
         """执行完整首登列表里的单个请求，selector 可为序号或 ads。"""

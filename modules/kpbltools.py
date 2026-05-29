@@ -1166,13 +1166,44 @@ class ACManager:
         """
         import threading
         
+        def _problem_reason(response):
+            if response is None:
+                return "无响应"
+            reasons = []
+            response_len = len(response)
+            if response_len < 15:
+                reasons.append(f"返回长度{response_len}<15")
+            try:
+                text = response.decode("utf-8", errors="ignore").lower()
+            except Exception:
+                text = ""
+            if "system error" in text:
+                reasons.append("system error")
+            elif "error" in text:
+                reasons.append("error")
+            return ", ".join(reasons)
+
+        def _run_one(seq, config):
+            try:
+                response = self.do_common_request(account_name, dict(config), showres)
+                reason = _problem_reason(response)
+            except Exception as e:
+                reason = f"异常: {e}"
+            if reason:
+                print(
+                    f"<{self.mask_account(account_name)}:{self.server_id}> "
+                    f"_list请求异常 #{seq}: {reason}, request_config: {config}"
+                )
+
         threads = []
+        seq = 0
         for config in request_configs:
             times = config.get('times', 1)
             single_config = dict(config)
             single_config['times'] = 1
             for _ in range(times):
-                t = threading.Thread(target=self.do_common_request, args=(account_name, dict(single_config), showres))
+                seq += 1
+                t = threading.Thread(target=_run_one, args=(seq, dict(single_config)))
                 threads.append(t)
                 t.start()
         for t in threads:

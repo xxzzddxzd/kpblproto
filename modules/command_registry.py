@@ -126,7 +126,7 @@ def _execute_fl(account_name, args, **kw):
 
 def _execute_flfull(account_name, args, **kw):
     from .da_manager import DAManager
-    showres = kw.get('showres', 1)
+    showres = kw.get('showres', 0)
     delay = kw.get('delay', 0)
     ac = kw.get('ac_manager')
     da = DAManager(account_name, showres=showres, delay=delay, ac_manager=ac)
