@@ -188,7 +188,7 @@ def main():
     output = format_request_list(results)
 
     # 保存到 modules 目录
-    output_file = 'modules/first_login_requests.py'
+    output_file = 'first_login_requests_new.py'
     with open(output_file, 'w') as f:
         f.write(output)
     print(f"已生成 {len(results)} 个请求到 {output_file}")
