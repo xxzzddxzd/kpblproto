@@ -54,6 +54,18 @@ def extract_chlz(chlz_path, extract_dir):
     with zipfile.ZipFile(chlz_path, 'r') as zf:
         zf.extractall(extract_dir)
 
+def response_length_for_request(req_path):
+    """返回同序号响应文件的长度；找不到响应时返回 None。"""
+    directory = os.path.dirname(req_path)
+    name = os.path.basename(req_path)
+    if '-req.bin' not in name:
+        return None
+    response_name = name.replace('-req.bin', '-res.dat')
+    response_path = os.path.join(directory, response_name)
+    if not os.path.exists(response_path):
+        return None
+    return os.path.getsize(response_path)
+
 def generate_first_login_requests(source_path='lg'):
     """
     从 chlz 文件或目录生成 day_first_login 请求列表
@@ -144,7 +156,8 @@ def generate_first_login_requests(source_path='lg'):
             results.append({
                 'header': header_hex,
                 'params': params,
-                'file': os.path.basename(f)
+                'file': os.path.basename(f),
+                'response_len': response_length_for_request(f),
             })
 
     # 清理临时目录
@@ -169,7 +182,9 @@ def format_request_list(results):
             for k, v in sorted(r['params'].items()):
                 params_str += f', "{k}": {repr(v)}'
 
-        lines.append(f'    {{"ads":"fl_{i}", "times":1, "hexstringheader":"{r["header"]}"{params_str}}},  # {r["file"]}')
+        response_len = r.get("response_len")
+        response_comment = f"res_len={response_len}" if response_len is not None else "res_len=NA"
+        lines.append(f'    {{"ads":"fl_{i}", "times":1, "hexstringheader":"{r["header"]}"{params_str}}},  # {r["file"]} {response_comment}')
 
     lines.append(']')
     lines.append('')
