@@ -1219,7 +1219,7 @@ COMMANDS = [
     CommandDef(name="zng",   desc="周年庆跨服", category="活动/限时", execute=_execute_zng, batchable=False),
     CommandDef(name="ggl",   desc="公会挂历",   category="活动/限时", execute=_execute_ggl, batchable=False),
     CommandDef(name="mhj",   desc="盲盒机拿币&抽奖", category="活动/限时", execute=_execute_mhj),
-    CommandDef(name="pingu", desc="pingu活动购币&扭蛋", category="活动/限时", usage="[十连次数=4] [购币次数=2]", batch_usage="[起始序号] [十连次数=4] [购币次数=2]", execute=_execute_pingu),
+    CommandDef(name="pingu", desc="pingu活动购币&扭蛋(尾币单抽)", category="活动/限时", usage="[十连次数=4] [购币次数=2]", batch_usage="[起始序号] [十连次数=4] [购币次数=2]", execute=_execute_pingu),
     CommandDef(name="hd20260330", desc="奇妙马戏团", category="活动/限时", execute=_execute_hd20260330),
     CommandDef(name="jl",    desc="劫掠",       category="活动/限时", execute=_execute_jl, batchable=False),
     CommandDef(name="grc",   desc="个人船刷新开船", category="活动/限时", usage="[最大刷新=15]", batch_usage="[起始序号] [最大刷新=15]", execute=_execute_grc),

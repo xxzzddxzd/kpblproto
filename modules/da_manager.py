@@ -1394,8 +1394,7 @@ class DAManager:
 
         for idx in range(gacha_rounds):
             if coin_count < 10:
-                print(f"<{mask_account(self.account_name)}> pingu十连停止: 扭蛋币不足10; {self._pingu_counts_text(coin_count, gold_count)}")
-                success = False
+                print(f"<{mask_account(self.account_name)}> pingu十连停止，剩余扭蛋币转单抽: {self._pingu_counts_text(coin_count, gold_count)}")
                 break
             req = {
                 "ads": f"pingu十连{idx + 1}",
@@ -1418,6 +1417,32 @@ class DAManager:
                     gold_count += count
             print(
                 f"<{mask_account(self.account_name)}> pingu十连 {idx + 1}/{gacha_rounds}: "
+                f"获得 {self._format_reward_items(rewards)}; {self._pingu_counts_text(coin_count, gold_count)}"
+            )
+
+        single_pulls = coin_count if 0 < coin_count < 10 else 0
+        for idx in range(single_pulls):
+            req = {
+                "ads": f"pingu单抽{idx + 1}",
+                "times": 1,
+                "hexstringheader": "c12c",
+                "request_body_i2": 1,
+                "request_body_i3": self.PINGU_ACTIVITY_ID,
+            }
+            res = self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+            if not res or len(res) <= 6:
+                print(f"<{mask_account(self.account_name)}> pingu单抽 {idx + 1}/{single_pulls} 失败")
+                success = False
+                break
+            rewards = self._parse_pingu_gacha_rewards(res)
+            coin_count -= 1
+            for item_type, count in rewards:
+                if item_type == self.PINGU_GACHA_COIN_TYPE:
+                    coin_count += count
+                elif item_type == self.PINGU_GOLD_COIN_TYPE:
+                    gold_count += count
+            print(
+                f"<{mask_account(self.account_name)}> pingu单抽 {idx + 1}/{single_pulls}: "
                 f"获得 {self._format_reward_items(rewards)}; {self._pingu_counts_text(coin_count, gold_count)}"
             )
 
