@@ -22,6 +22,8 @@ class DAManager:
     PINGU_AD_SUB_ID = 6012
     PINGU_GACHA_COIN_TYPE = 1212
     PINGU_GOLD_COIN_TYPE = 1262
+    PINGU_KEY_BOX_TYPE = 5028
+    PINGU_KEY_BOX_SHOP_ID = 13006
     
     def __init__(self, account_name, showres=0, delay=0.5, accounts_file=None, ac_manager=None):
         self.account_name = account_name
@@ -1451,6 +1453,50 @@ class DAManager:
         gold_count = self._bag_count_by_type(self.PINGU_GOLD_COIN_TYPE)
         print(f"<{mask_account(self.account_name)}> pingu结束: {self._pingu_counts_text(coin_count, gold_count)}")
         return success
+
+    def pingu_buy_key_boxes(self, max_count=None):
+        """pingu活动：按当前金货币数量兑换钥匙箱子，不开箱。"""
+        from .item_names import ITEM_NAMES
+
+        self.ac_manager.login(self.account_name)
+        gold_count = self._bag_count_by_type(self.PINGU_GOLD_COIN_TYPE)
+        key_box_before = self._bag_count_by_type(self.PINGU_KEY_BOX_TYPE)
+        gold_name = ITEM_NAMES.get(self.PINGU_GOLD_COIN_TYPE, self.PINGU_GOLD_COIN_TYPE)
+        key_box_name = ITEM_NAMES.get(self.PINGU_KEY_BOX_TYPE, self.PINGU_KEY_BOX_TYPE)
+
+        buy_count = gold_count
+        if max_count is not None:
+            buy_count = min(gold_count, max_count)
+
+        print(
+            f"<{mask_account(self.account_name)}> pingu兑换前: "
+            f"{gold_name}={gold_count}, {key_box_name}={key_box_before}, 计划兑换={buy_count}"
+        )
+        if buy_count <= 0:
+            print(f"<{mask_account(self.account_name)}> pingu兑换跳过: 没有可用{gold_name}")
+            return True
+
+        req = {
+            "ads": f"pingu钥匙箱兑换{buy_count}",
+            "times": 1,
+            "hexstringheader": "a12c",
+            "request_body_i2": self.PINGU_ACTIVITY_ID,
+            "request_body_i3": self.PINGU_KEY_BOX_SHOP_ID,
+            "request_body_i4": buy_count,
+        }
+        res = self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+        if not res or len(res) <= 6:
+            print(f"<{mask_account(self.account_name)}> pingu兑换钥匙箱失败")
+            return False
+
+        rewards = self._parse_pingu_buy_rewards(res)
+        print(f"<{mask_account(self.account_name)}> pingu兑换获得: {self._format_reward_items(rewards)}")
+
+        self.ac_manager.login(self.account_name)
+        gold_after = self._bag_count_by_type(self.PINGU_GOLD_COIN_TYPE)
+        key_box_after = self._bag_count_by_type(self.PINGU_KEY_BOX_TYPE)
+        print(f"<{mask_account(self.account_name)}> pingu兑换后: {gold_name}={gold_after}, {key_box_name}={key_box_after}")
+        return True
 
     def mangheji_gacha(self):
         reqs = [
