@@ -17,6 +17,11 @@ from .first_login_requests import (
 
 class DAManager:
     """日常任务管理器"""
+
+    PINGU_ACTIVITY_ID = 202605183
+    PINGU_AD_SUB_ID = 6012
+    PINGU_GACHA_COIN_TYPE = 1212
+    PINGU_GOLD_COIN_TYPE = 1262
     
     def __init__(self, account_name, showres=0, delay=0.5, accounts_file=None, ac_manager=None):
         self.account_name = account_name
@@ -1298,6 +1303,129 @@ class DAManager:
             print(f"<{mask_account(self.account_name)}> {req['ads']} x{ad['times']}")
             self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
         return True
+
+    def _bag_count_by_type(self, item_type):
+        baginfo = self.ac_manager.get_account(self.account_name, 'baginfo') or {}
+        item = None
+        if isinstance(baginfo, dict):
+            item = baginfo.get(item_type)
+            if item is None:
+                item = baginfo.get(str(item_type))
+        if isinstance(item, dict):
+            return int(item.get('count') or 0)
+        if item is not None:
+            try:
+                return int(item)
+            except (TypeError, ValueError):
+                return 0
+        return 0
+
+    def _pingu_counts_text(self, coin_count, gold_count):
+        from .item_names import ITEM_NAMES
+        coin_name = ITEM_NAMES.get(self.PINGU_GACHA_COIN_TYPE, self.PINGU_GACHA_COIN_TYPE)
+        gold_name = ITEM_NAMES.get(self.PINGU_GOLD_COIN_TYPE, self.PINGU_GOLD_COIN_TYPE)
+        return f"{coin_name}={coin_count}, {gold_name}={gold_count}"
+
+    @staticmethod
+    def _format_reward_items(items):
+        from .item_names import ITEM_NAMES
+        totals = {}
+        for item_type, count in items:
+            totals[item_type] = totals.get(item_type, 0) + count
+        if not totals:
+            return "无"
+        return ", ".join(
+            f"{ITEM_NAMES.get(item_type, f'type:{item_type}')} x{count}"
+            for item_type, count in totals.items()
+        )
+
+    def _parse_pingu_buy_rewards(self, response):
+        if not response or len(response) <= 6:
+            return []
+        resp = kpbl_pb2.da_mangheji_gacha_response()
+        resp.ParseFromString(response[6:])
+        return [(item.itemid, item.itemcount) for item in resp.result.items]
+
+    def _parse_pingu_gacha_rewards(self, response):
+        if not response or len(response) <= 6:
+            return []
+        resp = kpbl_pb2.hd20260330_nd_response()
+        resp.ParseFromString(response[6:])
+        return [(item.item_type, item.item_count) for item in resp.i3]
+
+    def pingu_activity(self, gacha_rounds=4, buy_times=2):
+        """pingu活动：进入活动、购买扭蛋币、执行十连抽。"""
+        self.ac_manager.login(self.account_name)
+        coin_count = self._bag_count_by_type(self.PINGU_GACHA_COIN_TYPE)
+        gold_count = self._bag_count_by_type(self.PINGU_GOLD_COIN_TYPE)
+
+        print(f"<{mask_account(self.account_name)}> pingu活动进入")
+        self.ac_manager.do_common_request(
+            self.account_name,
+            {"ads": "pingu活动进入", "times": 1, "hexstringheader": "2135"},
+            showres=self.showres,
+        )
+        print(f"<{mask_account(self.account_name)}> pingu初始: {self._pingu_counts_text(coin_count, gold_count)}")
+
+        success = True
+        for idx in range(buy_times):
+            req = {
+                "ads": f"pingu扭蛋币购买{idx + 1}",
+                "times": 1,
+                "hexstringheader": "a52c",
+                "request_body_i2": self.PINGU_ACTIVITY_ID,
+                "request_body_i3": self.PINGU_AD_SUB_ID,
+            }
+            res = self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+            if not res or len(res) <= 6:
+                print(f"<{mask_account(self.account_name)}> pingu购买扭蛋币 {idx + 1}/{buy_times} 失败")
+                success = False
+                break
+            rewards = self._parse_pingu_buy_rewards(res)
+            for item_type, count in rewards:
+                if item_type == self.PINGU_GACHA_COIN_TYPE:
+                    coin_count += count
+                elif item_type == self.PINGU_GOLD_COIN_TYPE:
+                    gold_count += count
+            print(
+                f"<{mask_account(self.account_name)}> pingu购买扭蛋币 {idx + 1}/{buy_times}: "
+                f"获得 {self._format_reward_items(rewards)}; {self._pingu_counts_text(coin_count, gold_count)}"
+            )
+
+        for idx in range(gacha_rounds):
+            if coin_count < 10:
+                print(f"<{mask_account(self.account_name)}> pingu十连停止: 扭蛋币不足10; {self._pingu_counts_text(coin_count, gold_count)}")
+                success = False
+                break
+            req = {
+                "ads": f"pingu十连{idx + 1}",
+                "times": 1,
+                "hexstringheader": "c12c",
+                "request_body_i2": 10,
+                "request_body_i3": self.PINGU_ACTIVITY_ID,
+            }
+            res = self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+            if not res or len(res) <= 6:
+                print(f"<{mask_account(self.account_name)}> pingu十连 {idx + 1}/{gacha_rounds} 失败")
+                success = False
+                break
+            rewards = self._parse_pingu_gacha_rewards(res)
+            coin_count -= 10
+            for item_type, count in rewards:
+                if item_type == self.PINGU_GACHA_COIN_TYPE:
+                    coin_count += count
+                elif item_type == self.PINGU_GOLD_COIN_TYPE:
+                    gold_count += count
+            print(
+                f"<{mask_account(self.account_name)}> pingu十连 {idx + 1}/{gacha_rounds}: "
+                f"获得 {self._format_reward_items(rewards)}; {self._pingu_counts_text(coin_count, gold_count)}"
+            )
+
+        self.ac_manager.login(self.account_name)
+        coin_count = self._bag_count_by_type(self.PINGU_GACHA_COIN_TYPE)
+        gold_count = self._bag_count_by_type(self.PINGU_GOLD_COIN_TYPE)
+        print(f"<{mask_account(self.account_name)}> pingu结束: {self._pingu_counts_text(coin_count, gold_count)}")
+        return success
 
     def mangheji_gacha(self):
         reqs = [

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
 从 lg 目录的 Charles 导出文件生成 day_first_login 请求列表
-支持 .chlz 文件（Charles 会话存档）和 *-req.bin 文件
+支持 .chlz/.chlsj 文件（Charles 会话存档）和 *-req.bin 文件
 
-用法: python generate_first_login.py [chlz_file_or_dir]
+用法: python generate_first_login.py [chlz_or_chlsj_file_or_dir]
 """
 
 import os
 import sys
 import glob
+import json
+import base64
 import binascii
 import zipfile
 import tempfile
@@ -54,6 +56,73 @@ def extract_chlz(chlz_path, extract_dir):
     with zipfile.ZipFile(chlz_path, 'r') as zf:
         zf.extractall(extract_dir)
 
+def _decode_chlsj_body(section):
+    """从 chlsj request/response 段提取 base64 body。"""
+    if not isinstance(section, dict):
+        return None
+    body = section.get('body')
+    if not isinstance(body, dict):
+        return None
+    encoded = body.get('encoded')
+    if not encoded:
+        return None
+    encoding = (body.get('encoding') or 'base64').lower()
+    if encoding != 'base64':
+        return None
+    try:
+        return base64.b64decode(encoded)
+    except Exception:
+        return None
+
+def _iter_chlsj_transactions(chlsj_path):
+    with open(chlsj_path, 'r') as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in ('transactions', 'entries', 'sessions'):
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+        log_entries = data.get('log', {}).get('entries')
+        if isinstance(log_entries, list):
+            return log_entries
+    return []
+
+def extract_chlsj(chlsj_path, extract_dir):
+    """将 .chlsj 中的游戏请求转换为 .chlz 一致的 req/res 文件。"""
+    for idx, tx in enumerate(_iter_chlsj_transactions(chlsj_path)):
+        if not isinstance(tx, dict):
+            continue
+        host = tx.get('host')
+        if host and host != 'prod.advrpg.com':
+            continue
+        req_body = _decode_chlsj_body(tx.get('request'))
+        if not req_body:
+            continue
+        with open(os.path.join(extract_dir, f'{idx}-req.bin'), 'wb') as fp:
+            fp.write(req_body)
+        res_body = _decode_chlsj_body(tx.get('response'))
+        if res_body:
+            with open(os.path.join(extract_dir, f'{idx}-res.dat'), 'wb') as fp:
+                fp.write(res_body)
+
+def is_session_archive(path):
+    return path.lower().endswith(('.chlz', '.chlsj'))
+
+def extract_session_archive(path, extract_dir):
+    if path.lower().endswith('.chlz'):
+        extract_chlz(path, extract_dir)
+    elif path.lower().endswith('.chlsj'):
+        extract_chlsj(path, extract_dir)
+
+def find_session_archive(directory):
+    for pattern in ('*.chlz', '*.chlsj'):
+        files = sorted(glob.glob(os.path.join(directory, pattern)))
+        if files:
+            return files[0]
+    return None
+
 def response_length_for_request(req_path):
     """返回同序号响应文件的长度；找不到响应时返回 None。"""
     directory = os.path.dirname(req_path)
@@ -68,10 +137,10 @@ def response_length_for_request(req_path):
 
 def generate_first_login_requests(source_path='lg'):
     """
-    从 chlz 文件或目录生成 day_first_login 请求列表
+    从 chlz/chlsj 文件或目录生成 day_first_login 请求列表
 
     Args:
-        source_path: .chlz 文件路径或包含 *-req.bin 文件的目录
+        source_path: .chlz/.chlsj 文件路径或包含 *-req.bin 文件的目录
 
     Returns:
         list: 请求配置列表
@@ -79,23 +148,23 @@ def generate_first_login_requests(source_path='lg'):
     temp_dir = None
 
     # 判断输入类型
-    if source_path.endswith('.chlz'):
-        # 解压 chlz 文件到临时目录
+    if is_session_archive(source_path):
+        # 解压会话文件到临时目录
         temp_dir = tempfile.mkdtemp()
-        extract_chlz(source_path, temp_dir)
+        extract_session_archive(source_path, temp_dir)
         work_dir = temp_dir
         file_pattern = '*-req.bin'
     elif os.path.isdir(source_path):
         work_dir = source_path
-        # 优先查找 chlz 文件
-        chlz_files = glob.glob(os.path.join(source_path, '*.chlz'))
-        if chlz_files:
-            # 使用第一个 chlz 文件
+        # 优先查找会话文件
+        session_archive = find_session_archive(source_path)
+        if session_archive:
+            # 使用第一个会话文件
             temp_dir = tempfile.mkdtemp()
-            extract_chlz(chlz_files[0], temp_dir)
+            extract_session_archive(session_archive, temp_dir)
             work_dir = temp_dir
             file_pattern = '*-req.bin'
-            print(f"# 使用 chlz 文件: {chlz_files[0]}", file=sys.stderr)
+            print(f"# 使用会话文件: {session_archive}", file=sys.stderr)
         elif glob.glob(os.path.join(source_path, '*-req.bin')):
             file_pattern = '*-req.bin'
         else:
