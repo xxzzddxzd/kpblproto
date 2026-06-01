@@ -1418,7 +1418,7 @@ class GuildBatchManager:
                 print("查询悬赏失败或无任务，结束")
                 break
 
-            non_gold_tasks = [t for t in resp.task_entries if t.task_type_id < 103000]
+            non_gold_tasks = [t for t in resp.task_entries if not ghxs_leader.is_gold_task(t.task_type_id)]
             if not non_gold_tasks:
                 print("全部为金色任务，结束")
                 break

@@ -11,32 +11,44 @@ class GHXSManager:
     """公会悬赏管理器"""
 
     TASK_TYPE_MAP = {
-        101001: "白-5次pvp",
-        101002: "白-5次任意副本",
-        101003: "白-1艘ur船",
-        101004: "白-50次挖矿",
-        102002: "紫-2艘ur船",
-        102003: "紫-100次挖矿",
-        102004: "紫-100体力",
-        102005: "紫-2咕噜门票",
-        102006: "紫-600功勋币",
-        102009: "紫-1600宝箱积分",
-        102010: "紫-10次装备",
-        102012: "紫-10次宝石宝箱",
-        102014: "紫-1个魔方",
-        102015: "紫-10炼金试剂",
-        103004: "金-2500宝箱积分",
-        103005: "金-20次装备",
-        103006: "金-20次祈愿",
-        103007: "金-20次宝石宝箱",
-        103008: "金-20次秘宝宝箱",
-        103009: "金-2个魔方",
-        103010: "金-20炼金试剂",
+        201002: "n-5次任意副本",
+        201005: "n-100体力",
+        201108: "r-2个魔方",
+        201207: "s-30次装备",
+        201208: "s-6个魔方",
+    }
+    TASK_RARITY_MAP = {
+        0: "n",  # 普通
+        1: "r",  # 蓝色
+        2: "s",  # 金色
     }
 
     def format_task_type(self, type_id):
         """将type_id转为可读名称"""
-        return self.TASK_TYPE_MAP.get(type_id)
+        name = self.TASK_TYPE_MAP.get(type_id)
+        if name:
+            return name
+        rarity = self.task_rarity(type_id)
+        if rarity:
+            return f"{rarity}-未知({type_id})"
+        return None
+
+    @classmethod
+    def task_rarity(cls, type_id):
+        """返回新悬赏ID的稀有度: n=普通, r=蓝色, s=金色。旧ID不再参与判定。"""
+        name = cls.TASK_TYPE_MAP.get(type_id)
+        if name:
+            prefix = name.split("-", 1)[0].lower()
+            if prefix in ("n", "r", "s"):
+                return prefix
+        if 200000 <= type_id < 300000:
+            return cls.TASK_RARITY_MAP.get((type_id // 100) % 10)
+        return None
+
+    @classmethod
+    def is_gold_task(cls, type_id):
+        """新规则下只有s级任务按金色保留。"""
+        return cls.task_rarity(type_id) == "s"
 
     def __init__(self, account_name, delay=0, showres=0):
         self.account_name = account_name
