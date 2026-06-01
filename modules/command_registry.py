@@ -16,6 +16,7 @@ class CommandDef:
     desc: str = ""                                     # 帮助描述
     category: str = ""                                 # 帮助分类
     usage: str = ""                                    # 参数说明
+    batch_usage: Optional[str] = None                  # gg批量模式参数说明；None表示自动生成
     aliases: List[str] = field(default_factory=list)   # 别名
     execute: Optional[Callable] = None                 # (account_name, args, **kw) -> bool
     batch_default_args: Optional[List[str]] = None     # 批量模式默认参数
@@ -1173,9 +1174,9 @@ COMMANDS = [
     CommandDef(name="dapop", desc="特惠弹框领取", category="日常/资源", execute=_execute_dapop),
     CommandDef(name="da",    desc="日常任务",   category="日常/资源", execute=_execute_da),
     CommandDef(name="defda", desc="默认日常任务", category="日常/资源", execute=_execute_defda),
-    CommandDef(name="fl",    desc="首登奖励",   category="日常/资源", execute=_execute_fl, batch_execute=_batch_fl),
-    CommandDef(name="flfull", desc="首登奖励(完整)", category="日常/资源", usage="[单请求序号/ads]", execute=_execute_flfull, batch_execute=_batch_flfull),
-    CommandDef(name="fl31",  desc="31级首登+教学跳过", category="日常/资源", execute=_execute_fl31, batch_execute=_batch_fl31),
+    CommandDef(name="fl",    desc="首登奖励",   category="日常/资源", execute=_execute_fl, batch_usage="[起始序号]", batch_execute=_batch_fl),
+    CommandDef(name="flfull", desc="首登奖励(完整)", category="日常/资源", usage="[单请求序号/ads]", execute=_execute_flfull, batch_usage="[起始序号]", batch_execute=_batch_flfull),
+    CommandDef(name="fl31",  desc="31级首登+教学跳过", category="日常/资源", execute=_execute_fl31, batch_usage="[起始序号]", batch_execute=_batch_fl31),
     CommandDef(name="yl",    desc="游历",       category="日常/资源", usage="[次数=1]", execute=_execute_yl, batch_default_args=["20"]),
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),
     CommandDef(name="xyx",   desc="幸运星",     category="日常/资源", execute=_execute_xyx),
@@ -1209,7 +1210,7 @@ COMMANDS = [
     CommandDef(name="mhj",   desc="盲盒机拿币&抽奖", category="活动/限时", execute=_execute_mhj),
     CommandDef(name="hd20260330", desc="奇妙马戏团", category="活动/限时", execute=_execute_hd20260330),
     CommandDef(name="jl",    desc="劫掠",       category="活动/限时", execute=_execute_jl, batchable=False),
-    CommandDef(name="grc",   desc="个人船刷新开船", category="活动/限时", usage="[最大刷新=15]", execute=_execute_grc),
+    CommandDef(name="grc",   desc="个人船刷新开船", category="活动/限时", usage="[最大刷新=15]", batch_usage="[起始序号] [最大刷新=15]", execute=_execute_grc),
     CommandDef(name="ghgrc", desc="个人船刷新到UR后开船", category="活动/限时", execute=_execute_ghgrc),
     CommandDef(name="nc",    desc="暖春",       category="活动/限时", execute=_execute_nc, batchable=False),
     CommandDef(name="ncloop", desc="暖春循环",  category="活动/限时", execute=_execute_ncloop, batchable=False),
@@ -1236,34 +1237,34 @@ COMMANDS = [
     CommandDef(name="ghxs",  desc="公会悬赏查询", category="武道/其他", execute=_execute_ghxs, batchable=False),
 
     # ── 公会批量专属（guild_only） ──
-    CommandDef(name="jz", desc="捐献", aliases=["d"], execute=_execute_donate_single, guild_only=True),
-    CommandDef(name="status", desc="收集状态", aliases=["s"], guild_only=True,
+    CommandDef(name="donate", desc="捐献", category="公会管理", usage="[起始序号]", aliases=["d", "jz"], execute=_execute_donate_single, guild_only=True),
+    CommandDef(name="status", desc="收集状态", category="公会管理", usage="[起始序号]", aliases=["s"], guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_status(start_from=start_from)),
-    CommandDef(name="join", desc="加入公会", aliases=["j"], guild_only=True,
+    CommandDef(name="join", desc="加入公会", category="公会管理", usage="[起始序号]", aliases=["j"], guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_join(start_from=start_from)),
-    CommandDef(name="approve", desc="批准申请", guild_only=True,
+    CommandDef(name="approve", desc="批准申请", category="公会管理", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_approve()),
-    CommandDef(name="check", desc="检查成员", guild_only=True,
+    CommandDef(name="check", desc="检查成员", category="公会管理", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_check()),
-    CommandDef(name="k", desc="踢出成员", guild_only=True,
+    CommandDef(name="k", desc="踢出成员", category="公会管理", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_kickoff()),
-    CommandDef(name="info", desc="公会信息", aliases=["i"], guild_only=True,
+    CommandDef(name="info", desc="公会信息", category="公会管理", usage="[物品ID...]", aliases=["i"], guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_info()),
-    CommandDef(name="daily", desc="捐献+扫荡", guild_only=True,
+    CommandDef(name="daily", desc="捐献+扫荡", category="日常/资源", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_daily()),
-    CommandDef(name="init", desc="初始化小号", guild_only=True,
+    CommandDef(name="init", desc="初始化小号", category="基础/流程", usage="[起始序号]", guild_only=True,
               batch_execute=None),  # 需要 init_func，在 handle_guild_batch_command 中特殊处理
-    CommandDef(name="xsacp", desc="悬赏接受", guild_only=True,
+    CommandDef(name="xsacp", desc="悬赏接受", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acp(start_from=start_from)),
-    CommandDef(name="xsacpb", desc="悬赏接受后放弃", guild_only=True,
+    CommandDef(name="xsacpb", desc="悬赏接受后放弃", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acpb(start_from=start_from)),
-    CommandDef(name="xs12r", desc="悬赏自动刷非金", guild_only=True,
+    CommandDef(name="xs12r", desc="悬赏自动刷非金", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acpb3(start_from=start_from)),
-    CommandDef(name="xst", desc="悬赏替换(保留选定任务)", guild_only=True,
+    CommandDef(name="xst", desc="悬赏替换(保留选定任务)", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_xst(start_from=start_from)),
-    CommandDef(name="xs123r", desc="悬赏全部替换", guild_only=True,
+    CommandDef(name="xs123r", desc="悬赏全部替换", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_xs123r(start_from=start_from)),
-    CommandDef(name="zscp", desc="赠送船票", guild_only=True,
+    CommandDef(name="zscp", desc="赠送船票", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_zs_cp(start_from=start_from)),
 ]
 
@@ -1287,3 +1288,18 @@ def get_command(name: str) -> Optional[CommandDef]:
 def get_batchable_names() -> list:
     """返回所有可批量执行的命令名（含别名）"""
     return [name for name, cmd in _COMMAND_MAP.items() if cmd.batchable]
+
+
+def command_signature(cmd: CommandDef, usage: Optional[str] = None) -> str:
+    """格式化命令名、别名和参数说明。"""
+    names = "/".join([cmd.name] + list(cmd.aliases))
+    usage_text = cmd.usage if usage is None else usage
+    return f"{names} {usage_text}".rstrip()
+
+
+def command_groups(commands, default_category: str = "其他"):
+    """按 category 分组，保留命令注册顺序。"""
+    grouped = {}
+    for cmd in commands:
+        grouped.setdefault(cmd.category or default_category, []).append(cmd)
+    return grouped.items()

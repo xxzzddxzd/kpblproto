@@ -359,43 +359,93 @@ class GuildBatchManager:
             print(f"  账号文件: {gf}  |  小号: {len(accs)}  |  sid: {min(sids)}~{max(sids)}  |  已init: {init_count}/{len(accs)}")
         else:
             print(f"  ⚠ 尚未生成小号，请先执行: {leader_account} gg gen [数量]")
-        for cmd, desc in [
-            ("gen [数量] [起始sid]", "生成小号"), ("init [线程数]", "初始化+加入公会"),
-            ("join/j [起始序号]", "加入公会"), ("approve", "批准待审核"),
-            ("donate/d", "捐献"), ("daily", "日常(捐献+扫荡)"),
-            ("da", "日常任务"), ("defda", "默认日常"),
-            ("fl31 [起始序号]", "31级首登+教学跳过"),
-            ("jq [起始序号]", "剧情战斗"),
-            ("yl [起始序号]", "游历(固定20倍)"),
-            ("tf [起始序号]", "天赋强化"),
-            ("xyx [起始序号]", "幸运星"),
-            ("kg [起始序号] [i|g]", "公会考古：默认领奖+挖矿+汇报，i=只领奖统计锤子，g=只挖掘"),
-            ("kgtest/kgt 账号 [dump|score|claim|rewardscan|full] [次数]", "指定账号测试考古日常"),
-            ("grc [起始序号] [最大刷新=15]", "个人船刷新到功勋币×200后开船"),
-            ("ghgrc [起始序号]", "个人船刷新到UR后开船，不刷功勋200"),
-            ("run [起始序号]", "一条龙(按pipeline配置)"),
-            ("seq [起始序号] cmd1,cmd2...", "顺序执行多个命令(逗号分隔)"),
-            ("pipeline [set 任务列表]", "查看/设置pipeline配置"),
-            ("xsacp [起始序号]", "悬赏接受"),
-            ("xsacpb [起始序号]", "悬赏接受后放弃"),
-            ("xs12r [起始序号]", "悬赏自动刷非金(lv31+)"),
-            ("xst [起始序号]", "悬赏替换(保留选定任务, lv31+)"),
-            ("xs123r [起始序号]", "悬赏全部替换(lv31+)"),
-            ("zscp [起始序号]", "赠送船票"),
-            ("check", "检查小号公会状态"), ("status/s", "收集日活/周活/钻石"),
-            ("help", "详细帮助"),
-        ]:
-            print(f"  {cmd:26s} - {desc}")
+        print("\n常用命令:")
+        GuildBatchManager._print_help_rows([
+            ("gg gen [数量] [起始sid]", "生成小号"),
+            ("gg init [起始序号]", "初始化+加入公会"),
+            ("gg run [起始序号]", "按pipeline配置执行"),
+            ("gg seq [起始序号] cmd1,cmd2...", "顺序执行多个命令"),
+            ("gg status/s [起始序号]", "收集日活/周活/钻石"),
+            ("gg --help|-h", "完整帮助"),
+        ])
 
     @staticmethod
     def show_help(leader_account):
         """显示详细帮助"""
         a = leader_account
-        print(f"══════ 公会批量管理帮助 ══════")
-        print(f"以会长号为基准，管理同账号不同服务器的小号组成公会。\n")
+        print("══════ 公会批量管理帮助 ══════")
+        print("以会长号为基准，管理同账号不同服务器的小号组成公会。")
+        print(f"用法: python main.py {a} gg <子命令> [参数...]")
         print(f"首次建会: {a} gg gen → {a} gg init → {a} gg donate")
-        print(f"日常维护: {a} gg daily / {a} gg da / {a} gg defda\n")
-        print(f"gen 参数: {a} gg gen [数量] [起始sid]  (默认30个, sid从会长+1)")
+        print(f"日常维护: {a} gg run / {a} gg seq da,defda,status\n")
+        GuildBatchManager._print_full_help_sections()
+
+    @staticmethod
+    def _print_help_rows(rows, width=42):
+        for cmd, desc in rows:
+            print(f"  {cmd:<{width}s} - {desc}")
+
+    @staticmethod
+    def _gg_command_signature(cmd):
+        from .command_registry import command_signature
+        if cmd.guild_only:
+            usage = cmd.usage
+        elif cmd.batch_usage is not None:
+            usage = cmd.batch_usage
+        else:
+            usage = "[起始序号]"
+            if cmd.usage:
+                usage = f"{usage} {cmd.usage}"
+        return command_signature(cmd, usage)
+
+    @staticmethod
+    def _print_full_help_sections():
+        from .command_registry import COMMANDS
+
+        category_order = [
+            "基础/流程",
+            "公会管理",
+            "日常/资源",
+            "挑战/战斗",
+            "活动/限时",
+            "组队/副本",
+            "武道/其他",
+            "悬赏/船票",
+            "其他",
+        ]
+        sections = {category: [] for category in category_order}
+
+        def add(category, signature, desc):
+            sections.setdefault(category, []).append((signature, desc))
+
+        add("基础/流程", "gen [数量] [起始sid]", "生成小号配置，默认30个，sid从会长+1")
+        add("基础/流程", "init [起始序号]", "初始化小号、改名并加入公会")
+        add("基础/流程", "run [起始序号]", "按pipeline配置为每个小号执行")
+        add("基础/流程", "seq [起始序号] cmd1,cmd2...", "临时顺序执行多个任务")
+        add("基础/流程", "cmd1,cmd2... [起始序号]", "seq快捷写法")
+        add("基础/流程", "pipeline/p [set 任务...]", "查看或设置pipeline配置")
+
+        for cmd in COMMANDS:
+            if cmd.name == "init":
+                continue
+            if cmd.guild_only or (cmd.batchable and not cmd.guild_only):
+                add(cmd.category or "其他", GuildBatchManager._gg_command_signature(cmd), cmd.desc)
+
+        add("活动/限时", "kgtest/kgt 账号 [dump|score|claim|rewardscan|full] [次数]", "指定账号测试考古日常")
+
+        for category in category_order:
+            rows = sections.get(category)
+            if not rows:
+                continue
+            print(f"[{category}]")
+            GuildBatchManager._print_help_rows(rows)
+            print()
+
+        extra_categories = [c for c in sections if c not in category_order and sections[c]]
+        for category in extra_categories:
+            print(f"[{category}]")
+            GuildBatchManager._print_help_rows(sections[category])
+            print()
 
     # ── 实例方法 ──
 

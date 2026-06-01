@@ -15,26 +15,87 @@ sys.path.append('modules')
 from modules.kpbltools import mask_account
 
 
-def print_usage():
+HELP_FLAGS = {'help', '--help', '-h'}
+
+
+def is_help_arg(value):
+    return value in HELP_FLAGS
+
+
+def _print_rows(rows, width=36):
+    for signature, desc in rows:
+        print(f"  {signature:<{width}s} - {desc}")
+
+
+def print_usage(account_name=None):
     """从命令注册表自动生成帮助文本"""
-    from modules.command_registry import COMMANDS
-    print("用法: python main.py [账号] [命令] [参数...]")
-    current_cat = None
-    for cmd in COMMANDS:
-        if cmd.guild_only:
-            continue
-        if cmd.category and cmd.category != current_cat:
-            current_cat = cmd.category
-            print(f"\n===== {current_cat} =====")
-        usage = f" {cmd.usage}" if cmd.usage else ""
-        aliases = f"/{'/'.join(cmd.aliases)}" if cmd.aliases else ""
-        print(f"  {cmd.name}{aliases:8s}{usage:24s} - {cmd.desc}")
+    from modules.command_registry import COMMANDS, command_groups, command_signature
+    account = account_name or "<账号>"
+    print("用法:")
+    print("  python main.py <账号> <命令> [参数...]")
+    print("  python main.py <账号> gg <子命令> [参数...]")
+    print("  python main.py --help|-h")
+    print("  python main.py <账号> gg --help|-h")
+
+    print("\n示例:")
+    print(f"  python main.py {account} da")
+    print(f"  python main.py {account} gg run")
+    print(f"  python main.py {account} gg --help")
+
+    print("\n===== 单账号命令 =====")
+    for category, commands in command_groups(cmd for cmd in COMMANDS if not cmd.guild_only):
+        print(f"\n[{category}]")
+        _print_rows((command_signature(cmd), cmd.desc) for cmd in commands)
+
     print("\n===== 公会批量 (gg) =====")
-    print("  gg [子命令]                - 公会批量操作")
-    print("  gg run                     - 执行pipeline")
-    print("  gg seq [起始] cmd1,cmd2... - 顺序执行")
-    print("  gg kgtest/kgt 账号 [dump|score|claim|rewardscan|full] [次数] - 指定账号测试考古日常")
-    print("  gg pipeline set [任务...]  - 设置pipeline")
+    _print_rows([
+        ("gg gen [数量] [起始sid]", "生成公会小号配置"),
+        ("gg init [起始序号]", "初始化小号并加入公会"),
+        ("gg run [起始序号]", "按pipeline配置执行"),
+        ("gg seq [起始序号] cmd1,cmd2...", "顺序执行多个任务"),
+        ("gg pipeline/p [set 任务...]", "查看或设置pipeline配置"),
+        ("gg --help|-h", "查看公会批量完整帮助"),
+    ])
+
+
+def print_guild_help():
+    print("用法: g [子命令] [参数]")
+    print("  join/j [公会ID]  - 加入公会")
+    print("  quit             - 退出公会")
+    print("  info/i           - 查看公会信息")
+    print("  donate/d         - 公会捐献")
+    print("  approve [角色ID] - 同意加入")
+
+
+def print_command_help(account_name, command):
+    """显示单个命令或命令组的帮助。"""
+    if command in ('gh', 'g', 'guild'):
+        print_guild_help()
+        return True
+
+    if command == 'gg':
+        from modules import GuildBatchManager
+        GuildBatchManager.show_help(account_name)
+        return True
+
+    from modules.command_registry import get_command, command_signature
+    cmd = get_command(command)
+    if cmd is None:
+        print(f"未知命令: {command}")
+        print_usage(account_name)
+        return False
+
+    prefix = "gg " if cmd.guild_only else ""
+    print(f"用法: python main.py {account_name} {prefix}{command_signature(cmd)}")
+    if cmd.aliases:
+        print(f"别名: {', '.join(cmd.aliases)}")
+    if cmd.category:
+        print(f"分类: {cmd.category}")
+    if cmd.desc:
+        print(f"说明: {cmd.desc}")
+    if cmd.guild_only:
+        print(f"注意: 该命令仅支持公会批量模式。")
+    return True
 
 
 def run_new_account_sample(account_name):
@@ -171,14 +232,9 @@ def handle_guild_command(account_name, args):
     """处理公会命令"""
     from modules import GuildManager
     sub = args[0] if len(args) > 0 else None
-    if not sub:
-        print("用法: g [子命令] [参数]")
-        print("  join/j [公会ID]  - 加入公会")
-        print("  quit             - 退出公会")
-        print("  info/i           - 查看公会信息")
-        print("  donate/d         - 工会捐献")
-        print("  approve [角色ID] - 同意加入")
-        return False
+    if not sub or is_help_arg(sub):
+        print_guild_help()
+        return bool(sub)
     guild_manager = GuildManager(account_name, showres=0, delay=0)
     if sub in ('join', 'j'):
         guild_id = int(args[1]) if len(args) > 1 else None
@@ -251,7 +307,7 @@ def handle_guild_batch_command(account_name, args):
     if not sub:
         GuildBatchManager.show_overview(account_name)
         return False
-    if sub == 'help':
+    if is_help_arg(sub):
         GuildBatchManager.show_help(account_name)
         return True
     if sub == 'gen':
@@ -384,11 +440,19 @@ def dispatch_command(account_name, command, command_args):
 
 
 def main():
+    """主函数"""
+    if len(sys.argv) < 2:
+        print_usage()
+        sys.exit(1)
+
+    if is_help_arg(sys.argv[1]):
+        print_usage()
+        return
 
     if sys.argv[1] == "test":
         test()
         return
-    """主函数"""
+
     if len(sys.argv) < 3:
         print_usage()
         sys.exit(1)
@@ -396,6 +460,16 @@ def main():
     account_name = sys.argv[1]
     command = sys.argv[2]
     command_args = sys.argv[3:] if len(sys.argv) > 3 else []
+
+    if is_help_arg(command):
+        print_usage(account_name)
+        return
+
+    if command_args and is_help_arg(command_args[0]):
+        success = print_command_help(account_name, command)
+        if not success:
+            sys.exit(1)
+        return
 
     print(f"\n--- 开始处理账号: {mask_account(account_name)} ---")
     print(f"执行命令: {command}")
