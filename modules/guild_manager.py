@@ -1242,29 +1242,43 @@ class GuildBatchManager:
         name_str = ghxs_leader.format_task_type(task_type_id) or str(task_type_id)
         print(f"目标任务: {name_str} uuid={task_uuid}")
 
-        # 判断是否是钥匙任务 → 走全流程
-        if task_type_id in GHXSManager.KEY_TASK_TYPES:
-            print(f"\n检测到钥匙任务，使用会长号执行全流程...")
-            return ghxs_leader.run_s_key_task(task_uuid=task_uuid, task_type_id=task_type_id)
+        # 判断是否是钥匙任务
+        is_key_task = task_type_id in GHXSManager.KEY_TASK_TYPES
+        if is_key_task:
+            print(f"\n检测到钥匙任务，将遍历小号执行全流程...")
 
-        # 非钥匙任务：遍历小号尝试接受
+        # 遍历小号
         total = len(self.guild_accounts)
         for i, acname in enumerate(self.guild_accounts.keys(), 1):
             if i < start_from:
                 continue
             sid = self.guild_accounts[acname]['server_id']
-            print(f"[{i}/{total}] {acname} ({sid}) — 接受悬赏")
-            try:
-                ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
-                if ghxs.accept(task_uuid, task_type_id):
-                    print(f"  ✓ {acname} 接受成功")
-                    return True
-                else:
-                    print(f"  ✗ {acname} 接受失败")
-            except Exception as e:
-                print(f"  ✗ {acname} 异常: {e}")
-        print("所有账号均未能接受任务")
+
+            if is_key_task:
+                print(f"[{i}/{total}] {acname} ({sid}) — 钥匙任务全流程")
+                try:
+                    ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
+                    if ghxs.run_s_key_task(task_uuid=task_uuid, task_type_id=task_type_id):
+                        print(f"  ✓ {acname} 全流程完成")
+                        return True
+                    else:
+                        print(f"  ✗ {acname} 执行失败(钥匙不够或其他原因)")
+                except Exception as e:
+                    print(f"  ✗ {acname} 异常: {e}")
+            else:
+                print(f"[{i}/{total}] {acname} ({sid}) — 接受悬赏")
+                try:
+                    ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
+                    if ghxs.accept(task_uuid, task_type_id):
+                        print(f"  ✓ {acname} 接受成功")
+                        return True
+                    else:
+                        print(f"  ✗ {acname} 接受失败")
+                except Exception as e:
+                    print(f"  ✗ {acname} 异常: {e}")
+        print("所有账号均未能完成任务")
         return False
+
 
 
     def batch_acpb(self, start_from=1):
