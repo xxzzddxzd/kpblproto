@@ -36,6 +36,11 @@ class DAManager:
         self.logger.addHandler(logging.StreamHandler())
         self.showres = showres
         self.I8_VALUE = self.ac_manager.I8_VALUE
+
+    def prime_ghxs_tracking(self):
+        """先查询公会悬赏，让后续挖矿动作正确累计悬赏次数。"""
+        config = {"ads": "公会悬赏查询", "times": 1, "hexstringheader": "1f78"}
+        return self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
     
     def get_daily_config(self):
         """
@@ -437,6 +442,7 @@ class DAManager:
             bool: 执行成功返回True
         """
         try:
+            self.prime_ghxs_tracking()
             self.get_jsxl_id()
             # print(f"<{mask_account(self.account_name)}> 开始活动广告任务...")
             # req_list = []
@@ -473,7 +479,7 @@ class DAManager:
             
             # 执行挖矿任务
             print(f"<{mask_account(self.account_name)}> 开始执行挖矿任务...")
-            wk_manager = WKManager(self.account_name)
+            wk_manager = WKManager(self.account_name, showres=self.showres, ac_manager=self.ac_manager)
             wk_manager.start_mining()
             
             print(f"<{mask_account(self.account_name)}> 日常任务执行完成")
