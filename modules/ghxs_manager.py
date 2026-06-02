@@ -185,25 +185,18 @@ class GHXSManager:
         return response and len(response) > 20
 
     def claim_all_score_rewards(self):
-        """遍历领取所有进度奖励。先查询当前积分，积分不够的阶梯直接跳过。"""
-        # 先查询当前积分
-        resp = self.query()
-        current_score = resp.field9 if resp and resp.field9 else 0
-        print(f"<{mask_account(self.account_name)}> 当前悬赏积分: {current_score}")
-
+        """遍历领取所有进度奖励（无API查已领状态，逐个尝试，已领的会自动跳过）"""
         claimed_count = 0
         for i in range(1, len(self.SCORE_THRESHOLDS) + 1):
             threshold = self.SCORE_THRESHOLDS[i - 1]
-            if current_score < threshold:
-                print(f"<{mask_account(self.account_name)}> - 进度奖励 {i}({threshold}分) 积分不足，跳过后续")
-                break
             success = self.claim_score_reward(i)
             if success:
                 claimed_count += 1
                 print(f"<{mask_account(self.account_name)}> ✓ 领取进度奖励 {i}({threshold}分)")
-            else:
-                print(f"<{mask_account(self.account_name)}> - 进度奖励 {i}({threshold}分) 已领")
-        print(f"<{mask_account(self.account_name)}> 共领取 {claimed_count} 个进度奖励")
+        if claimed_count:
+            print(f"<{mask_account(self.account_name)}> 共领取 {claimed_count} 个进度奖励")
+        else:
+            print(f"<{mask_account(self.account_name)}> 无新的进度奖励可领")
         return claimed_count
 
     def run_s_key_task(self, task_uuid=None, task_type_id=201207):
