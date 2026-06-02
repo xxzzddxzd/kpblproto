@@ -1197,7 +1197,7 @@ class GuildBatchManager:
         return results
 
     def batch_acp(self, start_from=1):
-        """依次登录公会小号接受悬赏任务，成功后退出"""
+        """依次登录公会小号接受悬赏任务。选择钥匙任务时执行完整流程(接受→开箱→gacha→交任务→领进度奖励)"""
         from .ghxs_manager import GHXSManager
 
         # 先用会长号 query 获取任务列表
@@ -1206,6 +1206,10 @@ class GuildBatchManager:
         if not resp or not resp.task_entries:
             print("查询公会悬赏失败或无任务")
             return False
+
+        # 显示当前积分
+        current_score = resp.field9 if resp.field9 else 0
+        print(f"当前悬赏积分: {current_score}")
 
         # 按 type_id 聚合，展示供选择
         type_tasks = {}
@@ -1220,7 +1224,10 @@ class GuildBatchManager:
         for idx, tid in enumerate(tid_list):
             name = ghxs_leader.format_task_type(tid)
             label = f"{name}({tid})" if name else str(tid)
-            print(f"  [{idx}] {label} x{len(type_tasks[tid])}")
+            # 标注钥匙任务
+            key_info = GHXSManager.KEY_TASK_TYPES.get(tid)
+            suffix = f" 🔑(需{key_info[1]}钥匙，全流程)" if key_info else ""
+            print(f"  [{idx}] {label} x{len(type_tasks[tid])}{suffix}")
 
         choice = input("选择任务编号: ").strip()
         try:
@@ -1235,7 +1242,12 @@ class GuildBatchManager:
         name_str = ghxs_leader.format_task_type(task_type_id) or str(task_type_id)
         print(f"目标任务: {name_str} uuid={task_uuid}")
 
-        # 遍历小号尝试接受
+        # 判断是否是钥匙任务 → 走全流程
+        if task_type_id in GHXSManager.KEY_TASK_TYPES:
+            print(f"\n检测到钥匙任务，使用会长号执行全流程...")
+            return ghxs_leader.run_s_key_task(task_uuid=task_uuid, task_type_id=task_type_id)
+
+        # 非钥匙任务：遍历小号尝试接受
         total = len(self.guild_accounts)
         for i, acname in enumerate(self.guild_accounts.keys(), 1):
             if i < start_from:
@@ -1253,6 +1265,7 @@ class GuildBatchManager:
                 print(f"  ✗ {acname} 异常: {e}")
         print("所有账号均未能接受任务")
         return False
+
 
     def batch_acpb(self, start_from=1):
         """循环：接受悬赏任务后立即放弃，直到用户Ctrl+C退出"""

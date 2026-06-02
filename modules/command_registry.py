@@ -1277,7 +1277,7 @@ COMMANDS = [
               batch_execute=lambda mgr, start_from: mgr.batch_daily()),
     CommandDef(name="init", desc="初始化小号", category="基础/流程", usage="[起始序号]", guild_only=True,
               batch_execute=None),  # 需要 init_func，在 handle_guild_batch_command 中特殊处理
-    CommandDef(name="xsacp", desc="悬赏接受", category="悬赏/船票", usage="[起始序号]", guild_only=True,
+    CommandDef(name="xsacp", desc="悬赏接受(钥匙任务全流程)", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acp(start_from=start_from)),
     CommandDef(name="xsacpb", desc="悬赏接受后放弃", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acpb(start_from=start_from)),
