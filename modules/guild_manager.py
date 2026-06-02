@@ -1225,8 +1225,8 @@ class GuildBatchManager:
             name = ghxs_leader.format_task_type(tid)
             label = f"{name}({tid})" if name else str(tid)
             # 标注钥匙任务
-            key_info = GHXSManager.KEY_TASK_TYPES.get(tid)
-            suffix = f" 🔑(需{key_info[1]}钥匙，全流程)" if key_info else ""
+            key_count = GHXSManager.KEY_TASK_TYPES.get(tid)
+            suffix = f" 🔑(需{key_count}钥匙，全流程)" if key_count else ""
             print(f"  [{idx}] {label} x{len(type_tasks[tid])}{suffix}")
 
         choice = input("选择任务编号: ").strip()

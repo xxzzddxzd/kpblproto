@@ -14,6 +14,7 @@ class GHXSManager:
         201001: "n-3次pvp",
         201002: "n-5次任意副本",
         201003: "n-1ur船",
+        201004: "n-50次挖矿",
         201005: "n-100体力",
         
         201102: "r-10次任意副本",
@@ -128,10 +129,9 @@ class GHXSManager:
     # 进度奖励积分阶梯
     SCORE_THRESHOLDS = [50, 100, 150, 250, 450, 1000, 1500, 2000, 3200]
 
-    # 钥匙任务类型 → 所需钥匙数量
+    # 需要走钥匙全流程的悬赏任务类型 → 所需钥匙数量（名称从 TASK_TYPE_MAP 获取）
     KEY_TASK_TYPES = {
-        201004: ("n-10次装备", 10),
-        201207: ("s-30次装备", 30),
+        201207: 30,  # s-30次装备
     }
 
     # S钥匙在 baginfo 中的 type
@@ -209,12 +209,12 @@ class GHXSManager:
         5. 交任务
         6. 领进度奖励
         """
-        task_info = self.KEY_TASK_TYPES.get(task_type_id)
-        if not task_info:
+        required_keys = self.KEY_TASK_TYPES.get(task_type_id)
+        if not required_keys:
             print(f"<{mask_account(self.account_name)}> 未知的钥匙任务类型: {task_type_id}")
             return False
-        task_name, required_keys = task_info
-        print(f"\n<{mask_account(self.account_name)}> ═══ 开始S钥匙任务: {task_name} (需要{required_keys}把钥匙) ═══")
+        task_name = self.format_task_type(task_type_id) or str(task_type_id)
+        print(f"\n<{mask_account(self.account_name)}> ═══ 开始钥匙任务: {task_name} (需要{required_keys}把钥匙) ═══")
 
         # 1. 检查背包
         s_key_count, _ = self._get_bag_item_count(self.S_KEY_TYPE)
