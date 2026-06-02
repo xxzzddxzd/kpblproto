@@ -502,9 +502,6 @@ class DAManager:
             # 特惠弹框领取
             self.claim_popup_deals()
 
-            print(f"<{mask_account(self.account_name)}> 开始执行个人船刷新开船")
-            from .trade_manager import TradeManager
-            TradeManager(self.account_name, showres=self.showres, ac_manager=self.ac_manager).run_grc()
 
             self.claim_guild_conquest_rewards()
 
