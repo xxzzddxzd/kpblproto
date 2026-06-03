@@ -107,7 +107,7 @@ SKILL_TABLE = {
 
 
 class DungeonManager:
-    def __init__(self, account_name, showres=1, delay=0.5, ac_manager=None):
+    def __init__(self, account_name, showres=0, delay=0.5, ac_manager=None):
         self.account_name = account_name
         self.showres = showres
         self.ac_manager = ac_manager or ACManager(account_name, showres=showres, delay=delay)

@@ -793,9 +793,9 @@ class GuildBatchManager:
             print(len(ac.do_common_request(name, req, showres=self.showres)) > 20)
         # 上新船+赠票
         req = {"ads": "上船", "times": 1, "hexstringheader": "1962", "request_body_i2": int(boat_id), "request_body_i3": random.randint(21, 25)}
-        print(len(ac.do_common_request(name, req, showres=1)) > 20)
+        print(len(ac.do_common_request(name, req, showres=0)) > 20)
         req = {"ads": "船票赠送", "times": 1, "hexstringheader": "1b62", "request_body_i2": int(boat_id), "request_body_i3": 3}
-        print(len(ac.do_common_request(name, req, showres=1)) > 20)
+        print(len(ac.do_common_request(name, req, showres=0)) > 20)
 
     def batch_zs_cp(self, start_from=1):
         """赠送船票：先用会长号任命船长，再遍历小号赠送船票"""

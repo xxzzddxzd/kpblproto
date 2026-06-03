@@ -596,9 +596,9 @@ class DAManager:
             print(req_list1)
             print(req_list2)
             for req in req_list1:
-                self.ac_manager.do_common_request(self.account_name, req, showres=1)
+                self.ac_manager.do_common_request(self.account_name, req, showres=0)
             for req in req_list2:
-                self.ac_manager.do_common_request(self.account_name, req, showres=1)
+                self.ac_manager.do_common_request(self.account_name, req, showres=0)
             # self.ac_manager.do_common_request_list(self.account_name, req_list1, showres=1)
             # self.ac_manager.do_common_request_list(self.account_name, req_list2, showres=1)
 
@@ -1139,7 +1139,7 @@ class DAManager:
 
     def ggl(self):
         req = {"ads":"刮刮乐","times":1,"hexstringheader":"6144"}
-        rev = self.ac_manager.do_common_request(self.account_name, req, showres=1)
+        rev = self.ac_manager.do_common_request(self.account_name, req, showres=0)
         print(rev)
         ggl_resp = kpbl_pb2.qdggl_sx_response()
         ggl_resp.ParseFromString(rev[6:])
