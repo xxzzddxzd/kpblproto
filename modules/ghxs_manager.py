@@ -28,6 +28,7 @@ class GHXSManager:
         201208: "s-6个魔方",
         
         203107: "r-500次宠物蛋",
+        203207: "s-1500次宠物蛋",
     }
     TASK_RARITY_MAP = {
         0: "n",  # 普通
@@ -142,6 +143,12 @@ class GHXSManager:
             "kind": "pet_egg",
             "label": "宠物蛋10连",
             "draw_count": 500,
+            "draws_per_request": 10,
+        },
+        203207: {
+            "kind": "pet_egg",
+            "label": "宠物蛋10连",
+            "draw_count": 1500,
             "draws_per_request": 10,
         },
     }
