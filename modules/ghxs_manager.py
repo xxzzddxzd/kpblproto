@@ -153,6 +153,8 @@ class GHXSManager:
     S_KEY_TYPE = 62
     # 钥匙自选箱在 baginfo 中的 type
     KEY_BOX_TYPE = 5028
+    PET_EGG_COUNT_PER_MULTIPLIER = 35
+    PET_EGG_MULTIPLIERS = (10, 5, 3, 1)
 
     @classmethod
     def task_flow_config(cls, task_type_id):
@@ -184,6 +186,28 @@ class GHXSManager:
             return False
         print(f"<{mask_account(self.account_name)}> ✓ 接受任务成功")
         return True
+
+    @classmethod
+    def pet_egg_gacha_plan(cls, draw_count, max_multiplier=10):
+        """按宠物蛋任务次数生成抽蛋档位计划，返回(所需倍率总数, 实际计数, [(倍率, 请求次数)])。"""
+        draw_count = int(draw_count)
+        max_multiplier = int(max_multiplier)
+        if draw_count <= 0 or max_multiplier <= 0:
+            raise ValueError("draw_count/max_multiplier must be positive")
+
+        required_multiplier = (draw_count + cls.PET_EGG_COUNT_PER_MULTIPLIER - 1) // cls.PET_EGG_COUNT_PER_MULTIPLIER
+        allowed = [m for m in cls.PET_EGG_MULTIPLIERS if m <= max_multiplier]
+        if not allowed or allowed[-1] != 1:
+            raise ValueError(f"unsupported pet egg max_multiplier: {max_multiplier}")
+
+        plan = []
+        remaining = required_multiplier
+        for multiplier in allowed:
+            times, remaining = divmod(remaining, multiplier)
+            if times:
+                plan.append((multiplier, times))
+        actual_count = required_multiplier * cls.PET_EGG_COUNT_PER_MULTIPLIER
+        return required_multiplier, actual_count, plan
 
     def _get_bag_item_count(self, item_type):
         """从 baginfo 获取指定 type 的物品数量和 id"""
@@ -313,19 +337,24 @@ class GHXSManager:
         """
         宠物蛋悬赏全流程：
         1. 接任务
-        2. 抽宠物蛋500次（f14e i2=13 i3=10，50次10连）
+        2. 抽宠物蛋到满足任务次数（f14e i2=13, i3=1/3/5/10）
         3. 交任务
         4. 领进度奖励
         """
         config = self.task_flow_config(task_type_id) or {}
         draw_count = int(config.get("draw_count", 500))
-        draws_per_request = int(config.get("draws_per_request", 10))
-        if draw_count <= 0 or draws_per_request <= 0 or draw_count % draws_per_request != 0:
+        max_multiplier = int(config.get("draws_per_request", 10))
+        try:
+            required_multiplier, actual_count, plan = self.pet_egg_gacha_plan(draw_count, max_multiplier)
+        except ValueError:
             print(f"<{mask_account(self.account_name)}> ✗ 宠物蛋任务配置不合法: {config}")
             return False
-        request_times = draw_count // draws_per_request
         task_name = self.format_task_type(task_type_id) or str(task_type_id)
-        print(f"\n<{mask_account(self.account_name)}> ═══ 开始宠物蛋任务: {task_name} ({draw_count}次) ═══")
+        plan_text = " + ".join(f"x{multiplier}*{times}" for multiplier, times in plan)
+        print(
+            f"\n<{mask_account(self.account_name)}> ═══ 开始宠物蛋任务: {task_name} "
+            f"(目标{draw_count}次, 倍率{required_multiplier}, 实际{actual_count}次: {plan_text}) ═══"
+        )
 
         task_uuid = self._resolve_task_uuid(task_uuid, task_type_id)
         if not task_uuid:
@@ -333,16 +362,18 @@ class GHXSManager:
         if not self._accept_resolved_task(task_uuid, task_type_id):
             return False
 
-        print(f"<{mask_account(self.account_name)}> 抽宠物蛋: {draw_count}次 ({request_times}次{draws_per_request}连)...")
+        print(f"<{mask_account(self.account_name)}> 抽宠物蛋: {plan_text}...")
         from .da_manager import DAManager
-        if not DAManager(
+        da = DAManager(
             self.account_name,
             showres=self.showres,
             delay=self.delay,
             ac_manager=self.ac_manager,
-        ).petegggacha(request_times):
-            print(f"<{mask_account(self.account_name)}> ✗ 宠物蛋gacha失败")
-            return False
+        )
+        for multiplier, times in plan:
+            if not da.petegggacha(times, multiplier=multiplier):
+                print(f"<{mask_account(self.account_name)}> ✗ 宠物蛋gacha失败: x{multiplier}*{times}")
+                return False
         print(f"<{mask_account(self.account_name)}> ✓ 宠物蛋gacha完成")
 
         print(f"<{mask_account(self.account_name)}> 交任务...")
