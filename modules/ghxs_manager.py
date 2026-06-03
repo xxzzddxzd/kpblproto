@@ -26,6 +26,8 @@ class GHXSManager:
         201108: "r-2个魔方",
         201207: "s-30次装备",
         201208: "s-6个魔方",
+        
+        203107: "r-500次宠物蛋",
     }
     TASK_RARITY_MAP = {
         0: "n",  # 普通
@@ -60,9 +62,9 @@ class GHXSManager:
         """新规则下只有s级任务按金色保留。"""
         return cls.task_rarity(type_id) == "s"
 
-    def __init__(self, account_name, delay=0, showres=0):
+    def __init__(self, account_name, delay=0, showres=0, ac_manager=None):
         self.account_name = account_name
-        self.ac_manager = ACManager(account_name, delay=delay, showres=showres)
+        self.ac_manager = ac_manager or ACManager(account_name, delay=delay, showres=showres)
         self.logger = logging.getLogger(f"GHXSManager_{account_name}")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
@@ -95,7 +97,7 @@ class GHXSManager:
         #     resp.ParseFromString(response[6:])
         #     return resp
         # return None
-        return len(response)>20
+        return bool(response and len(response) > 20)
 
     def buy_times(self):
         """购买公会悬赏次数"""
@@ -124,20 +126,64 @@ class GHXSManager:
         response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
         return response and len(response) > 20
 
-    # ── S钥匙任务全流程 ──────────────────────────────────────
+    # ── 悬赏任务全流程 ──────────────────────────────────────
 
     # 进度奖励积分阶梯
     SCORE_THRESHOLDS = [50, 100, 150, 250, 450, 1000, 1500, 2000, 3200]
 
-    # 需要走钥匙全流程的悬赏任务类型 → 所需钥匙数量（名称从 TASK_TYPE_MAP 获取）
-    KEY_TASK_TYPES = {
-        201207: 30,  # s-30次装备
+    # task_type_id -> flow配置。新增可执行任务时只需要补这里和对应执行器。
+    TASK_FLOW_CONFIGS = {
+        201207: {
+            "kind": "s_key",
+            "label": "S钥匙装备gacha",
+            "required_keys": 30,
+        },
+        203107: {
+            "kind": "pet_egg",
+            "label": "宠物蛋10连",
+            "draw_count": 500,
+            "draws_per_request": 10,
+        },
     }
+
+    # 兼容旧代码：需要走钥匙全流程的悬赏任务类型 → 所需钥匙数量。
+    KEY_TASK_TYPES = {201207: TASK_FLOW_CONFIGS[201207]["required_keys"]}
 
     # S钥匙在 baginfo 中的 type
     S_KEY_TYPE = 62
     # 钥匙自选箱在 baginfo 中的 type
     KEY_BOX_TYPE = 5028
+
+    @classmethod
+    def task_flow_config(cls, task_type_id):
+        return cls.TASK_FLOW_CONFIGS.get(task_type_id)
+
+    @classmethod
+    def task_flow_label(cls, task_type_id):
+        config = cls.task_flow_config(task_type_id)
+        return config.get("label") if config else None
+
+    def _resolve_task_uuid(self, task_uuid, task_type_id):
+        """没有传 uuid 时，从当前悬赏池里找同类型任务。"""
+        if task_uuid:
+            return task_uuid
+        resp = self.query()
+        if not resp or not resp.task_entries:
+            print(f"<{mask_account(self.account_name)}> ✗ 查询悬赏失败或无任务")
+            return None
+        for task in resp.task_entries:
+            if task.task_type_id == task_type_id:
+                return task.task_uuid
+        print(f"<{mask_account(self.account_name)}> ✗ 未找到类型 {task_type_id} 的任务")
+        return None
+
+    def _accept_resolved_task(self, task_uuid, task_type_id):
+        print(f"<{mask_account(self.account_name)}> 接受任务: uuid={task_uuid[:16]}...")
+        if not self.accept(task_uuid, task_type_id):
+            print(f"<{mask_account(self.account_name)}> ✗ 接受任务失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 接受任务成功")
+        return True
 
     def _get_bag_item_count(self, item_type):
         """从 baginfo 获取指定 type 的物品数量和 id"""
@@ -227,26 +273,11 @@ class GHXSManager:
             return False
 
         # 2. 接任务
+        task_uuid = self._resolve_task_uuid(task_uuid, task_type_id)
         if not task_uuid:
-            # 查询获取任务 UUID
-            resp = self.query()
-            if not resp or not resp.task_entries:
-                print(f"<{mask_account(self.account_name)}> ✗ 查询悬赏失败或无任务")
-                return False
-            # 找对应 type 的任务
-            for task in resp.task_entries:
-                if task.task_type_id == task_type_id:
-                    task_uuid = task.task_uuid
-                    break
-            if not task_uuid:
-                print(f"<{mask_account(self.account_name)}> ✗ 未找到类型 {task_type_id} 的任务")
-                return False
-
-        print(f"<{mask_account(self.account_name)}> 接受任务: uuid={task_uuid[:16]}...")
-        if not self.accept(task_uuid, task_type_id):
-            print(f"<{mask_account(self.account_name)}> ✗ 接受任务失败")
             return False
-        print(f"<{mask_account(self.account_name)}> ✓ 接受任务成功")
+        if not self._accept_resolved_task(task_uuid, task_type_id):
+            return False
 
         # 3. 如果S钥匙不够，开箱补齐
         need_from_box = required_keys - s_key_count
@@ -278,3 +309,64 @@ class GHXSManager:
         print(f"<{mask_account(self.account_name)}> ═══ S钥匙任务全流程完成 ═══\n")
         return True
 
+    def run_pet_egg_task(self, task_uuid=None, task_type_id=203107):
+        """
+        宠物蛋悬赏全流程：
+        1. 接任务
+        2. 抽宠物蛋500次（f14e i2=13 i3=10，50次10连）
+        3. 交任务
+        4. 领进度奖励
+        """
+        config = self.task_flow_config(task_type_id) or {}
+        draw_count = int(config.get("draw_count", 500))
+        draws_per_request = int(config.get("draws_per_request", 10))
+        if draw_count <= 0 or draws_per_request <= 0 or draw_count % draws_per_request != 0:
+            print(f"<{mask_account(self.account_name)}> ✗ 宠物蛋任务配置不合法: {config}")
+            return False
+        request_times = draw_count // draws_per_request
+        task_name = self.format_task_type(task_type_id) or str(task_type_id)
+        print(f"\n<{mask_account(self.account_name)}> ═══ 开始宠物蛋任务: {task_name} ({draw_count}次) ═══")
+
+        task_uuid = self._resolve_task_uuid(task_uuid, task_type_id)
+        if not task_uuid:
+            return False
+        if not self._accept_resolved_task(task_uuid, task_type_id):
+            return False
+
+        print(f"<{mask_account(self.account_name)}> 抽宠物蛋: {draw_count}次 ({request_times}次{draws_per_request}连)...")
+        from .da_manager import DAManager
+        if not DAManager(
+            self.account_name,
+            showres=self.showres,
+            delay=self.delay,
+            ac_manager=self.ac_manager,
+        ).petegggacha(request_times):
+            print(f"<{mask_account(self.account_name)}> ✗ 宠物蛋gacha失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 宠物蛋gacha完成")
+
+        print(f"<{mask_account(self.account_name)}> 交任务...")
+        if not self.complete():
+            print(f"<{mask_account(self.account_name)}> ✗ 交任务失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 任务完成")
+
+        print(f"<{mask_account(self.account_name)}> 领取进度奖励...")
+        self.claim_all_score_rewards()
+
+        print(f"<{mask_account(self.account_name)}> ═══ 宠物蛋任务全流程完成 ═══\n")
+        return True
+
+    def run_task_flow(self, task_uuid=None, task_type_id=None):
+        """按 TASK_FLOW_CONFIGS 执行对应悬赏全流程。"""
+        config = self.task_flow_config(task_type_id)
+        if not config:
+            print(f"<{mask_account(self.account_name)}> 未配置任务全流程: {task_type_id}")
+            return False
+        kind = config.get("kind")
+        if kind == "s_key":
+            return self.run_s_key_task(task_uuid=task_uuid, task_type_id=task_type_id)
+        if kind == "pet_egg":
+            return self.run_pet_egg_task(task_uuid=task_uuid, task_type_id=task_type_id)
+        print(f"<{mask_account(self.account_name)}> 未支持的任务流程类型: {kind}")
+        return False

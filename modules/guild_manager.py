@@ -1224,9 +1224,8 @@ class GuildBatchManager:
         for idx, tid in enumerate(tid_list):
             name = ghxs_leader.format_task_type(tid)
             label = f"{name}({tid})" if name else str(tid)
-            # 标注钥匙任务
-            key_count = GHXSManager.KEY_TASK_TYPES.get(tid)
-            suffix = f" 🔑(需{key_count}钥匙，全流程)" if key_count else ""
+            flow_label = GHXSManager.task_flow_label(tid)
+            suffix = f" ({flow_label}全流程)" if flow_label else ""
             print(f"  [{idx}] {label} x{len(type_tasks[tid])}{suffix}")
 
         choice = input("选择任务编号: ").strip()
@@ -1242,10 +1241,9 @@ class GuildBatchManager:
         name_str = ghxs_leader.format_task_type(task_type_id) or str(task_type_id)
         print(f"目标任务: {name_str} uuid={task_uuid}")
 
-        # 判断是否是钥匙任务
-        is_key_task = task_type_id in GHXSManager.KEY_TASK_TYPES
-        if is_key_task:
-            print(f"\n检测到钥匙任务，将遍历小号执行全流程...")
+        flow_config = GHXSManager.task_flow_config(task_type_id)
+        if flow_config:
+            print(f"\n检测到可执行任务流程: {flow_config.get('label')}，将遍历小号执行全流程...")
 
         # 遍历小号
         total = len(self.guild_accounts)
@@ -1254,15 +1252,16 @@ class GuildBatchManager:
                 continue
             sid = self.guild_accounts[acname]['server_id']
 
-            if is_key_task:
-                print(f"[{i}/{total}] {acname} ({sid}) — 钥匙任务全流程")
+            if flow_config:
+                print(f"[{i}/{total}] {acname} ({sid}) — {flow_config.get('label')}全流程")
                 try:
-                    ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres)
-                    if ghxs.run_s_key_task(task_uuid=task_uuid, task_type_id=task_type_id):
+                    ac = ACManager(acname, accounts_file=self.accounts_file, showres=self.showres, delay=self.delay)
+                    ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres, ac_manager=ac)
+                    if ghxs.run_task_flow(task_uuid=task_uuid, task_type_id=task_type_id):
                         print(f"  ✓ {acname} 全流程完成")
                         return True
                     else:
-                        print(f"  ✗ {acname} 执行失败(钥匙不够或其他原因)")
+                        print(f"  ✗ {acname} 执行失败(资源不够或其他原因)")
                 except Exception as e:
                     print(f"  ✗ {acname} 异常: {e}")
             else:

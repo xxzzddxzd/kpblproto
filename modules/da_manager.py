@@ -158,10 +158,11 @@ class DAManager:
             
         ]
     
-    def petegggacha(self,times):
-        print('egggacha')
-        req = {"ads":"宠物蛋3抽卡10倍","times":times,"hexstringheader":"f14e","request_body_i2":13, 'request_body_i3':10}
-        return len(self.ac_manager.do_common_request(self.account_name, req, showres=self.showres))>20
+    def petegggacha(self, times):
+        print(f"<{mask_account(self.account_name)}> 宠物蛋10连 x{times}")
+        req = {"ads": "宠物蛋10连", "times": times, "hexstringheader": "f14e", "request_body_i2": 13, "request_body_i3": 10}
+        response = self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+        return bool(response and len(response) > 20)
 
     def _do_petchest_request(self, ads, hexstringheader):
         req = {"ads": ads, "times": 1, "hexstringheader": hexstringheader}
