@@ -29,16 +29,21 @@ class GHXSManager:
         
         203107: "r-500次宠物蛋",
         203207: "s-1500次宠物蛋",
+        204107: "r-开宝箱650分",
+        204207: "s-开宝箱2000分",
     }
     TASK_RARITY_MAP = {
         0: "n",  # 普通
         1: "r",  # 蓝色
         2: "s",  # 金色
     }
+    COMMON_TASK_CANONICAL_DAY = 1
 
     def format_task_type(self, type_id):
         """将type_id转为可读名称"""
         name = self.TASK_TYPE_MAP.get(type_id)
+        if not name:
+            name = self.TASK_TYPE_MAP.get(self.task_group_id(type_id))
         if name:
             return name
         rarity = self.task_rarity(type_id)
@@ -47,9 +52,36 @@ class GHXSManager:
         return None
 
     @classmethod
+    def task_day(cls, type_id):
+        if 200000 <= type_id < 300000:
+            return (type_id // 1000) % 10
+        return None
+
+    @classmethod
+    def task_code(cls, type_id):
+        if 200000 <= type_id < 300000:
+            return type_id % 100
+        return None
+
+    @classmethod
+    def task_group_id(cls, type_id):
+        """00~06 是跨星期共用任务，统一归到 day=1；07/08 保留每日独立ID。"""
+        code = cls.task_code(type_id)
+        day = cls.task_day(type_id)
+        if code is None or day is None:
+            return type_id
+        if 0 <= code <= 6:
+            return type_id + (cls.COMMON_TASK_CANONICAL_DAY - day) * 1000
+        return type_id
+
+    @classmethod
+    def is_known_task_type(cls, type_id):
+        return type_id in cls.TASK_TYPE_MAP or cls.task_group_id(type_id) in cls.TASK_TYPE_MAP
+
+    @classmethod
     def task_rarity(cls, type_id):
         """返回新悬赏ID的稀有度: n=普通, r=蓝色, s=金色。旧ID不再参与判定。"""
-        name = cls.TASK_TYPE_MAP.get(type_id)
+        name = cls.TASK_TYPE_MAP.get(type_id) or cls.TASK_TYPE_MAP.get(cls.task_group_id(type_id))
         if name:
             prefix = name.split("-", 1)[0].lower()
             if prefix in ("n", "r", "s"):
@@ -151,6 +183,16 @@ class GHXSManager:
             "draw_count": 1500,
             "draws_per_request": 10,
         },
+        204107: {
+            "kind": "open_box",
+            "label": "开宝箱",
+            "target_score": 650,
+        },
+        204207: {
+            "kind": "open_box",
+            "label": "开宝箱",
+            "target_score": 2000,
+        },
     }
 
     # 兼容旧代码：需要走钥匙全流程的悬赏任务类型 → 所需钥匙数量。
@@ -162,10 +204,16 @@ class GHXSManager:
     KEY_BOX_TYPE = 5028
     PET_EGG_COUNT_PER_MULTIPLIER = 35
     PET_EGG_MULTIPLIERS = (10, 5, 3, 1)
+    CHEST_SCORE_BY_TYPE = {
+        74: 50,  # 宠物宝箱
+        73: 20,  # 金宝箱
+        72: 10,  # 银宝箱
+        71: 1,   # 铜宝箱
+    }
 
     @classmethod
     def task_flow_config(cls, task_type_id):
-        return cls.TASK_FLOW_CONFIGS.get(task_type_id)
+        return cls.TASK_FLOW_CONFIGS.get(task_type_id) or cls.TASK_FLOW_CONFIGS.get(cls.task_group_id(task_type_id))
 
     @classmethod
     def task_flow_label(cls, task_type_id):
@@ -180,8 +228,9 @@ class GHXSManager:
         if not resp or not resp.task_entries:
             print(f"<{mask_account(self.account_name)}> ✗ 查询悬赏失败或无任务")
             return None
+        target_group_id = self.task_group_id(task_type_id)
         for task in resp.task_entries:
-            if task.task_type_id == task_type_id:
+            if task.task_type_id == task_type_id or self.task_group_id(task.task_type_id) == target_group_id:
                 return task.task_uuid
         print(f"<{mask_account(self.account_name)}> ✗ 未找到类型 {task_type_id} 的任务")
         return None
@@ -247,6 +296,82 @@ class GHXSManager:
             self.ac_manager.login(self.account_name)
             return True
         return False
+
+    def chest_score_inventory(self):
+        """返回当前有积分宝箱库存: box_type -> (count, item_id, score)。"""
+        inventory = {}
+        for box_type, score in self.CHEST_SCORE_BY_TYPE.items():
+            count, item_id = self._get_bag_item_count(box_type)
+            inventory[box_type] = (count, item_id, score)
+        return inventory
+
+    def chest_open_plan(self, target_score):
+        """按高分箱优先生成开箱计划，返回 [(box_type, count, score)]。"""
+        target_score = int(target_score)
+        inventory = self.chest_score_inventory()
+        total_score = sum(count * score for count, _, score in inventory.values())
+        if total_score < target_score:
+            return None, total_score
+
+        remaining = target_score
+        plan = []
+        left_counts = {box_type: count for box_type, (count, _, _) in inventory.items()}
+
+        for box_type, score in sorted(self.CHEST_SCORE_BY_TYPE.items(), key=lambda item: item[1], reverse=True):
+            count = left_counts.get(box_type, 0)
+            if count <= 0:
+                continue
+            use_count = min(count, remaining // score)
+            if use_count:
+                plan.append((box_type, use_count, score))
+                left_counts[box_type] -= use_count
+                remaining -= use_count * score
+            if remaining == 0:
+                return plan, total_score
+
+        if remaining > 0:
+            # 无法精确凑齐时，用最小可用箱补一次，允许超过目标分。
+            for box_type, score in sorted(self.CHEST_SCORE_BY_TYPE.items(), key=lambda item: item[1]):
+                if left_counts.get(box_type, 0) > 0:
+                    plan.append((box_type, 1, score))
+                    remaining = 0
+                    break
+
+        if remaining > 0:
+            return None, total_score
+        return plan, total_score
+
+    def open_score_chests(self, target_score):
+        """打开 71/72/73/74 四种积分宝箱，直到达到目标积分。"""
+        plan, total_score = self.chest_open_plan(target_score)
+        if not plan:
+            print(f"<{mask_account(self.account_name)}> ✗ 积分宝箱不足: 可用{total_score}分 < 目标{target_score}分")
+            return False
+
+        plan_score = sum(count * score for _, count, score in plan)
+        plan_text = ", ".join(f"type={box_type} x{count} ({score}分/个)" for box_type, count, score in plan)
+        print(f"<{mask_account(self.account_name)}> 开宝箱计划: {plan_text}, 合计{plan_score}分")
+
+        inventory = self.chest_score_inventory()
+        for box_type, count, _ in plan:
+            _, item_id, _ = inventory.get(box_type, (0, None, 0))
+            if not item_id:
+                print(f"<{mask_account(self.account_name)}> ✗ 未找到宝箱 type={box_type}")
+                return False
+            config = {
+                "ads": f"开积分宝箱{box_type}x{count}",
+                "times": 1,
+                "hexstringheader": "074f",
+                "request_body_i2": item_id,
+                "request_body_i3": count,
+            }
+            response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+            if not response:
+                print(f"<{mask_account(self.account_name)}> ✗ 开宝箱失败 type={box_type} x{count}")
+                return False
+
+        self.ac_manager.login(self.account_name)
+        return True
 
     def use_s_keys(self):
         """使用S钥匙抽装备 (c72b i2=201004, i3=2, i4=2), 复刻抓包发3次共30个"""
@@ -395,6 +520,41 @@ class GHXSManager:
         print(f"<{mask_account(self.account_name)}> ═══ 宠物蛋任务全流程完成 ═══\n")
         return True
 
+    def run_open_box_task(self, task_uuid=None, task_type_id=204107):
+        """
+        开宝箱悬赏全流程：
+        1. 接任务
+        2. 打开积分宝箱到目标分数（71=1, 72=10, 73=20, 74=50）
+        3. 交任务
+        4. 领进度奖励
+        """
+        config = self.task_flow_config(task_type_id) or {}
+        target_score = int(config.get("target_score", 650))
+        task_name = self.format_task_type(task_type_id) or str(task_type_id)
+        print(f"\n<{mask_account(self.account_name)}> ═══ 开始开宝箱任务: {task_name} (目标{target_score}分) ═══")
+
+        task_uuid = self._resolve_task_uuid(task_uuid, task_type_id)
+        if not task_uuid:
+            return False
+        if not self._accept_resolved_task(task_uuid, task_type_id):
+            return False
+
+        if not self.open_score_chests(target_score):
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 开宝箱完成")
+
+        print(f"<{mask_account(self.account_name)}> 交任务...")
+        if not self.complete():
+            print(f"<{mask_account(self.account_name)}> ✗ 交任务失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 任务完成")
+
+        print(f"<{mask_account(self.account_name)}> 领取进度奖励...")
+        self.claim_all_score_rewards()
+
+        print(f"<{mask_account(self.account_name)}> ═══ 开宝箱任务全流程完成 ═══\n")
+        return True
+
     def run_task_flow(self, task_uuid=None, task_type_id=None):
         """按 TASK_FLOW_CONFIGS 执行对应悬赏全流程。"""
         config = self.task_flow_config(task_type_id)
@@ -406,5 +566,7 @@ class GHXSManager:
             return self.run_s_key_task(task_uuid=task_uuid, task_type_id=task_type_id)
         if kind == "pet_egg":
             return self.run_pet_egg_task(task_uuid=task_uuid, task_type_id=task_type_id)
+        if kind == "open_box":
+            return self.run_open_box_task(task_uuid=task_uuid, task_type_id=task_type_id)
         print(f"<{mask_account(self.account_name)}> 未支持的任务流程类型: {kind}")
         return False

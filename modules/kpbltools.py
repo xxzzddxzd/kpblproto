@@ -257,9 +257,10 @@ class ACManager:
     def getItemIdByType(self, item_type):
         """根据物品type查找物品id"""
         baginfo = self.get_account(self.account_name, 'baginfo')
-        # item_type = str(item_type)
-        if baginfo and item_type in baginfo:
-            return baginfo[item_type]['id'], int(baginfo[item_type]['count'])
+        if baginfo:
+            for key in (item_type, str(item_type)):
+                if key in baginfo:
+                    return baginfo[key]['id'], int(baginfo[key]['count'])
         return None, 0
         
 

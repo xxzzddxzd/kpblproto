@@ -1214,7 +1214,7 @@ class GuildBatchManager:
         # 按 type_id 聚合，展示供选择
         type_tasks = {}
         for task in resp.task_entries:
-            tid = task.task_type_id
+            tid = ghxs_leader.task_group_id(task.task_type_id)
             if tid not in type_tasks:
                 type_tasks[tid] = []
             type_tasks[tid].append(task)
@@ -1355,7 +1355,7 @@ class GuildBatchManager:
         type_counts = {}
         type_order = []
         for task in tasks:
-            tid = task.task_type_id
+            tid = ghxs_leader.task_group_id(task.task_type_id)
             if tid not in type_counts:
                 type_order.append(tid)
                 type_counts[tid] = 0
@@ -1370,7 +1370,7 @@ class GuildBatchManager:
         """交互式选择需要保留的悬赏任务类型，返回保留的type_id集合"""
         _, current_counts, current_summary = self._summarize_xs_tasks(ghxs_leader, task_entries)
         type_order = sorted(ghxs_leader.TASK_TYPE_MAP.keys())
-        extra_tids = sorted(tid for tid in current_counts if tid not in ghxs_leader.TASK_TYPE_MAP)
+        extra_tids = sorted(tid for tid in current_counts if not ghxs_leader.is_known_task_type(tid))
         type_order.extend(extra_tids)
 
         if current_summary:
@@ -1449,14 +1449,7 @@ class GuildBatchManager:
                 print("全部为金色任务，结束")
                 break
 
-            type_counts = {}
-            for t in non_gold_tasks:
-                tid = t.task_type_id
-                type_counts[tid] = type_counts.get(tid, 0) + 1
-            summary = ", ".join(
-                f"{ghxs_leader.format_task_type(tid) or tid}x{c}"
-                for tid, c in type_counts.items()
-            )
+            _, _, summary = self._summarize_xs_tasks(ghxs_leader, non_gold_tasks)
             print(f"\n{'='*20} 第{round_num}轮 {'='*20}")
             print(f"非金任务 {len(non_gold_tasks)}个: {summary}")
 
@@ -1534,7 +1527,7 @@ class GuildBatchManager:
                 break
 
             _, _, all_summary = self._summarize_xs_tasks(ghxs_leader, resp.task_entries)
-            replace_tasks = [t for t in resp.task_entries if t.task_type_id not in keep_tids]
+            replace_tasks = [t for t in resp.task_entries if ghxs_leader.task_group_id(t.task_type_id) not in keep_tids]
             _, _, replace_summary = self._summarize_xs_tasks(ghxs_leader, replace_tasks)
 
             print(f"\n{'='*20} 第{round_num}轮 {'='*20}")
@@ -1603,14 +1596,7 @@ class GuildBatchManager:
             return False
 
         all_tasks = list(resp.task_entries)
-        type_counts = {}
-        for t in all_tasks:
-            tid = t.task_type_id
-            type_counts[tid] = type_counts.get(tid, 0) + 1
-        summary = ", ".join(
-            f"{ghxs_leader.format_task_type(tid) or tid}x{c}"
-            for tid, c in type_counts.items()
-        )
+        _, _, summary = self._summarize_xs_tasks(ghxs_leader, all_tasks)
         print(f"任务清单 {len(all_tasks)}个: {summary}")
 
         member_idx = max(0, start_from - 1)
