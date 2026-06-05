@@ -52,6 +52,7 @@ class GHXSManager:
         1405004: "r-100次挖矿",
         1405005: "r-2次咕噜",
         1405006: "r-10次宝石箱",
+        1405007: "r-100体力",
     }
     TASK_RARITY_MAP = {
         0: "n",  # 普通
@@ -321,11 +322,36 @@ class GHXSManager:
         },
     }
     PERSONAL_TASK_FLOW_CONFIGS = {
+        1405002: {
+            "kind": "pvp",
+            "label": "个人PVP",
+            "target": 3,
+        },
+        1405003: {
+            "kind": "dungeon",
+            "label": "个人任意副本",
+            "target": 10,
+        },
+        1405005: {
+            "kind": "gulu",
+            "label": "个人咕噜",
+            "target": 2,
+            "partner_account": "dh",
+            "level": 1,
+        },
         1405006: {
             "kind": "personal_gem_chest",
             "label": "个人宝石箱10个",
+            "target": 10,
             "draw_count": 10,
             "request_times": 1,
+        },
+        1405007: {
+            "kind": "youli",
+            "label": "个人体力消耗100",
+            "target": 100,
+            "consume_per_run": 100,
+            "bio": 20,
         },
     }
 

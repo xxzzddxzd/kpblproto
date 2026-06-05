@@ -800,11 +800,28 @@ class DAManager:
                     # print(f"正在开始对战playerid: {playerid}")
                     # print(config2)
                     self.ac_manager.do_common_request(self.account_name, config2, showres=self.showres)
-                    return
+                    return True
                 else:
                     print("未找到可用的PVP对手")
+                    return False
             except Exception as e:
                 print(f"解析PVP列表出错: {str(e)}")
+                return False
+        print("PVP列表请求失败")
+        return False
+
+    def dopvp_times(self, times=1, init=True):
+        """执行指定次数PVP；保留 dopvp() 的单次语义给旧调用。"""
+        times = int(times)
+        if times <= 0:
+            return True
+        if init:
+            self.dopvpinit()
+        for idx in range(times):
+            print(f"PVP任务进度: {idx + 1}/{times}")
+            if self.dopvp() is False:
+                return False
+        return True
     
     def dowdh(self, target):
         req_config = {"ads":"武道会","times":1,"hexstringheader":"1d79", 'request_body_i2':target}
