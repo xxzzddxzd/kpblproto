@@ -1052,6 +1052,13 @@ def _execute_rns(account_name, args, **kw):
 def _execute_ghxs(account_name, args, **kw):
     from .ghxs_manager import GHXSManager
     ghxs = GHXSManager(account_name)
+    personal_task_item_id = None
+    if args:
+        try:
+            personal_task_item_id = int(args[0])
+        except ValueError:
+            print(f"个人任务item_id无效: {args[0]}")
+            return False
     resp = ghxs.query()
     if resp:
         type_counts = {}
@@ -1063,6 +1070,20 @@ def _execute_ghxs(account_name, args, **kw):
             name = ghxs.format_task_type(tid)
             label = f"{name}({tid})" if name else str(tid)
             print(f"  {label} x{count}")
+        active_entries = ghxs.active_task_entries(resp)
+        if active_entries:
+            print("进行中悬赏:")
+            for entry in active_entries:
+                name = ghxs.format_task_type(entry.task_type_id)
+                label = f"{name}({entry.task_type_id})" if name else str(entry.task_type_id)
+                print(f"  {label}: {entry.progress}")
+        personal_entries = ghxs.personal_task_entries(task_item_id=personal_task_item_id)
+        if personal_entries:
+            print("个人悬赏任务:")
+            for task_item_id, task_id, progress in personal_entries:
+                name = ghxs.format_personal_task_type(task_id)
+                label = f"{name}({task_id})" if name else str(task_id)
+                print(f"  {label}: {progress} [item={task_item_id}]")
     else:
         print("查询公会悬赏失败")
     return True
@@ -1257,7 +1278,7 @@ COMMANDS = [
     CommandDef(name="dc",    desc="地牢自动战斗", category="挑战/战斗", execute=_execute_dc, batchable=True),
     CommandDef(name="rn",    desc="新账号(批量)", category="武道/其他", execute=_execute_rn, batchable=False),
     CommandDef(name="rns",   desc="新账号(样本)", category="武道/其他", execute=_execute_rns, batchable=False),
-    CommandDef(name="ghxs",  desc="公会悬赏查询", category="武道/其他", execute=_execute_ghxs, batchable=False),
+    CommandDef(name="ghxs",  desc="公会悬赏查询", category="武道/其他", usage="[个人任务item_id]", execute=_execute_ghxs, batchable=False),
 
     # ── 公会批量专属（guild_only） ──
     CommandDef(name="donate", desc="捐献", category="公会管理", usage="[起始序号]", aliases=["d", "jz"], execute=_execute_donate_single, guild_only=True),

@@ -1250,15 +1250,63 @@ message ghxs_query_response {
     message type_task_entry {
         string task_uuid = 1;
         int32 task_type_id = 2;
+        int32 status = 3;       // 个人/成员状态，observed: 1=进行中, 2=已处理/刷新
+        int64 member_id = 4;
+        string member_name = 5;
+        int32 server_id = 6;
+        int32 field7 = 7;
+        int64 updated_at = 8;
+    }
+    message type_active_entry {
+        string task_uuid = 1;
+        int32 task_type_id = 2;
+        int32 progress = 3;
+        int64 updated_at = 4;
     }
     type_basic_info basic_info = 2;
     repeated type_task_entry task_entries = 3;
+    repeated type_active_entry active_entries = 4;
     int32 field7 = 7;
     int32 field8 = 8;
     int32 field9 = 9;
     bytes field10 = 10;
     int32 field12 = 12;
     int32 timestamp = 13;
+}
+
+// 公会悬赏个人任务查询响应 (0f29 -> 1029)
+message ghxs_personal_query_response {
+    message type_basic_info {
+        message type_inner {
+            int32 field1 = 1;
+            int32 field2 = 2;
+        }
+        type_inner inner = 1;
+    }
+    message type_task_progress {
+        int32 task_id = 1;
+        int32 progress = 2;
+    }
+    message type_personal_entry {
+        int64 task_item_id = 1;
+        repeated type_task_progress task_progress_entries = 3;
+        bytes field4 = 4;
+    }
+    type_basic_info basic_info = 2;
+    repeated type_personal_entry personal_entries = 3;
+}
+
+// 公会悬赏个人任务入口查询响应 (017d -> 027d)
+message ghxs_personal_index_response {
+    message type_activity_entry {
+        int32 activity_id = 1;
+        int64 end_time = 2;
+        int64 personal_task_item_id = 3;
+        int64 personal_status_item_id = 4;
+        int32 field5 = 5;
+        int64 expire_time = 6;
+    }
+    repeated type_activity_entry activity_entries = 2;
 }
 
 // 活动信息响应 (9d2c)

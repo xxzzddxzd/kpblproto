@@ -31,6 +31,27 @@ class GHXSManager:
         203207: "s-1500次宠物蛋",
         204107: "r-开宝箱650分",
         204207: "s-开宝箱2000分",
+
+        # 205xxx: 今日公会悬赏任务类型。不要归并到201xxx，部分code语义不同。
+        205001: "n-2次公会讨伐",
+        205003: "n-3次pvp",
+        205102: "r-10次任意副本",
+        205104: "r-100次挖矿",
+        205105: "r-100体力",
+        205106: "r-2次咕噜",
+        205107: "r-10次宝石箱",
+        205207: "s-30次宝石箱",
+        205208: "s-6个魔方",
+    }
+    PERSONAL_TASK_TYPE_MAP = {
+        # 1405xxx: 公会悬赏个人任务ID，走1129提交/领取，不需要2178接取。
+        # 抓包确认: c72b宝石箱10连后 field60 {1: task_item_id, 2 {1: 1405006, 2: 10}}。
+        1405001: "n-2次公会讨伐",
+        1405002: "n-3次pvp",
+        1405003: "r-10次任意副本",
+        1405004: "r-100次挖矿",
+        1405005: "r-2次咕噜",
+        1405006: "r-10次宝石箱",
     }
     TASK_RARITY_MAP = {
         0: "n",  # 普通
@@ -66,6 +87,8 @@ class GHXSManager:
     @classmethod
     def task_group_id(cls, type_id):
         """00~06 是跨星期共用任务，统一归到 day=1；07/08 保留每日独立ID。"""
+        if type_id in cls.TASK_TYPE_MAP:
+            return type_id
         code = cls.task_code(type_id)
         day = cls.task_day(type_id)
         if code is None or day is None:
@@ -89,6 +112,11 @@ class GHXSManager:
         if 200000 <= type_id < 300000:
             return cls.TASK_RARITY_MAP.get((type_id // 100) % 10)
         return None
+
+    @classmethod
+    def format_personal_task_type(cls, task_id):
+        """将个人悬赏 task_id 转为可读名称。"""
+        return cls.PERSONAL_TASK_TYPE_MAP.get(task_id)
 
     @classmethod
     def is_gold_task(cls, type_id):
@@ -159,6 +187,92 @@ class GHXSManager:
         response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
         return response and len(response) > 20
 
+    def submit_personal_task(self, task_item_id, task_id):
+        """提交/领取公会悬赏个人任务(1129)。抓包示例: i2=4145193, i3=1405006。"""
+        task_item_id = self.resolve_personal_task_item_id(task_item_id)
+        if not task_item_id:
+            print(f"<{mask_account(self.account_name)}> ✗ 未找到个人悬赏任务入口")
+            return False
+        task_name = self.format_personal_task_type(int(task_id)) or str(task_id)
+        config = {
+            "ads": f"悬赏个人任务{task_name}",
+            "times": 1,
+            "hexstringheader": "1129",
+            "request_body_i2": int(task_item_id),
+            "request_body_i3": int(task_id),
+        }
+        response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        return response and len(response) > 20
+
+    def claim_personal_task_reward(self, task_item_id, reward_id):
+        """兼容旧命名；个人任务实际是1129提交/领取，不需要接取。"""
+        return self.submit_personal_task(task_item_id, reward_id)
+
+    def active_task_entries(self, resp=None):
+        """返回已接/进行中的悬赏任务进度条目。"""
+        resp = resp or self.query()
+        if not resp:
+            return []
+        return list(resp.active_entries)
+
+    def query_personal_task_index(self):
+        """查询个人悬赏入口(017d)。响应里 activity_id=120260601 的 field3 是0f29入口。"""
+        config = {"ads": "查询悬赏个人任务入口", "times": 1, "hexstringheader": "017d"}
+        response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        if response and len(response) > 6:
+            resp = kpbl_pb2.ghxs_personal_index_response()
+            resp.ParseFromString(response[6:])
+            return resp
+        return None
+
+    def resolve_personal_task_item_id(self, task_item_id=None):
+        """解析当前账号个人悬赏任务入口id。"""
+        if task_item_id:
+            return int(task_item_id)
+        resp = self.query_personal_task_index()
+        if not resp:
+            return None
+        fallback = None
+        for entry in resp.activity_entries:
+            if entry.personal_task_item_id and fallback is None:
+                fallback = entry.personal_task_item_id
+            if entry.activity_id == self.GHXS_ACTIVITY_ID and entry.personal_task_item_id:
+                return entry.personal_task_item_id
+        return fallback
+
+    def query_personal_tasks(self, task_item_id=None):
+        """查询公会悬赏个人任务(0f29)。i2来自017d响应的personal_task_item_id。"""
+        task_item_id = self.resolve_personal_task_item_id(task_item_id)
+        if not task_item_id:
+            return None
+        config = {
+            "ads": f"查询悬赏个人任务{task_item_id}",
+            "times": 1,
+            "hexstringheader": "0f29",
+            "request_body_i2": task_item_id,
+        }
+        response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        if response and len(response) > 6:
+            resp = kpbl_pb2.ghxs_personal_query_response()
+            resp.ParseFromString(response[6:])
+            return resp
+        return None
+
+    def personal_task_entries(self, resp=None, task_item_id=None):
+        """返回个人悬赏任务进度列表: (task_item_id, task_id, progress)。"""
+        resp = resp or self.query_personal_tasks(task_item_id=task_item_id)
+        if not resp:
+            return []
+        entries = []
+        for personal_entry in resp.personal_entries:
+            for task_progress in personal_entry.task_progress_entries:
+                entries.append((
+                    personal_entry.task_item_id,
+                    task_progress.task_id,
+                    task_progress.progress,
+                ))
+        return entries
+
     # ── 悬赏任务全流程 ──────────────────────────────────────
 
     # 进度奖励积分阶梯
@@ -193,6 +307,26 @@ class GHXSManager:
             "label": "开宝箱",
             "target_score": 2000,
         },
+        205107: {
+            "kind": "gem_chest",
+            "label": "公会R宝石箱10个",
+            "draw_count": 10,
+            "request_times": 1,
+        },
+        205207: {
+            "kind": "gem_chest",
+            "label": "公会S宝石箱30个",
+            "draw_count": 30,
+            "request_times": 3,
+        },
+    }
+    PERSONAL_TASK_FLOW_CONFIGS = {
+        1405006: {
+            "kind": "personal_gem_chest",
+            "label": "个人宝石箱10个",
+            "draw_count": 10,
+            "request_times": 1,
+        },
     }
 
     # 兼容旧代码：需要走钥匙全流程的悬赏任务类型 → 所需钥匙数量。
@@ -204,6 +338,8 @@ class GHXSManager:
     KEY_BOX_TYPE = 5028
     PET_EGG_COUNT_PER_MULTIPLIER = 35
     PET_EGG_MULTIPLIERS = (10, 5, 3, 1)
+    GEM_CHEST_SHOP_ID = 200004
+    GHXS_ACTIVITY_ID = 120260601
     CHEST_SCORE_BY_TYPE = {
         74: 50,  # 宠物宝箱
         73: 20,  # 金宝箱
@@ -219,6 +355,10 @@ class GHXSManager:
     def task_flow_label(cls, task_type_id):
         config = cls.task_flow_config(task_type_id)
         return config.get("label") if config else None
+
+    @classmethod
+    def personal_task_flow_config(cls, task_id):
+        return cls.PERSONAL_TASK_FLOW_CONFIGS.get(task_id)
 
     def _resolve_task_uuid(self, task_uuid, task_type_id):
         """没有传 uuid 时，从当前悬赏池里找同类型任务。"""
@@ -380,6 +520,22 @@ class GHXSManager:
             "times": 3,
             "hexstringheader": "c72b",
             "request_body_i2": 201004,
+            "request_body_i3": 2,
+            "request_body_i4": 2,
+        }
+        response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        return response and len(response) > 20
+
+    def use_gem_chests(self, request_times=3):
+        """开宝石箱10连 (c72b i2=200004, i3=2, i4=2)。一次请求=10个，抓包S任务发3次。"""
+        request_times = int(request_times)
+        if request_times <= 0:
+            return True
+        config = {
+            "ads": f"宝石箱10连x{request_times}",
+            "times": request_times,
+            "hexstringheader": "c72b",
+            "request_body_i2": self.GEM_CHEST_SHOP_ID,
             "request_body_i3": 2,
             "request_body_i4": 2,
         }
@@ -555,6 +711,77 @@ class GHXSManager:
         print(f"<{mask_account(self.account_name)}> ═══ 开宝箱任务全流程完成 ═══\n")
         return True
 
+    def run_gem_chest_task(self, task_uuid=None, task_type_id=205207):
+        """
+        宝石箱悬赏全流程：
+        1. 接任务
+        2. 开宝石箱10连到目标次数（c72b i2=200004, i3=2, i4=2）
+        3. 交公会悬赏
+        4. 领进度奖励
+        """
+        config = self.task_flow_config(task_type_id) or {}
+        draw_count = int(config.get("draw_count", 30))
+        request_times = int(config.get("request_times", max(1, draw_count // 10)))
+        task_name = self.format_task_type(task_type_id) or str(task_type_id)
+        print(
+            f"\n<{mask_account(self.account_name)}> ═══ 开始宝石箱任务: {task_name} "
+            f"(目标{draw_count}个, 10连x{request_times}) ═══"
+        )
+
+        task_uuid = self._resolve_task_uuid(task_uuid, task_type_id)
+        if not task_uuid:
+            return False
+        if not self._accept_resolved_task(task_uuid, task_type_id):
+            return False
+
+        if not self.use_gem_chests(request_times=request_times):
+            print(f"<{mask_account(self.account_name)}> ✗ 宝石箱10连失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 宝石箱10连完成")
+
+        print(f"<{mask_account(self.account_name)}> 交任务...")
+        if not self.complete():
+            print(f"<{mask_account(self.account_name)}> ✗ 交任务失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 任务完成")
+
+        print(f"<{mask_account(self.account_name)}> 领取进度奖励...")
+        self.claim_all_score_rewards()
+
+        print(f"<{mask_account(self.account_name)}> ═══ 宝石箱任务全流程完成 ═══\n")
+        return True
+
+    def run_personal_gem_chest_task(self, task_item_id=None, task_id=1405006, open_chests=True):
+        """
+        个人宝石箱任务流程：
+        1. 可选开1次宝石箱10连
+        2. 1129提交/领取个人任务
+
+        个人任务没有2178接取，也不走2578交公会悬赏。
+        """
+        config = self.personal_task_flow_config(task_id) or {}
+        request_times = int(config.get("request_times", 1))
+        draw_count = int(config.get("draw_count", request_times * 10))
+        task_name = self.format_personal_task_type(task_id) or str(task_id)
+        print(
+            f"\n<{mask_account(self.account_name)}> ═══ 开始个人宝石箱任务: {task_name} "
+            f"(目标{draw_count}个, 10连x{request_times}) ═══"
+        )
+
+        if open_chests:
+            if not self.use_gem_chests(request_times=request_times):
+                print(f"<{mask_account(self.account_name)}> ✗ 宝石箱10连失败")
+                return False
+            print(f"<{mask_account(self.account_name)}> ✓ 宝石箱10连完成")
+
+        print(f"<{mask_account(self.account_name)}> 提交个人任务...")
+        if not self.submit_personal_task(task_item_id, task_id):
+            print(f"<{mask_account(self.account_name)}> ✗ 个人任务提交失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 个人任务完成")
+        print(f"<{mask_account(self.account_name)}> ═══ 个人宝石箱任务完成 ═══\n")
+        return True
+
     def run_task_flow(self, task_uuid=None, task_type_id=None):
         """按 TASK_FLOW_CONFIGS 执行对应悬赏全流程。"""
         config = self.task_flow_config(task_type_id)
@@ -568,5 +795,7 @@ class GHXSManager:
             return self.run_pet_egg_task(task_uuid=task_uuid, task_type_id=task_type_id)
         if kind == "open_box":
             return self.run_open_box_task(task_uuid=task_uuid, task_type_id=task_type_id)
+        if kind == "gem_chest":
+            return self.run_gem_chest_task(task_uuid=task_uuid, task_type_id=task_type_id)
         print(f"<{mask_account(self.account_name)}> 未支持的任务流程类型: {kind}")
         return False

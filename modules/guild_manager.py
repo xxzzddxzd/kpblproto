@@ -1384,12 +1384,31 @@ class GuildBatchManager:
                 summary_text = f"，任务: {summary}" if summary else ""
                 print(f"  ✓ 查询成功，积分: {score}，任务数: {task_count}{summary_text}")
 
+                personal_entries = []
+                personal_task_item_id = None
+                try:
+                    personal_entries = ghxs.personal_task_entries()
+                    if personal_entries:
+                        personal_task_item_id = personal_entries[0][0]
+                        personal_summary = self._summarize_xs_personal_tasks(ghxs, personal_entries)
+                        print(f"  个人任务[item={personal_task_item_id}]: {personal_summary}")
+                    else:
+                        print("  个人任务: 未获取到")
+                except Exception as e:
+                    print(f"  个人任务查询异常: {e}")
+
                 account_data = ac.get_account(acname)
                 if isinstance(account_data, dict):
                     self.guild_accounts[acname].update(account_data)
                 self.guild_accounts[acname]['ghxs_score'] = score
                 self.guild_accounts[acname]['ghxs_task_count'] = task_count
                 self.guild_accounts[acname]['ghxs_init_time'] = int(time.time())
+                if personal_entries:
+                    self.guild_accounts[acname]['ghxs_personal_task_item_id'] = personal_task_item_id
+                    self.guild_accounts[acname]['ghxs_personal_tasks'] = {
+                        str(task_id): progress
+                        for _, task_id, progress in personal_entries
+                    }
                 queried += 1
             except Exception as e:
                 print(f"  ✗ 异常: {e}")
@@ -1417,6 +1436,15 @@ class GuildBatchManager:
             for tid in type_order
         )
         return type_order, type_counts, summary
+
+    @staticmethod
+    def _summarize_xs_personal_tasks(ghxs_leader, personal_entries):
+        """汇总个人悬赏任务进度，personal_entries=(item_id, task_id, progress)。"""
+        parts = []
+        for _, task_id, progress in personal_entries:
+            label = ghxs_leader.format_personal_task_type(task_id) or str(task_id)
+            parts.append(f"{label}({task_id})={progress}")
+        return ", ".join(parts)
 
     def _prompt_keep_xs_task_types(self, ghxs_leader, task_entries):
         """交互式选择需要保留的悬赏任务类型，返回保留的type_id集合"""
