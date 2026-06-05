@@ -14,9 +14,9 @@ import modules.kpbl_pb2 as kpbl_pb2
 class GemTeamManager:
     """宝石副本组队管理器"""
     
-    def __init__(self, account_name, showres = 0, level = 0, delay = 0.1):
+    def __init__(self, account_name, showres = 0, level = 0, delay = 0.1, ac_manager=None):
         self.account_name = account_name
-        self.ac_manager = ACManager(account_name, delay=delay, showres=showres)
+        self.ac_manager = ac_manager or ACManager(account_name, delay=delay, showres=showres)
         self.showres = showres
         self.delay = delay
         self.logger = logging.getLogger(f"GemTeamManager_{account_name}")
@@ -134,3 +134,40 @@ class GemTeamManager:
         request_config["request_body_i3"] = target_user_id
         # print(request_config)
         rev = self.ac_manager.do_common_request(self.account_name,request_config,showres=self.showres)
+
+
+def run_gem_auto2(account_name_a, account_name_b="default", level=1, times=10, showres=0, delay=0, ac_manager_a=None, ac_manager_b=None):
+    """房主不放弃的宝石副本自动双人流程，等价于 glauto2。"""
+    times = int(times)
+    level = int(level)
+    if times <= 0:
+        return True
+
+    gm_a = GemTeamManager(account_name_a, level=level, showres=showres, delay=delay, ac_manager=ac_manager_a)
+    gm_b = GemTeamManager(account_name_b, level=level, showres=showres, delay=delay, ac_manager=ac_manager_b)
+    target_charaid = gm_b.ac_manager.get_account(account_name_b, "charaid")
+
+    for idx in range(1, times + 1):
+        print(f"times:{idx}/{times}")
+        gm_a.fangqi_battle()
+        gm_b.fangqi_battle()
+        roomid = gm_a.create_and_invite(target_charaid, level)
+        if not roomid:
+            return False
+        if not gm_b.join(roomid):
+            return False
+
+        time.sleep(1)
+        gm_a.start()
+        time.sleep(1)
+        gm_b.start()
+
+        nowstep = 0
+        while nowstep < 4:
+            print(f"step:{nowstep}")
+            nowstep += 1
+            gm_b.update_step_and_check(nowstep)
+            gm_a.update_step_and_check(nowstep)
+        gm_a.finish_battle()
+        gm_b.finish_battle()
+    return True

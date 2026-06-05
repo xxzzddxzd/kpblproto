@@ -1420,6 +1420,198 @@ class GuildBatchManager:
         print(f"悬赏初始化完成: 成功 {queried}, 失败 {failed}, 跳过 {skipped}")
         return failed == 0
 
+    def batch_xsgrrw(self, start_from=1):
+        """遍历当前公会成员，执行已配置的公会悬赏个人任务并提交。"""
+        from .ghxs_manager import GHXSManager
+
+        total = len(self.guild_accounts)
+        completed = 0
+        failed = 0
+        skipped = 0
+        unsupported = 0
+        save_needed = False
+        gulu_partner_ac_cache = {}
+
+        for i, acname in enumerate(self.guild_accounts.keys(), 1):
+            if i < start_from:
+                continue
+
+            sid = self.guild_accounts[acname]['server_id']
+            if not self._is_guild_member(acname):
+                print(f"[{i}/{total}] {acname} ({sid}) — 非公会成员，跳过")
+                skipped += 1
+                continue
+
+            print(f"[{i}/{total}] {acname} ({sid}) — 悬赏个人任务")
+            try:
+                ac = ACManager(acname, accounts_file=self.accounts_file, showres=self.showres, delay=self.delay)
+                ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres, ac_manager=ac)
+                personal_entries = ghxs.personal_task_entries()
+                if not personal_entries:
+                    print("  ✗ 个人任务未获取到")
+                    failed += 1
+                    continue
+
+                personal_task_item_id = personal_entries[0][0]
+                personal_summary = self._summarize_xs_personal_tasks(ghxs, personal_entries)
+                print(f"  当前个人任务[item={personal_task_item_id}]: {personal_summary}")
+
+                ran_supported = False
+                for task_item_id, task_id, progress in personal_entries:
+                    result = self._run_xsgrrw_personal_task(
+                        acname,
+                        ac,
+                        ghxs,
+                        task_item_id,
+                        task_id,
+                        progress,
+                        gulu_partner_ac_cache,
+                    )
+                    if result is None:
+                        unsupported += 1
+                        continue
+                    ran_supported = True
+                    if result:
+                        completed += 1
+                    else:
+                        failed += 1
+
+                if not ran_supported:
+                    print("  已获取个人任务，但没有已配置流程的任务")
+
+                updated_entries = ghxs.personal_task_entries()
+                if updated_entries:
+                    self.guild_accounts[acname]['ghxs_personal_task_item_id'] = updated_entries[0][0]
+                    self.guild_accounts[acname]['ghxs_personal_tasks'] = {
+                        str(task_id): progress
+                        for _, task_id, progress in updated_entries
+                    }
+                    self.guild_accounts[acname]['ghxs_personal_update_time'] = int(time.time())
+                    save_needed = True
+                    updated_summary = self._summarize_xs_personal_tasks(ghxs, updated_entries)
+                    print(f"  更新后个人任务: {updated_summary}")
+            except Exception as e:
+                print(f"  ✗ 异常: {e}")
+                failed += 1
+
+        if save_needed:
+            self._save_guild_accounts()
+            print(f"已保存到 {self.accounts_file}")
+        print(f"悬赏个人任务完成: 完成 {completed}, 失败 {failed}, 跳过账号 {skipped}, 未配置任务 {unsupported}")
+        return failed == 0
+
+    @staticmethod
+    def _xsgrrw_dungeon_plan(times):
+        times = int(times)
+        if times <= 0:
+            return []
+        dungeon_types = (1, 2, 3, 4)
+        base, remainder = divmod(times, len(dungeon_types))
+        plan = []
+        for idx, dungeon_type in enumerate(dungeon_types):
+            count = base + (1 if idx < remainder else 0)
+            if count > 0:
+                plan.append((dungeon_type, count))
+        return plan
+
+    @staticmethod
+    def _xsgrrw_personal_flow_config(ghxs, task_id):
+        task_id = int(task_id)
+        config = ghxs.personal_task_flow_config(task_id)
+        if config:
+            return config
+        label = ghxs.format_personal_task_type(task_id) or ""
+        if "体力" in label:
+            return {
+                "kind": "youli",
+                "label": "个人体力消耗100",
+                "target": 100,
+                "consume_per_run": 100,
+                "bio": 20,
+            }
+        return None
+
+    def _run_xsgrrw_personal_task(self, acname, ac, ghxs, task_item_id, task_id, progress, gulu_partner_ac_cache=None):
+        config = self._xsgrrw_personal_flow_config(ghxs, task_id)
+        label = ghxs.format_personal_task_type(task_id) or (config or {}).get("label") or str(task_id)
+        if not config:
+            print(f"  - {label}({task_id})={progress}: 未配置流程，跳过")
+            return None
+
+        target = int(config.get("target", config.get("draw_count", 0)))
+        progress = int(progress)
+        remaining = max(0, target - progress)
+        status = f"{progress}/{target}" if target else str(progress)
+        if remaining > 0:
+            print(f"  - {label}({task_id}) 进度 {status}，补 {remaining}")
+            if not self._execute_xsgrrw_personal_action(acname, ac, ghxs, config, remaining, gulu_partner_ac_cache):
+                print(f"    ✗ {label}动作失败，跳过提交")
+                return False
+        else:
+            print(f"  - {label}({task_id}) 已达成({status})，提交")
+
+        if ghxs.submit_personal_task(task_item_id, task_id):
+            print(f"    ✓ {label}提交成功")
+            return True
+        print(f"    ✗ {label}提交失败")
+        return False
+
+    def _execute_xsgrrw_personal_action(self, acname, ac, ghxs, config, remaining, gulu_partner_ac_cache=None):
+        kind = config.get("kind")
+        if kind == "pvp":
+            from .da_manager import DAManager
+            print(f"    执行PVP x{remaining}")
+            return DAManager(acname, showres=self.showres, delay=self.delay, ac_manager=ac).dopvp_times(remaining, init=True)
+
+        if kind == "youli":
+            from .yl_manager import YLManager
+            bio = int(config.get("bio", 20))
+            consume_per_run = int(config.get("consume_per_run", 100))
+            times = max(1, (int(remaining) + consume_per_run - 1) // consume_per_run)
+            print(f"    执行游历: {bio}倍 x{times}")
+            return YLManager(acname, showres=self.showres, delay=self.delay, ac_manager=ac).do_youli_with_params(bio, None, times, 0)
+
+        if kind == "dungeon":
+            from .da_manager import DAManager
+            plan = self._xsgrrw_dungeon_plan(remaining)
+            plan_text = ", ".join(f"sd {dungeon_type} x{times}" for dungeon_type, times in plan)
+            print(f"    执行副本扫荡: {plan_text}")
+            da = DAManager(acname, showres=self.showres, delay=self.delay, ac_manager=ac)
+            for dungeon_type, times in plan:
+                da.saodang(dungeon_type, 0, times)
+            return True
+
+        if kind == "gulu":
+            from .gem_team_manager import run_gem_auto2
+            partner = config.get("partner_account", "dh")
+            level = int(config.get("level", 1))
+            times = int(remaining)
+            partner_ac = None
+            if gulu_partner_ac_cache is not None:
+                partner_ac = gulu_partner_ac_cache.get(partner)
+                if partner_ac is None:
+                    partner_ac = ACManager(partner, showres=self.showres, delay=0)
+                    gulu_partner_ac_cache[partner] = partner_ac
+            print(f"    执行咕噜: {acname} glauto2 {partner} {level} {times}")
+            return run_gem_auto2(
+                acname,
+                account_name_b=partner,
+                level=level,
+                times=times,
+                showres=self.showres,
+                delay=0,
+                ac_manager_a=ac,
+                ac_manager_b=partner_ac,
+            )
+
+        if kind in ("personal_gem_chest", "gem_chest"):
+            request_times = max(1, (int(remaining) + 9) // 10)
+            print(f"    执行宝石箱10连 x{request_times}")
+            return ghxs.use_gem_chests(request_times=request_times)
+
+        print(f"    未支持的个人任务流程类型: {kind}")
+        return False
+
     @staticmethod
     def _summarize_xs_tasks(ghxs_leader, tasks):
         """按任务类型汇总悬赏任务，返回(type_ids, counts, summary)"""
