@@ -1279,6 +1279,8 @@ COMMANDS = [
               batch_execute=None),  # 需要 init_func，在 handle_guild_batch_command 中特殊处理
     CommandDef(name="xsacp", desc="悬赏接受(已配置任务全流程)", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acp(start_from=start_from)),
+    CommandDef(name="xsinit", desc="悬赏初始化查询", category="悬赏/船票", usage="[起始序号]", guild_only=True,
+              batch_execute=lambda mgr, start_from: mgr.batch_xsinit(start_from=start_from)),
     CommandDef(name="xsacpb", desc="悬赏接受后放弃", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acpb(start_from=start_from)),
     CommandDef(name="xs12r", desc="悬赏自动刷非金", category="悬赏/船票", usage="[起始序号]", guild_only=True,

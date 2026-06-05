@@ -1349,6 +1349,58 @@ class GuildBatchManager:
             print(f"\n已退出，共执行{round_num}轮")
             return True
 
+    def batch_xsinit(self, start_from=1):
+        """遍历当前公会成员，各查询一次公会悬赏，用于初始化/累计悬赏积分。"""
+        from .ghxs_manager import GHXSManager
+
+        total = len(self.guild_accounts)
+        queried = 0
+        failed = 0
+        skipped = 0
+
+        for i, acname in enumerate(self.guild_accounts.keys(), 1):
+            if i < start_from:
+                continue
+
+            sid = self.guild_accounts[acname]['server_id']
+            if not self._is_guild_member(acname):
+                print(f"[{i}/{total}] {acname} ({sid}) — 非公会成员，跳过")
+                skipped += 1
+                continue
+
+            print(f"[{i}/{total}] {acname} ({sid}) — 悬赏查询初始化")
+            try:
+                ac = ACManager(acname, accounts_file=self.accounts_file, showres=self.showres, delay=self.delay)
+                ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres, ac_manager=ac)
+                resp = ghxs.query()
+                if not resp:
+                    print("  ✗ 查询失败")
+                    failed += 1
+                    continue
+
+                score = resp.field9 if resp.field9 else 0
+                task_count = len(resp.task_entries)
+                _, _, summary = self._summarize_xs_tasks(ghxs, resp.task_entries)
+                summary_text = f"，任务: {summary}" if summary else ""
+                print(f"  ✓ 查询成功，积分: {score}，任务数: {task_count}{summary_text}")
+
+                account_data = ac.get_account(acname)
+                if isinstance(account_data, dict):
+                    self.guild_accounts[acname].update(account_data)
+                self.guild_accounts[acname]['ghxs_score'] = score
+                self.guild_accounts[acname]['ghxs_task_count'] = task_count
+                self.guild_accounts[acname]['ghxs_init_time'] = int(time.time())
+                queried += 1
+            except Exception as e:
+                print(f"  ✗ 异常: {e}")
+                failed += 1
+
+        if queried:
+            self._save_guild_accounts()
+            print(f"已保存到 {self.accounts_file}")
+        print(f"悬赏初始化完成: 成功 {queried}, 失败 {failed}, 跳过 {skipped}")
+        return failed == 0
+
     @staticmethod
     def _summarize_xs_tasks(ghxs_leader, tasks):
         """按任务类型汇总悬赏任务，返回(type_ids, counts, summary)"""
