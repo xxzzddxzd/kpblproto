@@ -360,11 +360,12 @@ def _execute_tfn(account_name, args, **kw):
 
 def _execute_pvp(account_name, args, **kw):
     from .da_manager import DAManager
-    da = DAManager(account_name, showres=1, delay=0)
-    da.dopvpinit()
-    for _ in range(5):
-        da.dopvp()
-    return True
+    times = int(args[0]) if args else 5
+    ac = kw.get('ac_manager')
+    showres = kw.get('showres', 1)
+    delay = kw.get('delay', 0)
+    da = DAManager(account_name, showres=showres, delay=delay, ac_manager=ac)
+    return da.dopvp_times(times, init=True)
 
 
 def _execute_sd(account_name, args, **kw):
@@ -526,36 +527,22 @@ def _execute_glauto(account_nameA, args, **kw):
 
 
 def _execute_glauto2(account_nameA, args, **kw):
-    import time as _time
+    from .gem_team_manager import run_gem_auto2
+    ac = kw.get('ac_manager')
+    showres = kw.get('showres', 0)
+    delay = kw.get('delay', 0)
+    account_nameB = args[0] if len(args) > 0 else "default"
+    level = int(args[1]) if len(args) > 1 else 1
     times = int(args[2]) if len(args) > 2 else 10
-    while times > 0:
-        print(f"times:{times}/{times}")
-        account_nameB = args[0] if len(args) > 0 else "default"
-        from .gem_team_manager import GemTeamManager
-        level = int(args[1]) if len(args) > 1 else 1
-        gm_A = GemTeamManager(account_nameA, level=level, showres=0, delay=0)
-        gm_A.fangqi_battle()
-        gm_B = GemTeamManager(account_nameB, level=level, showres=0, delay=0)
-        gm_B.fangqi_battle()
-        roomid = gm_A.create_and_invite(gm_B.ac_manager.get_account(account_nameB, "charaid"), level)
-        if not roomid:
-            return False
-        if not gm_B.join(roomid):
-            return False
-        _time.sleep(1)
-        gm_A.start()
-        _time.sleep(1)
-        gm_B.start()
-        nowstep = 0
-        while nowstep < 4:
-            print(f"step:{nowstep}")
-            nowstep += 1
-            gm_B.update_step_and_check(nowstep)
-            gm_A.update_step_and_check(nowstep)
-        gm_A.finish_battle()
-        gm_B.finish_battle()
-        times -= 1
-    return True
+    return run_gem_auto2(
+        account_nameA,
+        account_name_b=account_nameB,
+        level=level,
+        times=times,
+        showres=showres,
+        delay=delay,
+        ac_manager_a=ac,
+    )
 
 
 def _execute_login(account_name, args, **kw):
@@ -1209,7 +1196,7 @@ COMMANDS = [
     CommandDef(name="ac",  desc="自动挑战", category="挑战/战斗", usage="[顺位] [最大尝试次数=20]", execute=_execute_ac),
     CommandDef(name="sy",  desc="深渊挑战", category="挑战/战斗", usage="[稀有度=7] [层数=51] [倍数=1]", execute=_execute_sy, batchable=False),
     CommandDef(name="jq",  desc="剧情战斗自动推图", category="挑战/战斗", execute=_execute_jq),
-    CommandDef(name="pvp", desc="PVP对战", category="挑战/战斗", execute=_execute_pvp, batchable=False),
+    CommandDef(name="pvp", desc="PVP对战", category="挑战/战斗", usage="[次数=5]", execute=_execute_pvp, batchable=False),
     CommandDef(name="sd",  desc="扫荡副本", category="挑战/战斗", usage="[副本序号] [次数=1]", execute=_execute_sd, batchable=False),
 
     # ── 日常 / 资源 ──
@@ -1263,7 +1250,7 @@ COMMANDS = [
     # ── 组队 / 副本 ──
     CommandDef(name="gl",     desc="宝石副本组队监听", category="组队/副本", usage="[时长(秒)]", execute=_execute_gl, batchable=False),
     CommandDef(name="glauto", desc="宝石副本自动双人(房主放弃)", category="组队/副本", execute=_execute_glauto, batchable=False),
-    CommandDef(name="glauto2", desc="宝石副本自动双人(房主不放弃)", category="组队/副本", execute=_execute_glauto2, batchable=False),
+    CommandDef(name="glauto2", desc="宝石副本自动双人(房主不放弃)", category="组队/副本", usage="[队友=default] [难度=1] [次数=10]", execute=_execute_glauto2, batchable=False),
     CommandDef(name="knjf",   desc="困难本建房", category="组队/副本", execute=_execute_knjf, batchable=False),
     CommandDef(name="knjoin", desc="困难本加入", category="组队/副本", execute=_execute_knjoin, batchable=False),
     CommandDef(name="knauto", desc="困难本自动双人", category="组队/副本", execute=_execute_knauto, batchable=False),
@@ -1302,6 +1289,8 @@ COMMANDS = [
               batch_execute=lambda mgr, start_from: mgr.batch_acp(start_from=start_from)),
     CommandDef(name="xsinit", desc="悬赏初始化查询", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_xsinit(start_from=start_from)),
+    CommandDef(name="xsgrrw", desc="悬赏个人任务", category="悬赏/船票", usage="[起始序号]", guild_only=True,
+              batch_execute=lambda mgr, start_from: mgr.batch_xsgrrw(start_from=start_from)),
     CommandDef(name="xsacpb", desc="悬赏接受后放弃", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acpb(start_from=start_from)),
     CommandDef(name="xs12r", desc="悬赏自动刷非金", category="悬赏/船票", usage="[起始序号]", guild_only=True,
