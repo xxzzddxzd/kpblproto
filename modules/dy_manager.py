@@ -23,6 +23,100 @@ class DYManager:
         # 钓鱼状态追踪变量
         self.initial_next_field = None
         self.next_field_initialized = False
+
+    @staticmethod
+    def _decode_varint(data, pos):
+        result = 0
+        shift = 0
+        while pos < len(data):
+            byte = data[pos]
+            pos += 1
+            result |= (byte & 0x7F) << shift
+            if not (byte & 0x80):
+                return result, pos
+            shift += 7
+        return None, pos
+
+    @classmethod
+    def _iter_proto_fields(cls, data):
+        pos = 0
+        while pos < len(data):
+            key, pos = cls._decode_varint(data, pos)
+            if key is None:
+                break
+            field_no = key >> 3
+            wire_type = key & 7
+            if wire_type == 0:
+                value, pos = cls._decode_varint(data, pos)
+                yield field_no, wire_type, value
+            elif wire_type == 1:
+                if pos + 8 > len(data):
+                    break
+                yield field_no, wire_type, data[pos:pos + 8]
+                pos += 8
+            elif wire_type == 2:
+                size, pos = cls._decode_varint(data, pos)
+                if size is None or pos + size > len(data):
+                    break
+                yield field_no, wire_type, data[pos:pos + size]
+                pos += size
+            elif wire_type == 5:
+                if pos + 4 > len(data):
+                    break
+                yield field_no, wire_type, data[pos:pos + 4]
+                pos += 4
+            else:
+                break
+
+    @classmethod
+    def _scalar_fields(cls, data):
+        scalars = {}
+        repeated = {}
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if wire_type != 0:
+                continue
+            if field_no in scalars:
+                repeated.setdefault(field_no, [scalars[field_no]]).append(value)
+            else:
+                scalars[field_no] = value
+        for field_no, values in repeated.items():
+            scalars[field_no] = values
+        return scalars
+
+    @classmethod
+    def _extract_new_complete_info(cls, data):
+        """解析新版 ef35 响应: field2 内含奖励和累计进度。"""
+        current_weight = 0
+        overall_weight = 0
+        next_field = 0
+
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for inner_no, inner_wire, inner_value in cls._iter_proto_fields(value):
+                if inner_no == 3 and inner_wire == 2:
+                    reward = cls._scalar_fields(inner_value)
+                    if reward.get(2) == 2002 and reward.get(3):
+                        current_weight = int(reward.get(3))
+                elif inner_no == 7 and inner_wire == 2:
+                    for item_no, item_wire, item_value in cls._iter_proto_fields(inner_value):
+                        if item_no != 2 or item_wire != 2:
+                            continue
+                        item = cls._scalar_fields(item_value)
+                        if item.get(2) == 2002:
+                            overall_weight = int(item.get(5) or item.get(3) or overall_weight)
+                elif inner_no == 49 and inner_wire == 2:
+                    for progress_no, progress_wire, progress_value in cls._iter_proto_fields(inner_value):
+                        if progress_no != 2 or progress_wire != 2:
+                            continue
+                        progress = cls._scalar_fields(progress_value)
+                        overall_weight = int(progress.get(5) or overall_weight)
+                        raw_next = progress.get(7)
+                        if isinstance(raw_next, int):
+                            next_field = raw_next
+            break
+
+        return current_weight, overall_weight, next_field
     
     def fishing_start(self, fishfield):
         """
@@ -32,7 +126,7 @@ class DYManager:
             fishfield: 钓鱼区域
             
         Returns:
-            str: 前两个字节的十六进制字符串，失败时返回"0"
+            str: 前两个字节的十六进制字符串，失败时返回"00"
         """
         # 钓鱼开始请求配置
         start_config = {
@@ -51,8 +145,8 @@ class DYManager:
         # 解析钓鱼开始响应
         if start_response and len(start_response) > 10:
             try:
-                # 从第4个字节开始提取数据
-                start_data = start_response[8:]
+                # 响应包头为 6 字节，body 从第 6 字节后开始。
+                start_data = start_response[6:]
                 
                 # 使用fishing_start_response结构解析数据
                 fishing_start = kpbl_pb2.fishing_start_response()
@@ -84,18 +178,16 @@ class DYManager:
                 else:
                     print(f"<{mask_account(self.account_name)}> 钓鱼开始响应无field3字段")
                     
-                # 输出完整的十六进制内容用于调试
-                hex_data = binascii.hexlify(start_response).decode()
-                print(f"钓鱼开始原始数据: {hex_data[:60]}...")
+                print(f"<{mask_account(self.account_name)}> 钓鱼开始响应无旧版鱼种字段，按新版响应继续")
             except Exception as e:
                 print(f"<{mask_account(self.account_name)}> 解析钓鱼开始响应出错: {str(e)}")
                 hex_data = binascii.hexlify(start_response).decode()
                 print(f"钓鱼开始原始数据: {hex_data[:60]}...")
         
         # 如果无法正常获取后4位，则返回0
-        return "0"
+        return "00"
     
-    def fishing_complete(self):
+    def fishing_complete(self, fishfield):
         """
         执行钓鱼完成功能，并返回捕获的重量
         
@@ -103,7 +195,7 @@ class DYManager:
             int: 捕获的鱼的重量，0表示失败
         """
         # 钓鱼完成请求配置
-        complete_config = {"ads": f"钓鱼完成","times": 1,"hexstringheader": "ef 35 ","request_body_i2": 40}
+        complete_config = {"ads": f"钓鱼完成","times": 1,"hexstringheader": "ef 35 ","request_body_i2": fishfield}
         
         # 发送钓鱼完成请求
         complete_response = self.ac_manager.do_common_request(self.account_name, complete_config, showres=0)
@@ -111,17 +203,19 @@ class DYManager:
         # 解析钓鱼结果
         if complete_response and len(complete_response) > 20:
             try:
-                # 从第4个字节开始提取数据
+                # 响应包头为 6 字节，body 从第 6 字节后开始。
                 data = complete_response[6:]
                 
                 # 使用proto定义的fishing_response结构解析数据
                 fishing_resp = kpbl_pb2.fishing_response()
                 fishing_resp.ParseFromString(data)
                 
-                # 获取当前重量和总重量
+                # 获取当前重量和总重量；新版响应把信息放在 field2 的通用主响应里。
                 current_weight = fishing_resp.current_weight
                 overall_weight = fishing_resp.total_info.overall_weight if hasattr(fishing_resp, 'total_info') else 0
                 next_field = fishing_resp.total_info.next_field if hasattr(fishing_resp, 'total_info') and hasattr(fishing_resp.total_info, 'next_field') else 0
+                if current_weight == 0 and overall_weight == 0:
+                    current_weight, overall_weight, next_field = self._extract_new_complete_info(data)
                 
                 # 如果next_field还未初始化，则记录初始值
                 if not self.next_field_initialized and next_field > 0:
@@ -136,7 +230,7 @@ class DYManager:
                     sys.exit(0)  # 退出程序
                 
                 # 打印结果
-                if hasattr(fishing_resp, 'total_info') and hasattr(fishing_resp.total_info, 'next_field'):
+                if next_field > 0:
                     print(f"<{mask_account(self.account_name)}> 钓鱼完成! 当前重量: {current_weight}g, 历史总计: {overall_weight}g/{next_field}")
                 else:
                     print(f"<{mask_account(self.account_name)}> 钓鱼完成! 当前重量: {current_weight}g, 历史总计: {overall_weight}g")
@@ -218,7 +312,7 @@ class DYManager:
             else:
                 print(f'<{mask_account(self.account_name)}> (0x{hex_type}) finish')
                 # 调用钓鱼完成函数
-                current_weight = self.fishing_complete()
+                current_weight = self.fishing_complete(field)
                 # 更新总重量
                 total_weight += current_weight
                 if current_weight > 0:

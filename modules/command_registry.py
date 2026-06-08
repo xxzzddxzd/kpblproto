@@ -384,11 +384,8 @@ def _execute_sd(account_name, args, **kw):
 
 
 def _execute_dy(account_name, args, **kw):
-    if len(args) < 2:
-        print("错误: dy 命令需要额外参数: [区域] [次数] [中止策略]")
-        return False
-    field = int(args[0])
-    times = int(args[1])
+    field = int(args[0]) if len(args) > 0 else 1
+    times = int(args[1]) if len(args) > 1 else 1
     consider_abort = int(args[2]) if len(args) > 2 else 0
     print(f"钓鱼参数: 区域={field}, 次数={times}, 中止策略={consider_abort}")
     from .dy_manager import DYManager
@@ -1211,7 +1208,7 @@ COMMANDS = [
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),
     CommandDef(name="xyx",   desc="幸运星",     category="日常/资源", execute=_execute_xyx),
     CommandDef(name="wk",    desc="挖矿",       category="日常/资源", usage="[once=只点一次]", execute=_execute_wk, batchable=False),
-    CommandDef(name="dy",    desc="钓鱼",       category="日常/资源", usage="[区域] [次数] [中止策略=0]", execute=_execute_dy, batchable=False),
+    CommandDef(name="dy",    desc="钓鱼",       category="日常/资源", usage="[区域=1] [次数=1] [中止策略=0]", execute=_execute_dy, batchable=False),
     CommandDef(name="cc",    desc="一键传承",   category="日常/资源", execute=_execute_cc, batchable=False),
     CommandDef(name="tf",    desc="天赋强化",   category="日常/资源", execute=_execute_tf),
     CommandDef(name="tfn",   desc="天赋强化(新版)", category="日常/资源", execute=_execute_tfn),
