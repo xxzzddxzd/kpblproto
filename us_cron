@@ -44,7 +44,7 @@ CRON_LOG=/root/kpbln/cron_us.log
 # 公会主流程 5小时：dh gg run.
 30 20 * * * cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg run' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg run >/dev/null 2>&1
 # 公会开船 dh gg zscp, 
-01 11 * * * cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg zscp >/dev/null 2>&1 ; 
+01 4 * * * cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg zscp >/dev/null 2>&1 ; 
 #  /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py xh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py xh gg zscp >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ;
 
 

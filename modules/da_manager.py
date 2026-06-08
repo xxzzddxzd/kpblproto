@@ -41,6 +41,11 @@ class DAManager:
         """先查询公会悬赏，让后续挖矿动作正确累计悬赏次数。"""
         config = {"ads": "公会悬赏查询", "times": 1, "hexstringheader": "1f78"}
         return self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+
+    def prime_activity_tracking(self):
+        """先拉取活动入口索引，让考古等活动正确累计后续动作积分。"""
+        config = {"ads": "活动入口索引", "times": 1, "hexstringheader": "017d"}
+        return self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
     
     def get_daily_config(self):
         """
@@ -50,15 +55,15 @@ class DAManager:
             list: 日常任务配置字典列表
         """
         return [
-            {"ads":"活动日历签到","times":1,"hexstringheader":"d32b","request_body_i2":250},
+            # {"ads":"活动日历签到","times":1,"hexstringheader":"d32b","request_body_i2":250},
             # {"ads":"骰子广告","times":1,"hexstringheader":"2f35","request_body_i2":9218},
-            {"ads":"pingu广告","hexstringheader":"a52c","times":1,"request_body_i2":202605183,'request_body_i3':6011},
-            {"ads":"hd20260330广告","hexstringheader":"a52c","times":1,"request_body_i2":202603301,'request_body_i3':9735},
+            # {"ads":"pingu广告","hexstringheader":"a52c","times":1,"request_body_i2":202605183,'request_body_i3':6011},
+            # {"ads":"hd20260330广告","hexstringheader":"a52c","times":1,"request_body_i2":202603301,'request_body_i3':9735},
             # {"ads":"中秋x5","hexstringheader":"a52c","times":5,"request_body_i2":20251006,'request_body_i3':9799},
             # {"ads":"周年","hexstringheader":"a52c","times":1,"request_body_i2":202512223,'request_body_i3':3010},
             # {"ads":"周年","hexstringheader":"a52c","times":2,"request_body_i2":202512223,'request_body_i3':3020},
-            {"ads":"魔法币礼包","hexstringheader":"a52c","times":2,"request_body_i2":202604271,'request_body_i3':9859},
-            {"ads":"魔法放大镜礼包","hexstringheader":"a52c","times":5,"request_body_i2":20260427,'request_body_i3':9850},
+            # {"ads":"魔法币礼包","hexstringheader":"a52c","times":2,"request_body_i2":202604271,'request_body_i3':9859},
+            # {"ads":"魔法放大镜礼包","hexstringheader":"a52c","times":5,"request_body_i2":20260427,'request_body_i3':9850},
             # {"ads":"异星矿场广告","hexstringheader":"a52c","times":1,"request_body_i2":2505027,'request_body_i3':1201},
             # {"ads":"星域礼包","hexstringheader":"a52c","times":2,"request_body_i2":2505025,'request_body_i3':1072},
             # {"ads":"星域礼包-武装","hexstringheader":"a52c","times":1,"request_body_i2":2505026,'request_body_i3':1080},
@@ -66,8 +71,8 @@ class DAManager:
             {"ads":"盲盒机礼包","hexstringheader":"a52c","times":1,"request_body_i2":202512227,'request_body_i3':3010},
             {"ads":"盲盒机礼包","hexstringheader":"a52c","times":1,"request_body_i2":202512227,'request_body_i3':3020},
 
-            {"ads":"yxkc挂机奖励","times":1,"hexstringheader":"0156"},
-            {"ads":"yxkc矿洞挂机","times":1,"hexstringheader":"5d78"},
+            # {"ads":"yxkc挂机奖励","times":1,"hexstringheader":"0156"},
+            # {"ads":"yxkc矿洞挂机","times":1,"hexstringheader":"5d78"},
             # {"ads":"周年","hexstringheader":"eb2e"},
             # {"ads":"购买1次深渊钥匙x1","hexstringheader":"5151","times":1,"request_body_i2":10104,'request_body_i3':1},
             {"ads":"工会捐献5","hexstringheader":"2977","times":5},
@@ -124,7 +129,7 @@ class DAManager:
 
             {"ads":"简述训练1600购买","times":1,"hexstringheader":"512d","request_body_i2":20502, "request_body_i3":20250},
 
-            {"ads":"奇妙马戏团特惠礼包","times":2,"hexstringheader":"8d2c","request_body_i2":122},
+            # {"ads":"奇妙马戏团特惠礼包","times":2,"hexstringheader":"8d2c","request_body_i2":122},
             {"ads":"体力活动排名奖励","times":1,"hexstringheader":"092b"},
             
         ]
@@ -444,6 +449,7 @@ class DAManager:
         """
         try:
             self.prime_ghxs_tracking()
+            self.prime_activity_tracking()
             self.get_jsxl_id()
             # print(f"<{mask_account(self.account_name)}> 开始活动广告任务...")
             # req_list = []
@@ -610,6 +616,7 @@ class DAManager:
             bool: 执行成功返回True
         """
         try:
+            self.prime_activity_tracking()
             print(f"<{mask_account(self.account_name)}> 开始执行日常任务...")
             
             # 获取配置列表
