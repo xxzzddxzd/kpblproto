@@ -44,6 +44,12 @@ class DYManager:
         104009: "钓鱼每日104009",
         104010: "背包开箱10次",
     }
+
+    SUPPLEMENT_TASK_IDS = {104007, 104008, 104010}
+    TASK_COMPLETED_VALUES = {
+        # 104007 在 9d2c 中完成后出现的是奖励鱼饵数 3，不是 10 次进度。
+        104007: 3,
+    }
     
     def __init__(self, account_name, delay=0.5, showres=0, ac_manager=None):
         self.account_name = account_name
@@ -516,13 +522,19 @@ class DYManager:
             name = self.TASK_NAMES.get(task_id, f"任务{task_id}")
             target = self.TASK_TARGETS.get(task_id)
             progress = tasks[task_id]
-            if target:
+            completed_value = self.TASK_COMPLETED_VALUES.get(task_id)
+            if completed_value is not None and progress == completed_value:
+                parts.append(f"{name}({task_id})=可领取({progress})")
+            elif target:
                 parts.append(f"{name}({task_id})={progress}/{target}")
             else:
                 parts.append(f"{name}({task_id})={progress}")
         print(f"<{mask_account(self.account_name)}> {title}: " + ", ".join(parts))
 
     def _is_claimable_task(self, task_id, progress):
+        completed_value = self.TASK_COMPLETED_VALUES.get(task_id)
+        if completed_value is not None and progress == completed_value:
+            return True
         target = self.TASK_TARGETS.get(task_id)
         return target is not None and progress >= target
 
@@ -585,12 +597,12 @@ class DYManager:
         if count <= 0:
             return {}
         config = {
-            "ads": f"钓鱼任务-商店开箱{count}",
-            "times": count,
+            "ads": f"钓鱼任务-商店开箱10连(缺{count})",
+            "times": 1,
             "hexstringheader": "c72b",
             "request_body_i2": self.SHOP_EQUIP_BOX_ID,
-            "request_body_i3": 1,
-            "request_body_i4": 1,
+            "request_body_i3": 2,
+            "request_body_i4": 2,
         }
         res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
         if res and len(res) > 6:
@@ -621,7 +633,21 @@ class DYManager:
     def _task_missing(self, tasks, task_id):
         target = self.TASK_TARGETS.get(task_id, 0)
         progress = int(tasks.get(task_id, 0) or 0)
+        if self._is_claimable_task(task_id, progress):
+            return 0, progress, target
         return max(target - progress, 0), progress, target
+
+    def _has_supplement_daily_tasks(self, tasks):
+        return bool(self.SUPPLEMENT_TASK_IDS.intersection(tasks.keys()))
+
+    def _should_supplement_task(self, tasks, task_id, claimed_tasks):
+        if task_id in claimed_tasks:
+            print(f"<{mask_account(self.account_name)}> {self.TASK_NAMES[task_id]} 已领取，跳过补做")
+            return False
+        if task_id in tasks:
+            return True
+        print(f"<{mask_account(self.account_name)}> 未检测到{self.TASK_NAMES[task_id]}，跳过补做")
+        return False
 
     def _run_task_action(self, task_id, label, action, missing):
         if missing <= 0:
@@ -643,31 +669,33 @@ class DYManager:
         """钓鱼每日任务：查询已完成项，补已定义动作，领取鱼饵。"""
         tasks = self.query_daily_tasks()
         self.print_daily_tasks(tasks, "初始钓鱼任务")
+        has_supplement_tasks = self._has_supplement_daily_tasks(tasks)
         claimed_tasks = set(self.claim_ready_fishing_tasks(tasks))
+
+        if not has_supplement_tasks:
+            print(f"<{mask_account(self.account_name)}> 未检测到可补钓鱼每日任务，跳过补做")
+            tasks = self.query_daily_tasks()
+            self.print_daily_tasks(tasks, "剩余钓鱼任务")
+            print(f"<{mask_account(self.account_name)}> 最终鱼饵数量: {self.get_bait_count()}")
+            return True
 
         tasks = self.query_daily_tasks()
         missing, _, _ = self._task_missing(tasks, 104007)
-        if 104007 in claimed_tasks:
-            print(f"<{mask_account(self.account_name)}> {self.TASK_NAMES[104007]} 已领取，跳过补做")
-        elif missing:
+        if self._should_supplement_task(tasks, 104007, claimed_tasks) and missing:
             self._run_task_action(104007, f"黑市购买{missing}张船票", lambda: self.buy_ship_tickets_for_task(missing), missing)
         elif self._is_claimable_task(104007, tasks.get(104007, 0)):
             self.claim_fishing_task(104007)
 
         tasks = self.query_daily_tasks()
         missing, _, _ = self._task_missing(tasks, 104008)
-        if 104008 in claimed_tasks:
-            print(f"<{mask_account(self.account_name)}> {self.TASK_NAMES[104008]} 已领取，跳过补做")
-        elif missing:
-            self._run_task_action(104008, f"商店开箱{missing}次", lambda: self.open_shop_boxes_for_task(missing), missing)
+        if self._should_supplement_task(tasks, 104008, claimed_tasks) and missing:
+            self._run_task_action(104008, f"商店开箱10连(缺{missing})", lambda: self.open_shop_boxes_for_task(missing), missing)
         elif self._is_claimable_task(104008, tasks.get(104008, 0)):
             self.claim_fishing_task(104008)
 
         tasks = self.query_daily_tasks()
         missing, _, _ = self._task_missing(tasks, 104010)
-        if 104010 in claimed_tasks:
-            print(f"<{mask_account(self.account_name)}> {self.TASK_NAMES[104010]} 已领取，跳过补做")
-        elif missing:
+        if self._should_supplement_task(tasks, 104010, claimed_tasks) and missing:
             self._run_task_action(104010, f"背包开箱{missing}次", lambda: self.open_inventory_boxes_for_task(missing), missing)
         elif self._is_claimable_task(104010, tasks.get(104010, 0)):
             self.claim_fishing_task(104010)
