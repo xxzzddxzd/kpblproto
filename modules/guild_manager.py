@@ -871,7 +871,7 @@ class GuildBatchManager:
         cmd = get_command(command)
         if cmd is None:
             print(f"未知pipeline任务: {task}")
-            return
+            return False
 
         # 确保有 ac_manager
         if ac_manager is None:
@@ -880,16 +880,16 @@ class GuildBatchManager:
 
         # pipeline 中 status 仍走旧逻辑（需要 _collect_account_status）
         if command in ('status', 's'):
-            self._collect_account_status(account_name, ac=ac_manager)
-            return
+            daily, _, _ = self._collect_account_status(account_name, ac=ac_manager)
+            return daily >= 0
 
         # pipeline 中 zscp: 首次执行setup（找船+任命船长），之后每账号执行单账号逻辑
         if command == 'zscp':
             boat_id = self._zscp_setup()
             if not boat_id:
-                return
+                return False
             self._zscp_for_account(ac_manager, account_name)
-            return
+            return True
 
         # pipeline 中 join: 单账号加入公会
         if command in ('join', 'j'):
@@ -899,27 +899,28 @@ class GuildBatchManager:
             charaname = self.guild_accounts.get(account_name, {}).get('charaname', '')
             if charaname and charaname in self._join_members:
                 print(f"  {charaname} 已在公会，跳过")
-                return
+                return True
             if self._join_guild_id:
-                ac_manager.do_common_request(account_name, {"ads": "加入公会", "times": 1, "hexstringheader": "a375", "request_body_i2": self._join_guild_id}, showres=self.showres)
-            return
+                res = ac_manager.do_common_request(account_name, {"ads": "加入公会", "times": 1, "hexstringheader": "a375", "request_body_i2": self._join_guild_id}, showres=self.showres)
+                return bool(res and len(res) > 20)
+            return False
 
         # pipeline 中 init: 不支持（需要init_func回调），跳过
         if command == 'init':
             print(f"  init 不支持在pipeline中执行，请用 gg init")
-            return
+            return False
 
         member_level = None
         member_charaname = ''
         if command == 'fl31':
             if self._is_fl31_done(account_name):
                 print(f"  跳过 {account_name}，已执行过fl31")
-                return
+                return True
             lv, charaname = self._member_level_for_account(account_name, ac_manager)
             if lv < 31:
                 name_part = f" ({charaname})" if charaname else ""
                 print(f"  跳过 {account_name}{name_part} Lv{lv} < 31")
-                return
+                return True
             member_level = lv
             member_charaname = charaname
 
@@ -933,14 +934,15 @@ class GuildBatchManager:
 
         if not cmd.execute:
             print(f"  {command} 不支持在pipeline中执行")
-            return
+            return False
         execute_kw = {"showres": self.showres, "delay": self.delay, "ac_manager": ac_manager}
         if command == 'fl31':
             execute_kw["member_level"] = member_level
             execute_kw["charaname"] = member_charaname
-        cmd.execute(account_name, command_args, **execute_kw)
+        ok = cmd.execute(account_name, command_args, **execute_kw)
         if command == 'fl31':
             self._mark_fl31_done(account_name, ac_manager)
+        return bool(ok)
 
     def _sync_account_snapshot(self, name, ac, extra=None):
         """把测试过程中刷新到 ACManager 内存里的关键字段同步到公会账号文件。"""
@@ -1977,11 +1979,15 @@ class GuildBatchManager:
                     task_start = time.time()
                     req_before = ac.request_count
                     try:
-                        self._run_task(name, task, ac_manager=ac)
+                        ok = self._run_task(name, task, ac_manager=ac)
                         req_count = ac.request_count - req_before
-                        dashboard.finish_task(ti, True, time.time() - task_start, req_count)
+                        dashboard.finish_task(ti, bool(ok), time.time() - task_start, req_count)
                         dashboard.update_header(overall_start, account_start)
-                        print(f"  ✓ {task} ({_fmt_duration(time.time() - task_start)}, {req_count}req)")
+                        if ok:
+                            print(f"  ✓ {task} ({_fmt_duration(time.time() - task_start)}, {req_count}req)")
+                        else:
+                            print(f"  ✗ {task} 返回失败 ({_fmt_duration(time.time() - task_start)}, {req_count}req)")
+                            all_ok = False
                     except Exception as te:
                         import traceback
                         req_count = ac.request_count - req_before
