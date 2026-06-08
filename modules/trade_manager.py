@@ -225,6 +225,8 @@ class TradeManager:
         return None, max_refresh
 
     def _grc_prepare_ur_slot(self, slot_index, current_cabin=None, max_refresh=None):
+        if max_refresh is None:
+            max_refresh = self.GRC_DEFAULT_MAX_REFRESH
         had_arrived_reward = self._grc_has_arrived_reward(current_cabin)
         self.claim_previous_grc_reward(slot_index, current_cabin)
         if current_cabin and not had_arrived_reward and self._grc_is_ur(current_cabin):
@@ -307,6 +309,8 @@ class TradeManager:
 
     def run_ghgrc(self, max_refresh=None):
         """个人船：刷新到UR后开船，不要求功勋币×200。"""
+        if max_refresh is None:
+            max_refresh = self.GRC_DEFAULT_MAX_REFRESH
         print("== 个人UR船刷新开船 ==")
         page_resp = self.enter_grc_page()
         cabins = self._grc_cabins_from_response(page_resp)
