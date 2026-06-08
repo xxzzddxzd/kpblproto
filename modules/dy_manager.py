@@ -12,13 +12,47 @@ from .kpbltools import ACManager, mask_account
 
 class DYManager:
     """钓鱼管理器"""
+
+    FISHING_ACTIVITY_ID = 202602091
+    BAIT_TYPE = 2001
+    FISH_WEIGHT_TYPE = 2002
+    SHIP_TICKET_SHOP_ID = 22100
+    SHOP_EQUIP_BOX_ID = 200002
+    INVENTORY_BOX_TYPE = 71
+
+    TASK_TARGETS = {
+        104000: 1,
+        104001: 2,
+        104002: 3,
+        104003: 400,
+        104007: 10,
+        104008: 10,
+        104009: 50,
+        104010: 10,
+    }
+
+    TASK_NAMES = {
+        104000: "钓鱼每日104000",
+        104001: "钓鱼每日104001",
+        104002: "钓鱼每日104002",
+        104003: "钓鱼每日104003",
+        104004: "钓鱼每日104004",
+        104005: "钓鱼每日104005",
+        104006: "钓鱼每日104006",
+        104007: "黑市购买10次",
+        104008: "商店开箱10次",
+        104009: "钓鱼每日104009",
+        104010: "背包开箱10次",
+    }
     
-    def __init__(self, account_name, delay=0.5):
+    def __init__(self, account_name, delay=0.5, showres=0, ac_manager=None):
         self.account_name = account_name
-        self.ac_manager = ACManager(account_name, delay=delay)
+        self.ac_manager = ac_manager or ACManager(account_name, delay=delay, showres=showres)
         self.logger = logging.getLogger(f"DYManager_{account_name}")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(logging.StreamHandler())
+        self.showres = showres
+        self.last_bait_count = None
         
         # 钓鱼状态追踪变量
         self.initial_next_field = None
@@ -117,6 +151,112 @@ class DYManager:
             break
 
         return current_weight, overall_weight, next_field
+
+    @classmethod
+    def _extract_item_count(cls, data, item_type):
+        """从通用主响应 field2.field7 中提取指定物品类型的最新数量。"""
+        found = None
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for inner_no, inner_wire, inner_value in cls._iter_proto_fields(value):
+                if inner_no != 7 or inner_wire != 2:
+                    continue
+                for item_no, item_wire, item_value in cls._iter_proto_fields(inner_value):
+                    if item_no != 2 or item_wire != 2:
+                        continue
+                    item = cls._scalar_fields(item_value)
+                    if item.get(2) == item_type:
+                        found = int(item.get(5) or item.get(3) or 0)
+            break
+        return found
+
+    @classmethod
+    def _extract_reward_items(cls, data):
+        """从通用主响应 field2.field3 中提取奖励物品。"""
+        rewards = []
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for inner_no, inner_wire, inner_value in cls._iter_proto_fields(value):
+                if inner_no == 3 and inner_wire == 2:
+                    reward = cls._scalar_fields(inner_value)
+                    if reward:
+                        rewards.append(reward)
+            break
+        return rewards
+
+    @classmethod
+    def _extract_activity_updates(cls, data, activity_id):
+        """从动作响应 field48/field49 中提取活动任务进度更新。"""
+        updates = {}
+        for field_no, wire_type, value in cls._iter_proto_fields(data):
+            if field_no != 2 or wire_type != 2:
+                continue
+            for inner_no, inner_wire, inner_value in cls._iter_proto_fields(value):
+                if inner_no not in (48, 49) or inner_wire != 2:
+                    continue
+                activity = cls._scalar_fields(inner_value)
+                if activity.get(1) != activity_id:
+                    continue
+                for progress_no, progress_wire, progress_value in cls._iter_proto_fields(inner_value):
+                    if progress_no != 2 or progress_wire != 2:
+                        continue
+                    progress = cls._scalar_fields(progress_value)
+                    task_id = progress.get(1)
+                    if task_id:
+                        updates[int(task_id)] = int(progress.get(2) or 0)
+            break
+        return updates
+
+    def _remember_bait_count(self, response):
+        if not response or len(response) <= 6:
+            return None
+        bait_count = self._extract_item_count(response[6:], self.BAIT_TYPE)
+        if bait_count is not None:
+            self.last_bait_count = bait_count
+        return bait_count
+
+    def get_bait_count(self):
+        if self.last_bait_count is not None:
+            return self.last_bait_count
+        _, count = self.ac_manager.getItemIdByType(self.BAIT_TYPE)
+        return count
+
+    def query_fishing_area_status(self):
+        """fd35: 查询钓鱼入口/区域状态。"""
+        config = {"ads": "钓鱼入口状态", "times": 1, "hexstringheader": "fd35"}
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
+        areas = []
+        rankings = []
+        if not res or len(res) <= 6:
+            return areas, rankings
+
+        for field_no, wire_type, value in self._iter_proto_fields(res[6:]):
+            if field_no in (3, 4) and wire_type == 2:
+                entry = self._scalar_fields(value)
+                ranking = (int(entry.get(2) or 0), int(entry.get(3) or 0))
+                if ranking[0] and ranking not in rankings:
+                    rankings.append(ranking)
+            elif field_no == 5 and wire_type == 2:
+                for inner_no, inner_wire, inner_value in self._iter_proto_fields(value):
+                    if inner_no == 1 and inner_wire == 2 and inner_value:
+                        area_id = inner_value[0]
+                        if area_id and area_id not in areas:
+                            areas.append(area_id)
+        areas.sort()
+        return areas, rankings
+
+    def resolve_fishing_field(self, fishfield=None):
+        if fishfield:
+            return int(fishfield)
+        areas, rankings = self.query_fishing_area_status()
+        if areas:
+            selected = max(areas)
+            print(f"<{mask_account(self.account_name)}> 钓鱼自动区域: {selected}，可用区域={areas}")
+            return selected
+        print(f"<{mask_account(self.account_name)}> 未解析到钓鱼区域，默认使用区域1")
+        return 1
     
     def fishing_start(self, fishfield):
         """
@@ -141,6 +281,9 @@ class DYManager:
         # 发送钓鱼开始请求
         start_response = self.ac_manager.do_common_request(self.account_name, start_config, showres=0)
         print(f"<{mask_account(self.account_name)}> 钓鱼开始...")
+        bait_count = self._remember_bait_count(start_response)
+        if bait_count is not None:
+            print(f"<{mask_account(self.account_name)}> 当前鱼饵: {bait_count}")
         
         # 解析钓鱼开始响应
         if start_response and len(start_response) > 10:
@@ -199,6 +342,7 @@ class DYManager:
         
         # 发送钓鱼完成请求
         complete_response = self.ac_manager.do_common_request(self.account_name, complete_config, showres=0)
+        self._remember_bait_count(complete_response)
         
         # 解析钓鱼结果
         if complete_response and len(complete_response) > 20:
@@ -260,7 +404,7 @@ class DYManager:
         "rare": ["0x99", "0x9f", "0xa5", "0xab","0x9a", "0xa0", "0xa6", "0xac","0x9b", "0xa1", "0xa7", "0xad"],
     }
 
-    def do_fishing(self, field=4, times=1, consider_abort=False):
+    def do_fishing(self, field=None, times=1, consider_abort=False):
         """
         执行钓鱼功能
         
@@ -272,6 +416,7 @@ class DYManager:
         Returns:
             bool: 执行成功返回True
         """
+        field = self.resolve_fishing_field(field)
         # 重置next_field相关的实例变量
         self.initial_next_field = None
         self.next_field_initialized = False
@@ -338,6 +483,199 @@ class DYManager:
             color_suffix = "\033[0m" if color_prefix else ""
             print(f"{color_prefix}    0x{hex_type}: {count}次, 占比 {count/times*100:.2f}%{color_suffix}")
         
+        return True
+
+    def query_daily_tasks(self):
+        """9d2c: 查询钓鱼活动任务当前条目。"""
+        config = {"ads": "钓鱼活动任务查询", "times": 1, "hexstringheader": "9d2c"}
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
+        tasks = {}
+        if not res or len(res) <= 20:
+            print(f"<{mask_account(self.account_name)}> 钓鱼任务查询无有效响应")
+            return tasks
+        try:
+            resp = kpbl_pb2.acmanager_activity_info_response()
+            resp.ParseFromString(res[6:])
+            for activity in resp.activities:
+                if activity.activity_id != self.FISHING_ACTIVITY_ID:
+                    continue
+                for reward in activity.rewards:
+                    if reward.reward_id:
+                        tasks[int(reward.reward_id)] = int(reward.reward_count)
+                break
+        except Exception as e:
+            print(f"<{mask_account(self.account_name)}> 解析钓鱼任务出错: {e}")
+        return tasks
+
+    def print_daily_tasks(self, tasks, title="钓鱼每日任务"):
+        if not tasks:
+            print(f"<{mask_account(self.account_name)}> {title}: 无任务条目")
+            return
+        parts = []
+        for task_id in sorted(tasks):
+            name = self.TASK_NAMES.get(task_id, f"任务{task_id}")
+            target = self.TASK_TARGETS.get(task_id)
+            progress = tasks[task_id]
+            if target:
+                parts.append(f"{name}({task_id})={progress}/{target}")
+            else:
+                parts.append(f"{name}({task_id})={progress}")
+        print(f"<{mask_account(self.account_name)}> {title}: " + ", ".join(parts))
+
+    def _is_claimable_task(self, task_id, progress):
+        target = self.TASK_TARGETS.get(task_id)
+        return target is not None and progress >= target
+
+    def claim_fishing_task(self, task_id):
+        config = {
+            "ads": f"领取钓鱼任务{task_id}",
+            "times": 1,
+            "hexstringheader": "9f2c",
+            "request_body_i2": self.FISHING_ACTIVITY_ID,
+            "request_body_i3": int(task_id),
+        }
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
+        if not res or len(res) <= 6:
+            print(f"<{mask_account(self.account_name)}> {task_id} 领取失败: 无响应")
+            return False
+
+        body = res[6:]
+        rewards = self._extract_reward_items(body)
+        bait_reward = sum(int(r.get(3) or 0) for r in rewards if r.get(2) == self.BAIT_TYPE)
+        bait_count = self._remember_bait_count(res)
+        if bait_reward:
+            print(f"<{mask_account(self.account_name)}> 领取{self.TASK_NAMES.get(task_id, task_id)}: 鱼饵 +{bait_reward}，当前 {bait_count if bait_count is not None else '?'}")
+            return True
+
+        status = None
+        try:
+            status = self.ac_manager.get_status_code(res)
+        except Exception:
+            pass
+        print(f"<{mask_account(self.account_name)}> {task_id} 未领取到鱼饵，status={status}, len={len(res)}")
+        return False
+
+    def claim_ready_fishing_tasks(self, tasks):
+        claimed = []
+        for task_id, progress in sorted(tasks.items()):
+            if self._is_claimable_task(task_id, progress):
+                if self.claim_fishing_task(task_id):
+                    claimed.append(task_id)
+        return claimed
+
+    def buy_ship_tickets_for_task(self, count=10):
+        count = max(0, int(count))
+        if count <= 0:
+            return {}
+        config = {
+            "ads": f"钓鱼任务-黑市购买船票{count}",
+            "times": 1,
+            "hexstringheader": "6532",
+            "request_body_i2": 2,
+            "request_body_i3": self.SHIP_TICKET_SHOP_ID,
+            "request_body_i4": count,
+        }
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
+        if res and len(res) > 6:
+            return self._extract_activity_updates(res[6:], self.FISHING_ACTIVITY_ID)
+        return {}
+
+    def open_shop_boxes_for_task(self, count=10):
+        count = max(0, int(count))
+        if count <= 0:
+            return {}
+        config = {
+            "ads": f"钓鱼任务-商店开箱{count}",
+            "times": count,
+            "hexstringheader": "c72b",
+            "request_body_i2": self.SHOP_EQUIP_BOX_ID,
+            "request_body_i3": 1,
+            "request_body_i4": 1,
+        }
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
+        if res and len(res) > 6:
+            return self._extract_activity_updates(res[6:], self.FISHING_ACTIVITY_ID)
+        return {}
+
+    def open_inventory_boxes_for_task(self, count=10):
+        box_id, box_count = self.ac_manager.getItemIdByType(self.INVENTORY_BOX_TYPE)
+        if not box_id:
+            print(f"<{mask_account(self.account_name)}> 未找到type={self.INVENTORY_BOX_TYPE}的背包箱子")
+            return {}
+        actual = min(int(count), int(box_count or 0))
+        if actual <= 0:
+            print(f"<{mask_account(self.account_name)}> 背包箱子数量不足: {box_count}")
+            return {}
+        config = {
+            "ads": f"钓鱼任务-背包开箱{actual}",
+            "times": 1,
+            "hexstringheader": "074f",
+            "request_body_i2": int(box_id),
+            "request_body_i3": actual,
+        }
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
+        if res and len(res) > 6:
+            return self._extract_activity_updates(res[6:], self.FISHING_ACTIVITY_ID)
+        return {}
+
+    def _task_missing(self, tasks, task_id):
+        target = self.TASK_TARGETS.get(task_id, 0)
+        progress = int(tasks.get(task_id, 0) or 0)
+        return max(target - progress, 0), progress, target
+
+    def _run_task_action(self, task_id, label, action, missing):
+        if missing <= 0:
+            return {}
+        print(f"<{mask_account(self.account_name)}> 执行{label}: 当前缺 {missing}")
+        updates = action()
+        if updates:
+            print(f"<{mask_account(self.account_name)}> 活动进度更新: {updates}")
+        tasks = self.query_daily_tasks()
+        progress = tasks.get(task_id, updates.get(task_id, 0))
+        if self._is_claimable_task(task_id, progress):
+            self.claim_fishing_task(task_id)
+        else:
+            missing_now, progress_now, target = self._task_missing(tasks, task_id)
+            print(f"<{mask_account(self.account_name)}> {self.TASK_NAMES.get(task_id, task_id)} 仍未完成: {progress_now}/{target}，还差 {missing_now}")
+        return updates
+
+    def run_daily_tasks(self):
+        """钓鱼每日任务：查询已完成项，补已定义动作，领取鱼饵。"""
+        tasks = self.query_daily_tasks()
+        self.print_daily_tasks(tasks, "初始钓鱼任务")
+        claimed_tasks = set(self.claim_ready_fishing_tasks(tasks))
+
+        tasks = self.query_daily_tasks()
+        missing, _, _ = self._task_missing(tasks, 104007)
+        if 104007 in claimed_tasks:
+            print(f"<{mask_account(self.account_name)}> {self.TASK_NAMES[104007]} 已领取，跳过补做")
+        elif missing:
+            self._run_task_action(104007, f"黑市购买{missing}张船票", lambda: self.buy_ship_tickets_for_task(missing), missing)
+        elif self._is_claimable_task(104007, tasks.get(104007, 0)):
+            self.claim_fishing_task(104007)
+
+        tasks = self.query_daily_tasks()
+        missing, _, _ = self._task_missing(tasks, 104008)
+        if 104008 in claimed_tasks:
+            print(f"<{mask_account(self.account_name)}> {self.TASK_NAMES[104008]} 已领取，跳过补做")
+        elif missing:
+            self._run_task_action(104008, f"商店开箱{missing}次", lambda: self.open_shop_boxes_for_task(missing), missing)
+        elif self._is_claimable_task(104008, tasks.get(104008, 0)):
+            self.claim_fishing_task(104008)
+
+        tasks = self.query_daily_tasks()
+        missing, _, _ = self._task_missing(tasks, 104010)
+        if 104010 in claimed_tasks:
+            print(f"<{mask_account(self.account_name)}> {self.TASK_NAMES[104010]} 已领取，跳过补做")
+        elif missing:
+            self._run_task_action(104010, f"背包开箱{missing}次", lambda: self.open_inventory_boxes_for_task(missing), missing)
+        elif self._is_claimable_task(104010, tasks.get(104010, 0)):
+            self.claim_fishing_task(104010)
+
+        tasks = self.query_daily_tasks()
+        self.print_daily_tasks(tasks, "剩余钓鱼任务")
+        self.claim_ready_fishing_tasks(tasks)
+        print(f"<{mask_account(self.account_name)}> 最终鱼饵数量: {self.get_bait_count()}")
         return True
     
     def execute_fishing(self, field, times, consider_abort=False):

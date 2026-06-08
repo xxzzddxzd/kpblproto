@@ -34,6 +34,7 @@ class KGManager:
     def __init__(self, account_name, ac_manager=None):
         self.account_name = account_name
         self.ac_manager = ac_manager or ACManager(account_name)
+        self._activity_tracking_primed = False
 
     def _build_and_send(self, hexstringheader, request_body):
         """构建带header的请求并发送"""
@@ -73,6 +74,15 @@ class KGManager:
         """1329: 进入考古页面，拉取入口/红点状态"""
         config = {"ads": "考古入口状态", "times": 1, "hexstringheader": "1329"}
         return self.ac_manager.do_common_request(self.account_name, config, showres=0)
+
+    def prime_activity_tracking(self):
+        """017d: 拉取活动入口索引，让考古后续动作正确累计积分。"""
+        if self._activity_tracking_primed:
+            return None
+        config = {"ads": "考古活动入口索引", "times": 1, "hexstringheader": "017d"}
+        res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
+        self._activity_tracking_primed = True
+        return res
 
     def dump_responses(self, out_dir="res", label=None):
         """保存考古入口和查询的原始响应，用于字段逆向。"""
@@ -349,6 +359,9 @@ class KGManager:
 
     def collect_info(self):
         """只进入考古、领取任务奖励并统计锤子数量，不抽蛋也不挖掘。"""
+        if not self._activity_tracking_primed:
+            print("== 考古信息: 启用积分追踪 ==")
+        self.prime_activity_tracking()
         print("== 考古信息: 进入考古 ==")
         self.enter_kg()
         print("== 考古信息: 领取任务奖励 ==")
@@ -460,6 +473,9 @@ class KGManager:
 
     def dig_available(self, hammer=None):
         """使用当前锤子自动挖掘，不抽蛋、不领奖。"""
+        if not self._activity_tracking_primed:
+            print("== 考古挖掘: 启用积分追踪 ==")
+        self.prime_activity_tracking()
         if hammer is None:
             hammer = self.get_hammer_count()
         print(f"== 考古挖掘: 锤子数量 = {hammer} ==")
@@ -620,6 +636,9 @@ class KGManager:
 
     def run(self):
         """执行考古：进入页面 → 领取积分奖励 → 自动挖掘 → 结果汇报。"""
+
+        print("== 步骤0: 启用考古积分追踪 ==")
+        self.prime_activity_tracking()
 
         print("== 步骤1: 进入考古 ==")
         self.enter_kg()
