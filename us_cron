@@ -2,59 +2,49 @@ SHELL=/bin/bash
 PYTHONIOENCODING=utf-8
 LANG=en_US.UTF-8
 LC_ALL=en_US.UTF-8
-PYTHON_BIN=/root/.pyenv/versions/3.12.13/bin/python
-CRON_LOG=/root/kpbln/cron_us.log
+APP_DIR=/root/kpblproto
+PYTHON_BIN=/root/kpblproto/bin/python
+CRON_LOG=/root/kpblproto/cron_us.log
 
 # Timezone note:
-# - This file is installed on the US server, whose cron timezone is EDT (UTC-4).
-# - The schedule below is designed in UTC. Cron weekdays are converted to US local day.
+# - The kpblproto server runs cron in Etc/UTC.
+# - The schedule below is written directly in UTC.
+# - Cron does not inherit an activated venv; PYTHON_BIN must point to the venv python.
 # - Cron weekday numbers: 0=Sunday, 1=Monday, ..., 6=Saturday.
 #
 # UTC schedule summary:
-# - Monday 00:00: dh flfull, then dh gg flfull. This window takes about one hour.
-# - Monday 01:00: dh gg run.
-# - Monday 06:35: delayed post-window tasks: dh gg zscp, xh gg zscp, dh da, dh grc, dh ac 0, dh defda.
-# - Monday 08:01: dh da.
-# - Monday 09:10: dh grc.
-# - Monday 09:20, 12:20, 15:20: dh ac 0.
-# - Monday 10:08, 10:14, 10:20: dh jl gh.
-# - Monday 16:02: dh da.
-# - Tuesday-Sunday 00:02: dh fl, xh gg zscp, dh da, dh grc, dh ac 0.
-# - Tuesday-Sunday 01:00: dh gg run.
-# - Tuesday-Sunday 06:35: dh gg zscp, dh ac 0, dh defda.
-# - Tuesday-Sunday 08:01: dh da.
-# - Tuesday-Sunday 09:10: dh grc.
-# - Tuesday-Sunday 09:20, 12:20, 15:20: dh ac 0.
-# - Tuesday-Sunday 10:08, 10:14, 10:20: dh jl gh.
-# - Tuesday-Sunday 16:02: dh da.
-# - No dh or dh gg commands are scheduled after UTC 16:05.
+# - Daily 00:01: dh fl.
+# - Daily 00:06, 06:06, 12:06, 18:06: dh da, dh grc, dh ac 0.
+# - Daily 00:20: dh defda.
+# - Daily 00:30: dh gg run.
+# - Daily 08:01: dh gg zscp.
 # - Cron log only records timestamp and command; command stdout/stderr is discarded.
-# 20 点对应 0点
+# 00 UTC
 # dh flfull, then dh gg flfull.
-# 0 20 * * 0 cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh flfull' >> $CRON_LOG ; $PYTHON_BIN main.py dh flfull >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg flfull' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg flfull >/dev/null 2>&1
+# 0 0 * * 1 cd "$APP_DIR" ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh flfull' >> $CRON_LOG ; $PYTHON_BIN main.py dh flfull >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg flfull' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg flfull >/dev/null 2>&1
 
 # 主号 fl
-1 20 * * * cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh fl' >> $CRON_LOG ; $PYTHON_BIN main.py dh fl >/dev/null 2>&1 ; 
+1 0 * * * cd "$APP_DIR" ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh fl' >> $CRON_LOG ; $PYTHON_BIN main.py dh fl >/dev/null 2>&1 ;
 # 主号 da,  grc,  ac 0
-6 2,8,14,20 * * * cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ; $PYTHON_BIN main.py dh da >/dev/null 2>&1;  /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh grc' >> $CRON_LOG ; $PYTHON_BIN main.py dh grc >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1 
+6 0,6,12,18 * * * cd "$APP_DIR" ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ; $PYTHON_BIN main.py dh da >/dev/null 2>&1;  /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh grc' >> $CRON_LOG ; $PYTHON_BIN main.py dh grc >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh ac 0' >> $CRON_LOG ; $PYTHON_BIN main.py dh ac 0 >/dev/null 2>&1
 # 主号 defda.
-20 20 * * * cd /root/kpbln/ ;  /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh defda' >> $CRON_LOG ; $PYTHON_BIN main.py dh defda >/dev/null 2>&1
+20 0 * * * cd "$APP_DIR" ;  /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh defda' >> $CRON_LOG ; $PYTHON_BIN main.py dh defda >/dev/null 2>&1
 
 
 # 公会主流程 5小时：dh gg run.
-30 20 * * * cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg run' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg run >/dev/null 2>&1
+30 0 * * * cd "$APP_DIR" ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg run' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg run >/dev/null 2>&1
 # 公会开船 dh gg zscp, 
-01 4 * * * cd /root/kpbln/ ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg zscp >/dev/null 2>&1 ; 
+1 8 * * * cd "$APP_DIR" ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg zscp >/dev/null 2>&1 ;
 #  /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py xh gg zscp' >> $CRON_LOG ; $PYTHON_BIN main.py xh gg zscp >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh da' >> $CRON_LOG ;
 
 
 
 # ===== Install notes =====
 # Backup current crontab:
-# crontab -l > /root/kpbln/crontab.backup.$(date +\%Y\%m\%d_\%H\%M\%S)
+# crontab -l > /root/kpblproto/crontab.backup.$(date +\%Y\%m\%d_\%H\%M\%S)
 #
 # Import this file as the active crontab:
-# crontab /root/kpbln/us_cron
+# crontab /root/kpblproto/us_cron
 #
 # Verify:
 # crontab -l
