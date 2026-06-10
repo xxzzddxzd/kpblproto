@@ -218,41 +218,24 @@ class GHXSManager:
 
     def query_personal_task_index(self):
         """查询个人悬赏入口(017d)。响应里 activity_id=120260601 的 field3 是0f29入口。"""
-        config = {"ads": "查询悬赏个人任务入口", "times": 1, "hexstringheader": "017d"}
-        response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
-        if response and len(response) > 6:
-            resp = kpbl_pb2.ghxs_personal_index_response()
-            resp.ParseFromString(response[6:])
-            return resp
-        return None
+        return self.ac_manager.query_personal_task_index(self.account_name, showres=self.showres)
 
     def resolve_personal_task_item_id(self, task_item_id=None):
         """解析当前账号个人悬赏任务入口id。"""
         if task_item_id:
             return int(task_item_id)
-        resp = self.query_personal_task_index()
-        if not resp:
-            return None
-        fallback = None
-        for entry in resp.activity_entries:
-            if entry.personal_task_item_id and fallback is None:
-                fallback = entry.personal_task_item_id
-            if entry.activity_id == self.GHXS_ACTIVITY_ID and entry.personal_task_item_id:
-                return entry.personal_task_item_id
-        return fallback
+        return self.ac_manager.resolve_personal_task_item_id(
+            self.account_name,
+            showres=self.showres,
+        )
 
     def query_personal_tasks(self, task_item_id=None):
         """查询公会悬赏个人任务(0f29)。i2来自017d响应的personal_task_item_id。"""
-        task_item_id = self.resolve_personal_task_item_id(task_item_id)
-        if not task_item_id:
-            return None
-        config = {
-            "ads": f"查询悬赏个人任务{task_item_id}",
-            "times": 1,
-            "hexstringheader": "0f29",
-            "request_body_i2": task_item_id,
-        }
-        response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        response = self.ac_manager.do_personal_task_query_flow(
+            self.account_name,
+            task_item_id=task_item_id,
+            showres=self.showres,
+        )
         if response and len(response) > 6:
             resp = kpbl_pb2.ghxs_personal_query_response()
             resp.ParseFromString(response[6:])

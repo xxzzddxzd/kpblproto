@@ -76,12 +76,16 @@ class KGManager:
         return self.ac_manager.do_common_request(self.account_name, config, showres=0)
 
     def prime_activity_tracking(self):
-        """017d: 拉取活动入口索引，让考古后续动作正确累计积分。"""
+        """017d -> 0f29: 拉取活动入口索引并查询个人任务，让考古后续动作正确累计积分。"""
         if self._activity_tracking_primed:
             return None
-        config = {"ads": "考古活动入口索引", "times": 1, "hexstringheader": "017d"}
-        res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
-        self._activity_tracking_primed = True
+        res = self.ac_manager.do_personal_task_query_flow(
+            self.account_name,
+            showres=0,
+            ads="考古活动任务链路",
+        )
+        if res:
+            self._activity_tracking_primed = True
         return res
 
     def dump_responses(self, out_dir="res", label=None):

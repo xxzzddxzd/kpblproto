@@ -120,9 +120,12 @@ class ACManager:
     账户管理器 - 负责处理账户数据、登录和请求
     """
     # 类变量定义
-    I8_VALUE = 925
-    VERSION = "1.7.5"
-    I11_VALUE = 123
+    I8_VALUE = 1107
+    VERSION = "1.8.15"
+    I11_VALUE = 165
+    DEFAULT_LOGIN_S1 = "G:1663386483"
+    DEFAULT_LOGIN_ACSTR = "T:_61e0e2b58305996dfc89422bd7d46263"
+    GHXS_PERSONAL_ACTIVITY_ID = 120260601
     server_id = 0
     
     def __init__(self, account=None, accounts_file=None, delay=0.5, showres=0, skip_login=False):
@@ -204,6 +207,13 @@ class ACManager:
             # 提取字段11（i11）- proto3中int32默认值为0
             if r1.i11 != 0:
                 ACManager.I11_VALUE = r1.i11
+
+            # 本地 proto 文件可能落后于当前客户端。2026-06-10 抓包显示
+            # 1.8.15/1107/165 才是当前登录版本，旧版本会导致部分活动积分未激活。
+            if ACManager.VERSION == "1.8.14":
+                ACManager.I8_VALUE = 1107
+                ACManager.VERSION = "1.8.15"
+                ACManager.I11_VALUE = 165
                 
         except Exception as e:
             print(f"警告: 解析proto文件时出错: {e}")
@@ -350,6 +360,53 @@ class ACManager:
         
         self.accounts[account_name][key] = value
         return True
+
+    def query_personal_task_index(self, account_name, showres=1):
+        """017d: 查询个人悬赏入口索引。"""
+        config = {"ads": "查询悬赏个人任务入口", "times": 1, "hexstringheader": "017d"}
+        response = self.do_common_request(account_name, config, showres=showres)
+        if response and len(response) > 6:
+            resp = kpbl_pb2.ghxs_personal_index_response()
+            resp.ParseFromString(response[6:])
+            return resp
+        return None
+
+    def resolve_personal_task_item_id(self, account_name, task_item_id=None, showres=1):
+        """通过 017d 响应解析当前账号的 0f29 i2 参数；不复用旧配置里的硬编码 id。"""
+        resp = self.query_personal_task_index(account_name, showres=showres)
+        fallback = None
+        if not resp:
+            return fallback
+
+        for entry in resp.activity_entries:
+            if entry.personal_task_item_id and fallback is None:
+                fallback = entry.personal_task_item_id
+            if (
+                entry.activity_id == self.GHXS_PERSONAL_ACTIVITY_ID
+                and entry.personal_task_item_id
+            ):
+                return entry.personal_task_item_id
+        return fallback
+
+    def do_personal_task_query_flow(self, account_name, task_item_id=None, showres=1, ads=None):
+        """统一执行个人悬赏查询链路：先 017d 取入口 id，再 0f29 查询。"""
+        resolved_task_item_id = self.resolve_personal_task_item_id(
+            account_name,
+            task_item_id=task_item_id,
+            showres=showres,
+        )
+        if not resolved_task_item_id:
+            print(f"<{self.mask_account(account_name)}:{self.server_id}> 未找到个人悬赏任务入口，跳过0f29")
+            return None
+
+        config = {
+            "ads": ads or f"查询悬赏个人任务{resolved_task_item_id}",
+            "times": 1,
+            "hexstringheader": "0f29",
+            "request_body_i2": int(resolved_task_item_id),
+            "_skip_personal_task_flow": True,
+        }
+        return self.do_common_request(account_name, config, showres=showres)
     
     def createaccount(self, account_file=None):
         """
@@ -443,12 +500,11 @@ class ACManager:
         """
         # 创建一个 requester1 对象
         requester = kpbl_pb2.requester1()
-        if "s1" in account:
-            requester.s1 = account.get("s1")
+        requester.s1 = account.get("s1") or self.DEFAULT_LOGIN_S1
         requester.i2 = 1
         requester.udid = account["udid"]
-        # if "encbody" in account:
-        #     requester.encbody = account["encbody"]
+        if "encbody" in account:
+            requester.encbody = account["encbody"]
         
         # 自增 i5_adsid1 并设置（线程安全）
         with self._seq_lock:
@@ -551,12 +607,6 @@ class ACManager:
         # 设置请求者对象
         request_body.r1.CopyFrom(requester)
         
-        # 特殊处理登录请求
-        if requestbodytype == 'request_login':
-            request_body.r1.ClearField("encbody")
-            # request_body.r1.ClearField("server_id")
-            request_body.r1.i5_adsid1 = 2
-
         # 设置其他参数
         if request_body_i2:
             request_body.i2 = request_body_i2
@@ -687,15 +737,15 @@ class ACManager:
         tosign = b'6F80DA08742462C12D7C9598B464E8020' + binary_data
         headers = {
             "Host": "prod.advrpg.com",
-            "X-Unity-Version": "2022.3.49f1",
+            "X-Unity-Version": "2022.3.62f2",
             "Accept": "*/*",
             "DxxVersion": "1",
             "DxxCheck": self.calcsha(tosign),
-            "Accept-Language": "zh-cn",
+            "Accept-Language": "zh-CN,zh-Hans;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
             "DxxTime": "0",
             "Content-Type": "application/octet-stream",
-            "User-Agent": "capybara/15 CFNetwork/1209 Darwin/20.2.0",
+            "User-Agent": "capybara/4 CFNetwork/1399 Darwin/22.1.0",
             "DxxType": self.dxxtype(binary_data),
             "Content-Length": str(len(binary_data)),
             "Connection": "keep-alive"
@@ -709,7 +759,7 @@ class ACManager:
         # while times > 0:
         for retry in range(max_retries):
             try:
-                response = requests.post(url, headers=headers, data=binary_data, timeout=10)
+                response = requests.put(url, headers=headers, data=binary_data, timeout=10)
                 self.request_count += 1
                 if showres:
                     print(f"<{self.mask_account(account_name)}:{self.server_id}> [{describe}:{times} left]Response body: {response.content}")
@@ -751,9 +801,16 @@ class ACManager:
         if not self.check_account_ready(account_name):
             print(f"<{self.mask_account(account_name)}:{self.server_id}> 账户未准备好，无法登录")
             return False
-        
-        # 设置初始化 i5_adsid1
-        self.update_account(account_name, "i5_adsid1", 1)
+
+        # The official client starts a fresh login with the identity token and
+        # without the previous encrypted session. Keeping the stale encbody here
+        # logs in successfully, but some daily activity score multipliers stay
+        # inactive server-side.
+        account = self.accounts[account_name]
+        previous_encbody = account.pop('encbody', None)
+        account["i5_adsid1"] = 1
+        account["s1"] = account.get("s1") or self.DEFAULT_LOGIN_S1
+        account["acstr"] = account.get("acstr") or self.DEFAULT_LOGIN_ACSTR
         
         # 构建登录请求
         login_config = {
@@ -774,6 +831,8 @@ class ACManager:
         
         # 检查请求是否成功
         if not res:
+            if previous_encbody is not None:
+                account['encbody'] = previous_encbody
             print(f"<{self.mask_account(account_name)}:{self.server_id}> 登录失败，没有收到响应")
             return False
         
@@ -790,10 +849,15 @@ class ACManager:
 
                 
                 open(f'res/response_login_{account_name}', 'wb').write(login_data)                
+                old_server_id = self.accounts[account_name].get('server_id')
+                new_server_id = login_resp.serverid
+                server_id_changed = bool(new_server_id and old_server_id != new_server_id)
                 # 更新账户信息
                 self.update_account(account_name, 'encbody', login_resp.encbody)
                 self.update_account(account_name, 'i5_adsid1', login_resp.reqid)
-                # self.update_account(account_name, 'server_id', login_resp.serverid)
+                if new_server_id:
+                    self.update_account(account_name, 'server_id', new_server_id)
+                    self.server_id = new_server_id
                 self.update_account(account_name, 'coin', login_resp.ci.coin)
                 self.update_account(account_name, 'diamon', login_resp.ci.diamon)
                 self.update_account(account_name, 'charauuid', login_resp.charauuid)
@@ -958,6 +1022,8 @@ class ACManager:
                         baoshi_list.append(item.type)
                 self.update_account(account_name, 'baoshi', baoshi_list)
                 self.update_account(account_name, 'eq_list', eq_list)
+                if server_id_changed:
+                    self.save_accounts()
 
                 return True
                 
@@ -1071,6 +1137,15 @@ class ACManager:
         Returns:
             bytes: 响应内容
         """
+        hexstringheader = (request_config.get("hexstringheader") or "").replace(" ", "").lower()
+        if hexstringheader == "0f29" and not request_config.get("_skip_personal_task_flow"):
+            return self.do_personal_task_query_flow(
+                account_name,
+                task_item_id=request_config.get("request_body_i2"),
+                showres=showres,
+                ads=request_config.get("ads"),
+            )
+
         # 特殊处理登录请求
         is_login_request = request_config.get("requestbodytype") == "request_login"
         
