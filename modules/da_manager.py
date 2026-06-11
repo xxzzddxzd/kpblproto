@@ -43,9 +43,22 @@ class DAManager:
         return self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
 
     def prime_activity_tracking(self):
-        """先拉取活动入口索引，让考古等活动正确累计后续动作积分。"""
-        config = {"ads": "活动入口索引", "times": 1, "hexstringheader": "017d"}
-        return self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        """先走 017d -> 0f29，让后续动作按当前个人活动入口累计积分。"""
+        return self.ac_manager.do_personal_task_query_flow(
+            self.account_name,
+            showres=self.showres,
+            ads="日常活动任务链路",
+        )
+
+    def _do_first_login_request(self, req, showres=None):
+        """执行首登请求前，显式修正个人活动链路里的动态参数。"""
+        actual_showres = self.showres if showres is None else showres
+        config = self.ac_manager.prepare_personal_activity_request(
+            self.account_name,
+            req,
+            showres=actual_showres,
+        )
+        return self.ac_manager.do_common_request(self.account_name, config, showres=actual_showres)
     
     def get_daily_config(self):
         """
@@ -1054,14 +1067,13 @@ class DAManager:
     def day_first_login(self):
         """每日首次登录请求，从 first_login_requests 模块导入"""
 
-        # for req in FIRST_LOGIN_REQUESTS:
-        self.ac_manager.do_common_request_list(self.account_name, FIRST_LOGIN_REQUESTS, showres=self.showres)
+        for req in FIRST_LOGIN_REQUESTS:
+            self._do_first_login_request(req)
 
     def day_first_login_full(self):
         """每日首次登录请求(完整)，批量执行 FIRST_LOGIN_REQUESTS_FULL，仅输出异常请求。"""
-        # self.ac_manager.do_common_request_list(self.account_name, FIRST_LOGIN_REQUESTS_FULL, showres=0)
         for req in FIRST_LOGIN_REQUESTS_FULL:
-            self.ac_manager.do_common_request(self.account_name, req, showres=0)
+            self._do_first_login_request(req, showres=0)
 
     def day_first_login_full_one(self, selector):
         """执行完整首登列表里的单个请求，selector 可为序号或 ads。"""
@@ -1085,13 +1097,13 @@ class DAManager:
                 print(f"找不到 flfull 请求: {selector}")
                 return False
         print(f"执行 flfull 单请求: {req.get('ads')} {req.get('hexstringheader')}")
-        self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+        self._do_first_login_request(req)
         return True
 
     def day_first_login_lv31(self):
         """31级账号首次登录完整请求，包含教学跳过链路"""
         for req in FIRST_LOGIN_LV31_REQUESTS:
-            self.ac_manager.do_common_request(self.account_name, req, showres=self.showres)
+            self._do_first_login_request(req)
 
     def zn_sell(self):
         req_config = {"ads":"周年庆监控","times":1,"hexstringheader":"eb2e"}

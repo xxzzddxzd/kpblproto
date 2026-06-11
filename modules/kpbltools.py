@@ -371,22 +371,73 @@ class ACManager:
             return resp
         return None
 
-    def resolve_personal_task_item_id(self, account_name, task_item_id=None, showres=1):
-        """通过 017d 响应解析当前账号的 0f29 i2 参数；不复用旧配置里的硬编码 id。"""
+    def resolve_personal_activity_entry(self, account_name, activity_id=None, showres=1):
+        """通过 017d 响应解析当前个人活动入口，返回包含 task/status id 的 entry。"""
         resp = self.query_personal_task_index(account_name, showres=showres)
-        fallback = None
         if not resp:
-            return fallback
+            return None
 
+        try:
+            target_activity_id = int(activity_id) if activity_id else None
+        except (TypeError, ValueError):
+            target_activity_id = None
+        fallback_entries = []
         for entry in resp.activity_entries:
-            if entry.personal_task_item_id and fallback is None:
-                fallback = entry.personal_task_item_id
+            has_personal_ids = entry.personal_task_item_id and entry.personal_status_item_id
+            if has_personal_ids:
+                fallback_entries.append(entry)
+            if target_activity_id and entry.activity_id == target_activity_id and has_personal_ids:
+                return entry
             if (
-                entry.activity_id == self.GHXS_PERSONAL_ACTIVITY_ID
-                and entry.personal_task_item_id
+                not target_activity_id
+                and entry.activity_id == self.GHXS_PERSONAL_ACTIVITY_ID
+                and has_personal_ids
             ):
-                return entry.personal_task_item_id
-        return fallback
+                return entry
+        if fallback_entries:
+            return max(
+                fallback_entries,
+                key=lambda entry: (
+                    entry.expire_time or 0,
+                    entry.end_time or 0,
+                    entry.activity_id or 0,
+                ),
+            )
+        return None
+
+    def resolve_personal_task_item_id(self, account_name, task_item_id=None, showres=1):
+        """通过 017d 响应解析当前账号的 0f29 i2 参数；显式传入的 id 保持兼容。"""
+        if task_item_id:
+            return int(task_item_id)
+        entry = self.resolve_personal_activity_entry(account_name, showres=showres)
+        return entry.personal_task_item_id if entry else None
+
+    def prepare_personal_activity_request(self, account_name, request_config, showres=1):
+        """显式修正个人活动链路里的动态参数，供 fl/da/kg/xs 等业务入口调用。"""
+        config = dict(request_config)
+        header = (config.get("hexstringheader") or "").replace(" ", "").lower()
+        needs_entry = header == "0f29" or header == "057d" or (
+            header == "1329" and config.get("request_body_i2")
+        )
+        if not needs_entry:
+            return config
+
+        entry = self.resolve_personal_activity_entry(account_name, showres=showres)
+        if not entry:
+            return config
+
+        if header == "0f29" and entry.personal_task_item_id:
+            config["request_body_i2"] = int(entry.personal_task_item_id)
+        elif header == "057d" and entry.activity_id:
+            config["request_body_i4"] = int(entry.activity_id)
+        elif header == "1329" and entry.personal_status_item_id:
+            try:
+                old_i2 = int(config.get("request_body_i2") or 0)
+            except (TypeError, ValueError):
+                old_i2 = 0
+            if old_i2 > 100000:
+                config["request_body_i2"] = int(entry.personal_status_item_id)
+        return config
 
     def do_personal_task_query_flow(self, account_name, task_item_id=None, showres=1, ads=None):
         """统一执行个人悬赏查询链路：先 017d 取入口 id，再 0f29 查询。"""
@@ -404,7 +455,6 @@ class ACManager:
             "times": 1,
             "hexstringheader": "0f29",
             "request_body_i2": int(resolved_task_item_id),
-            "_skip_personal_task_flow": True,
         }
         return self.do_common_request(account_name, config, showres=showres)
     
@@ -1137,15 +1187,6 @@ class ACManager:
         Returns:
             bytes: 响应内容
         """
-        hexstringheader = (request_config.get("hexstringheader") or "").replace(" ", "").lower()
-        if hexstringheader == "0f29" and not request_config.get("_skip_personal_task_flow"):
-            return self.do_personal_task_query_flow(
-                account_name,
-                task_item_id=request_config.get("request_body_i2"),
-                showres=showres,
-                ads=request_config.get("ads"),
-            )
-
         # 特殊处理登录请求
         is_login_request = request_config.get("requestbodytype") == "request_login"
         
