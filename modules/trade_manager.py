@@ -20,6 +20,7 @@ class TradeManager:
     GRC_SLOT_COUNT = 2
     GRC_DEFAULT_MAX_REFRESH = 15
     GRC_DAILY_SAIL_LIMIT = 4
+    GHGRC_MIN_GQXX = 30
     TARGET_ITEMS = {1386015, 1386016}
     TARGET_5605 = 5605
     JL_TARGET_ITEM_IDS = TARGET_ITEMS | {TARGET_5605}
@@ -311,6 +312,10 @@ class TradeManager:
         """个人船：刷新到UR后开船，不要求功勋币×200。"""
         if max_refresh is None:
             max_refresh = self.GRC_DEFAULT_MAX_REFRESH
+        gqxx = int(self.ac_manager.get_account(self.account_name, "gqxx") or 0)
+        if gqxx < self.GHGRC_MIN_GQXX:
+            print(f"<{mask_account(self.account_name)}> 关卡{gqxx} < {self.GHGRC_MIN_GQXX}，跳过ghgrc")
+            return True
         print("== 个人UR船刷新开船 ==")
         page_resp = self.enter_grc_page()
         cabins = self._grc_cabins_from_response(page_resp)

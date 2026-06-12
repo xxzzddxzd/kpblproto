@@ -20,7 +20,7 @@ class CommandDef:
     aliases: List[str] = field(default_factory=list)   # 别名
     execute: Optional[Callable] = None                 # (account_name, args, **kw) -> bool
     batch_default_args: Optional[List[str]] = None     # 批量模式默认参数
-    batch_execute: Optional[Callable] = None           # (mgr, start_from) -> None  自定义批量逻辑
+    batch_execute: Optional[Callable] = None           # (mgr, start_from[, args]) -> None  自定义批量逻辑
     batchable: bool = True                             # 是否支持 gg 批量
     guild_only: bool = False                           # 仅公会批量命令
 
@@ -1199,6 +1199,44 @@ def _batch_fl31(mgr, start_from):
     mgr._for_each_account(_fl, "31级首登+教学跳过", start_from=start_from)
 
 
+def _batch_gl(mgr, start_from, args=None):
+    """gg gl x: 每个公会小号与会长一起打宝石副本第一关 x 次。"""
+    from .gem_team_manager import run_gem_auto2
+    from .kpbltools import ACManager
+
+    args = args or []
+    if not args or not str(args[0]).isdigit():
+        print("错误: gl 需要次数参数。使用方式: gg gl <次数>")
+        return False
+    times = int(args[0])
+    if times <= 0:
+        print("错误: gl 次数必须大于0")
+        return False
+
+    leader_ac = None
+
+    def _gl(ac, name):
+        nonlocal leader_ac
+        if leader_ac is None:
+            leader_ac = ACManager(mgr.leader_account, showres=mgr.showres, delay=0)
+        print(f"    执行宝石副本: {name} glauto2 {mgr.leader_account} 1 {times}")
+        ok = run_gem_auto2(
+            name,
+            account_name_b=mgr.leader_account,
+            level=1,
+            times=times,
+            showres=mgr.showres,
+            delay=0,
+            ac_manager_a=ac,
+            ac_manager_b=leader_ac,
+        )
+        if not ok:
+            raise RuntimeError("glauto2执行失败")
+
+    mgr._for_each_account(_gl, f"宝石副本第一关x{times}", start_from=start_from)
+    return True
+
+
 # ── 命令注册表 ──────────────────────────────────────────
 
 COMMANDS = [
@@ -1258,7 +1296,7 @@ COMMANDS = [
     CommandDef(name="kg",    desc="公会考古(领奖+挖矿+汇报)", category="活动/限时", usage="[i=只领奖并统计锤子|g=只挖掘]", execute=_execute_kg),
 
     # ── 组队 / 副本 ──
-    CommandDef(name="gl",     desc="宝石副本组队监听", category="组队/副本", usage="[时长(秒)]", execute=_execute_gl, batchable=False),
+    CommandDef(name="gl",     desc="宝石副本组队监听 / gg批量第一关", category="组队/副本", usage="[时长(秒)]", batch_usage="[次数]", execute=_execute_gl, batch_execute=_batch_gl),
     CommandDef(name="glauto", desc="宝石副本自动双人(房主放弃)", category="组队/副本", execute=_execute_glauto, batchable=False),
     CommandDef(name="glauto2", desc="宝石副本自动双人(房主不放弃)", category="组队/副本", usage="[队友=default] [难度=1] [次数=10]", execute=_execute_glauto2, batchable=False),
     CommandDef(name="knjf",   desc="困难本建房", category="组队/副本", execute=_execute_knjf, batchable=False),

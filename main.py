@@ -321,7 +321,7 @@ def handle_guild_batch_command(account_name, args):
             tasks = []
             i = 0
             while i < len(raw):
-                if raw[i] in ('ac', 'sd'):
+                if raw[i] in ('ac', 'sd', 'gl'):
                     parts = [raw[i]]
                     while i + 1 < len(raw) and raw[i + 1].isdigit():
                         i += 1
@@ -396,6 +396,12 @@ def handle_guild_batch_command(account_name, args):
         print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, dy, kg, kgtest/kgt, grc, ghgrc, fl, flfull, fl31, mr, ndrwlq, check, k, i, status/s, run, xsacp, xsinit, xsgrrw, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
         return False
 
+    arg_start = 2 if len(args) > 1 and args[1].isdigit() else 1
+    if cmd.name == 'gl':
+        start = 1
+        arg_start = 1
+    batch_args = args[arg_start:] or cmd.batch_default_args or []
+
     if cmd.batch_execute:
         # 有自定义批量逻辑
         if cmd.name == 'info':
@@ -403,11 +409,15 @@ def handle_guild_batch_command(account_name, args):
             item_ids = [int(a) for a in args[1:] if a.isdigit()] or None
             mgr.batch_info(items=item_ids)
         else:
-            cmd.batch_execute(mgr, start)
+            import inspect
+            params = inspect.signature(cmd.batch_execute).parameters
+            accepts_args = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in params.values()) or len(params) >= 3
+            if accepts_args:
+                cmd.batch_execute(mgr, start, batch_args)
+            else:
+                cmd.batch_execute(mgr, start)
     else:
         # 通用路径：用 _for_each_account 包装 execute()
-        arg_start = 2 if len(args) > 1 and args[1].isdigit() else 1
-        batch_args = args[arg_start:] or cmd.batch_default_args or []
         def _run(ac, name):
             cmd.execute(name, batch_args, showres=mgr.showres, delay=mgr.delay, ac_manager=ac)
         mgr._for_each_account(_run, cmd.desc or cmd.name, start_from=start)

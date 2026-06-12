@@ -910,6 +910,26 @@ class GuildBatchManager:
             print(f"  init 不支持在pipeline中执行，请用 gg init")
             return False
 
+        if command == 'gl':
+            from .gem_team_manager import run_gem_auto2
+            times = int(command_args[0]) if command_args and command_args[0].isdigit() else 1
+            if times <= 0:
+                print("  gl 次数必须大于0")
+                return False
+            if not hasattr(self, '_gl_leader_ac'):
+                self._gl_leader_ac = ACManager(self.leader_account, showres=self.showres, delay=0)
+            print(f"  执行宝石副本: {account_name} glauto2 {self.leader_account} 1 {times}")
+            return run_gem_auto2(
+                account_name,
+                account_name_b=self.leader_account,
+                level=1,
+                times=times,
+                showres=self.showres,
+                delay=0,
+                ac_manager_a=ac_manager,
+                ac_manager_b=self._gl_leader_ac,
+            )
+
         member_level = None
         member_charaname = ''
         if command == 'fl31':
