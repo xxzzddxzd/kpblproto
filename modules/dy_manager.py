@@ -229,36 +229,55 @@ class DYManager:
         _, count = self.ac_manager.getItemIdByType(self.BAIT_TYPE)
         return count
 
+    def _status_code(self, response):
+        if not response or len(response) <= 6:
+            return None
+        try:
+            return self.ac_manager.get_status_code(response)
+        except Exception:
+            return None
+
+    def _print_short_response(self, action, response):
+        status = self._status_code(response)
+        if status is None:
+            print(f"<{mask_account(self.account_name)}> {action}失败: 无有效响应")
+        else:
+            print(f"<{mask_account(self.account_name)}> {action}失败: status={status}, len={len(response)}")
+        return status
+
     def query_fishing_area_status(self):
         """fd35: 查询钓鱼入口/区域状态。"""
         config = {"ads": "钓鱼入口状态", "times": 1, "hexstringheader": "fd35"}
         res = self.ac_manager.do_common_request(self.account_name, config, showres=0)
-        areas = []
+        areas = set()
         rankings = []
+        max_area = 0
         if not res or len(res) <= 6:
-            return areas, rankings
+            return [], rankings
 
         for field_no, wire_type, value in self._iter_proto_fields(res[6:]):
-            if field_no in (3, 4) and wire_type == 2:
+            if wire_type == 0 and field_no in (6, 8):
+                max_area = max(max_area, int(value or 0))
+            elif field_no in (3, 4) and wire_type == 2:
                 entry = self._scalar_fields(value)
-                ranking = (int(entry.get(2) or 0), int(entry.get(3) or 0))
-                if ranking[0] and ranking not in rankings:
+                area_id = int(entry.get(2) or 0)
+                ranking = (area_id, int(entry.get(3) or 0))
+                if area_id:
+                    areas.add(area_id)
+                if area_id and ranking not in rankings:
                     rankings.append(ranking)
-            elif field_no == 5 and wire_type == 2:
-                for inner_no, inner_wire, inner_value in self._iter_proto_fields(value):
-                    if inner_no == 1 and inner_wire == 2 and inner_value:
-                        area_id = inner_value[0]
-                        if area_id and area_id not in areas:
-                            areas.append(area_id)
-        areas.sort()
-        return areas, rankings
+        if max_area:
+            areas = {area_id for area_id in areas if area_id <= max_area}
+            if not areas:
+                areas = set(range(1, max_area + 1))
+        return sorted(areas), rankings
 
     def resolve_fishing_field(self, fishfield=None):
         if fishfield:
             return int(fishfield)
         areas, rankings = self.query_fishing_area_status()
         if areas:
-            selected = max(areas)
+            selected = min(areas)
             print(f"<{mask_account(self.account_name)}> 钓鱼自动区域: {selected}，可用区域={areas}")
             return selected
         print(f"<{mask_account(self.account_name)}> 未解析到钓鱼区域，默认使用区域1")
@@ -332,6 +351,11 @@ class DYManager:
                 print(f"<{mask_account(self.account_name)}> 解析钓鱼开始响应出错: {str(e)}")
                 hex_data = binascii.hexlify(start_response).decode()
                 print(f"钓鱼开始原始数据: {hex_data[:60]}...")
+        else:
+            status = self._print_short_response("钓鱼开始", start_response)
+            if status == 13701:
+                print(f"<{mask_account(self.account_name)}> 钓鱼开始条件不满足，检查区域/鱼饵或先执行 dy rw")
+            return None
         
         # 如果无法正常获取后4位，则返回0
         return "00"
@@ -393,10 +417,12 @@ class DYManager:
                 hex_data = binascii.hexlify(complete_response).decode()
                 print(f"原始数据: {hex_data}")
         else:
-            print(f"<{mask_account(self.account_name)}> 钓鱼完成，但没有收到有效响应")
+            status = self._print_short_response("钓鱼完成", complete_response)
+            if status == 702:
+                print(f"<{mask_account(self.account_name)}> 当前没有可结算的钓鱼记录，跳过完成")
         
         return 0
-    
+
     def abort_fishing(self):
         """
         执行钓鱼中止功能
@@ -410,19 +436,33 @@ class DYManager:
         "rare": ["0x99", "0x9f", "0xa5", "0xab","0x9a", "0xa0", "0xa6", "0xac","0x9b", "0xa1", "0xa7", "0xad"],
     }
 
-    def do_fishing(self, field=None, times=1, consider_abort=False):
+    def do_fishing(self, field=None, times=1, consider_abort=False, pause_on_gold=False):
         """
         执行钓鱼功能
         
         Args:
             field: 钓鱼区域，默认为4
-            times: 钓鱼次数
+            times: 钓鱼次数，<=0 表示用完当前鱼饵
             consider_abort: 是否考虑中止（当捕获普通鱼时）
+            pause_on_gold: 钓到金色鱼时是否暂停等待输入
             
         Returns:
             bool: 执行成功返回True
         """
         field = self.resolve_fishing_field(field)
+        bait_count = self.get_bait_count()
+        if bait_count <= 0:
+            print(f"<{mask_account(self.account_name)}> 鱼饵不足: {bait_count}，先执行 dy rw 领取/补钓鱼每日任务")
+            return False
+        times = int(times)
+        if times <= 0:
+            times = bait_count
+            print(f"<{mask_account(self.account_name)}> 钓鱼次数: 全部鱼饵({times})")
+        if times > bait_count:
+            print(f"<{mask_account(self.account_name)}> 鱼饵不足以执行{times}次，自动调整为{bait_count}次")
+            times = bait_count
+        print(f"<{mask_account(self.account_name)}> 当前鱼饵: {bait_count}")
+
         # 重置next_field相关的实例变量
         self.initial_next_field = None
         self.next_field_initialized = False
@@ -436,6 +476,8 @@ class DYManager:
         for i in range(times):
             # 调用钓鱼开始函数
             result = self.fishing_start(field)
+            if result is None:
+                break
             print(f"<{mask_account(self.account_name)}> 第{i+1}/{times}次钓鱼开始，结果: {result}")
             
             # 统计十六进制类型
@@ -468,7 +510,7 @@ class DYManager:
                 total_weight += current_weight
                 if current_weight > 0:
                     print(f"<{mask_account(self.account_name)}> 第{i+1}/{times}次钓鱼完成，捕获: {current_weight}g，累计: {total_weight}g")
-                    if (f"0x{hex_type}" in self.fish_hex_type_lv["gold"]):
+                    if pause_on_gold and (f"0x{hex_type}" in self.fish_hex_type_lv["gold"]):
                         input("press enter to continue")
                 else:
                     break
@@ -706,7 +748,7 @@ class DYManager:
         print(f"<{mask_account(self.account_name)}> 最终鱼饵数量: {self.get_bait_count()}")
         return True
     
-    def execute_fishing(self, field, times, consider_abort=False):
+    def execute_fishing(self, field, times, consider_abort=False, pause_on_gold=False):
         """
         执行钓鱼的接口方法，与main.py兼容
         
@@ -714,12 +756,13 @@ class DYManager:
             field: 钓鱼区域
             times: 钓鱼次数
             consider_abort: 是否考虑中止
+            pause_on_gold: 钓到金色鱼时是否暂停等待输入
             
         Returns:
             bool: 执行成功返回True
         """
         try:
-            return self.do_fishing(field, times, consider_abort)
+            return self.do_fishing(field, times, consider_abort, pause_on_gold=pause_on_gold)
         except Exception as e:
             print(f"<{mask_account(self.account_name)}> 钓鱼执行失败: {e}")
             return False

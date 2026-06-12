@@ -391,6 +391,12 @@ def _execute_dy(account_name, args, **kw):
     dy = DYManager(account_name, delay=delay, showres=showres, ac_manager=ac)
     if args and args[0] in ('rw', 'task', 'tasks'):
         return dy.run_daily_tasks()
+    field, times, consider_abort = _parse_dy_args(args, default_times=1)
+    print(f"钓鱼参数: 区域={field if field else '自动'}, 次数={times}, 中止策略={consider_abort}")
+    return dy.execute_fishing(field, times, consider_abort)
+
+
+def _parse_dy_args(args, default_times=1):
     field = None
     offset = 0
     if args and args[0] not in ('auto', 'a', '0'):
@@ -398,10 +404,9 @@ def _execute_dy(account_name, args, **kw):
         offset = 1
     elif args:
         offset = 1
-    times = int(args[offset]) if len(args) > offset else 1
+    times = int(args[offset]) if len(args) > offset else default_times
     consider_abort = int(args[offset + 1]) if len(args) > offset + 1 else 0
-    print(f"钓鱼参数: 区域={field if field else '自动'}, 次数={times}, 中止策略={consider_abort}")
-    return dy.execute_fishing(field, times, consider_abort)
+    return field, times, consider_abort
 
 
 def _execute_wk(account_name, args, **kw):
@@ -1199,6 +1204,34 @@ def _batch_fl31(mgr, start_from):
     mgr._for_each_account(_fl, "31级首登+教学跳过", start_from=start_from)
 
 
+def _batch_dy(mgr, start_from, args=None):
+    """gg dy: 默认每个公会小号用完当前鱼饵，不做交互暂停。"""
+    from .dy_manager import DYManager
+
+    args = args or []
+    if args and args[0] in ('rw', 'task', 'tasks'):
+        def _dy_tasks(ac, name):
+            DYManager(name, delay=mgr.delay, showres=mgr.showres, ac_manager=ac).run_daily_tasks()
+
+        mgr._for_each_account(_dy_tasks, "钓鱼每日任务", start_from=start_from)
+        return True
+
+    field, times, consider_abort = _parse_dy_args(args, default_times=0)
+    times_label = "全部鱼饵" if times <= 0 else f"{times}次"
+
+    def _dy(ac, name):
+        print(f"    钓鱼参数: 区域={field if field else '自动'}, 次数={times_label}, 中止策略={consider_abort}")
+        DYManager(name, delay=mgr.delay, showres=mgr.showres, ac_manager=ac).execute_fishing(
+            field,
+            times,
+            consider_abort,
+            pause_on_gold=False,
+        )
+
+    mgr._for_each_account(_dy, f"钓鱼{times_label}", start_from=start_from)
+    return True
+
+
 def _batch_gl(mgr, start_from, args=None):
     """gg gl x: 每个公会小号与会长一起打宝石副本第一关 x 次。"""
     from .gem_team_manager import run_gem_auto2
@@ -1258,7 +1291,7 @@ COMMANDS = [
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),
     CommandDef(name="xyx",   desc="幸运星",     category="日常/资源", execute=_execute_xyx),
     CommandDef(name="wk",    desc="挖矿",       category="日常/资源", usage="[once=只点一次]", execute=_execute_wk, batchable=False),
-    CommandDef(name="dy",    desc="钓鱼/钓鱼每日任务", category="日常/资源", usage="[区域=auto] [次数=1] [中止策略=0] | rw", batch_usage="[起始序号] [rw|区域=auto] [次数=1]", execute=_execute_dy),
+    CommandDef(name="dy",    desc="钓鱼/钓鱼每日任务", category="日常/资源", usage="[区域=auto] [次数=1, 0=全部] [中止策略=0] | rw", batch_usage="[起始序号] [rw|区域=auto] [次数=全部] [中止策略=0]", execute=_execute_dy, batch_execute=_batch_dy),
     CommandDef(name="cc",    desc="一键传承",   category="日常/资源", execute=_execute_cc, batchable=False),
     CommandDef(name="tf",    desc="天赋强化",   category="日常/资源", execute=_execute_tf),
     CommandDef(name="tfn",   desc="天赋强化(新版)", category="日常/资源", execute=_execute_tfn),

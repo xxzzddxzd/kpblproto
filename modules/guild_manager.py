@@ -867,6 +867,8 @@ class GuildBatchManager:
         parts = task.split()
         command = parts[0]
         command_args = parts[1:]
+        if command == 'dy' and not command_args:
+            command_args = ['auto', '0']
 
         cmd = get_command(command)
         if cmd is None:

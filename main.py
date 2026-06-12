@@ -327,6 +327,18 @@ def handle_guild_batch_command(account_name, args):
                         i += 1
                         parts.append(raw[i])
                     tasks.append(' '.join(parts))
+                elif raw[i] == 'dy':
+                    parts = [raw[i]]
+                    while (
+                        i + 1 < len(raw)
+                        and len(parts) < 4
+                        and (raw[i + 1].isdigit() or raw[i + 1] in ('auto', 'a', '0', 'rw', 'task', 'tasks'))
+                    ):
+                        i += 1
+                        parts.append(raw[i])
+                        if raw[i] in ('rw', 'task', 'tasks'):
+                            break
+                    tasks.append(' '.join(parts))
                 else:
                     tasks.append(raw[i])
                 i += 1
