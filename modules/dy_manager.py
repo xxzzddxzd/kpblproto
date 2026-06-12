@@ -5,7 +5,6 @@
 
 import logging
 import binascii
-import sys
 from . import kpbl_pb2
 from .kpbltools import ACManager, mask_account
 
@@ -19,6 +18,7 @@ class DYManager:
     SHIP_TICKET_SHOP_ID = 22100
     SHOP_EQUIP_BOX_ID = 200002
     INVENTORY_BOX_TYPE = 71
+    FIELD2_MIN_WEIGHT = 7500
 
     TASK_TARGETS = {
         104000: 1,
@@ -59,6 +59,9 @@ class DYManager:
         self.logger.addHandler(logging.StreamHandler())
         self.showres = showres
         self.last_bait_count = None
+        self.last_overall_weight = 0
+        self.last_next_field = 0
+        self.available_fishing_areas = []
         
         # 钓鱼状态追踪变量
         self.initial_next_field = None
@@ -229,6 +232,10 @@ class DYManager:
         _, count = self.ac_manager.getItemIdByType(self.BAIT_TYPE)
         return count
 
+    def get_fish_weight(self):
+        _, count = self.ac_manager.getItemIdByType(self.FISH_WEIGHT_TYPE)
+        return count
+
     def _status_code(self, response):
         if not response or len(response) <= 6:
             return None
@@ -272,13 +279,22 @@ class DYManager:
                 areas = set(range(1, max_area + 1))
         return sorted(areas), rankings
 
-    def resolve_fishing_field(self, fishfield=None):
+    def _field_for_overall_weight(self, overall_weight, areas=None):
+        areas = sorted(areas if areas is not None else self.available_fishing_areas)
+        if not areas:
+            return 1
+        if overall_weight >= self.FIELD2_MIN_WEIGHT and 2 in areas:
+            return 2
+        return min(areas)
+
+    def resolve_fishing_field(self, fishfield=None, overall_weight=0):
         if fishfield:
             return int(fishfield)
         areas, rankings = self.query_fishing_area_status()
+        self.available_fishing_areas = areas
         if areas:
-            selected = min(areas)
-            print(f"<{mask_account(self.account_name)}> 钓鱼自动区域: {selected}，可用区域={areas}")
+            selected = self._field_for_overall_weight(overall_weight, areas)
+            print(f"<{mask_account(self.account_name)}> 钓鱼自动区域: {selected}，可用区域={areas}，历史总计={overall_weight}g")
             return selected
         print(f"<{mask_account(self.account_name)}> 未解析到钓鱼区域，默认使用区域1")
         return 1
@@ -390,6 +406,8 @@ class DYManager:
                 next_field = fishing_resp.total_info.next_field if hasattr(fishing_resp, 'total_info') and hasattr(fishing_resp.total_info, 'next_field') else 0
                 if current_weight == 0 and overall_weight == 0:
                     current_weight, overall_weight, next_field = self._extract_new_complete_info(data)
+                self.last_overall_weight = overall_weight
+                self.last_next_field = next_field
                 
                 # 如果next_field还未初始化，则记录初始值
                 if not self.next_field_initialized and next_field > 0:
@@ -400,8 +418,7 @@ class DYManager:
                 # 检查next_field是否发生变化
                 if self.next_field_initialized and next_field != self.initial_next_field and next_field > 0:
                     print(f"<{mask_account(self.account_name)}> next_field已变化! 初始值: {self.initial_next_field}, 当前值: {next_field}")
-                    print(f"<{mask_account(self.account_name)}> 目标已达成，程序将退出...")
-                    sys.exit(0)  # 退出程序
+                    self.initial_next_field = next_field
                 
                 # 打印结果
                 if next_field > 0:
@@ -449,7 +466,11 @@ class DYManager:
         Returns:
             bool: 执行成功返回True
         """
-        field = self.resolve_fishing_field(field)
+        auto_field = field is None
+        initial_overall_weight = self.get_fish_weight() if auto_field else 0
+        self.last_overall_weight = initial_overall_weight
+        self.last_next_field = 0
+        field = self.resolve_fishing_field(field, initial_overall_weight)
         bait_count = self.get_bait_count()
         if bait_count <= 0:
             print(f"<{mask_account(self.account_name)}> 鱼饵不足: {bait_count}，先执行 dy rw 领取/补钓鱼每日任务")
@@ -510,6 +531,11 @@ class DYManager:
                 total_weight += current_weight
                 if current_weight > 0:
                     print(f"<{mask_account(self.account_name)}> 第{i+1}/{times}次钓鱼完成，捕获: {current_weight}g，累计: {total_weight}g")
+                    if auto_field:
+                        next_field = self._field_for_overall_weight(self.last_overall_weight)
+                        if next_field != field:
+                            print(f"<{mask_account(self.account_name)}> 历史总计 {self.last_overall_weight}g，自动切换钓鱼区域: {field} -> {next_field}")
+                            field = next_field
                     if pause_on_gold and (f"0x{hex_type}" in self.fish_hex_type_lv["gold"]):
                         input("press enter to continue")
                 else:
