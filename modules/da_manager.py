@@ -80,7 +80,7 @@ class DAManager:
             # {"ads":"异星矿场广告","hexstringheader":"a52c","times":1,"request_body_i2":2505027,'request_body_i3':1201},
             # {"ads":"星域礼包","hexstringheader":"a52c","times":2,"request_body_i2":2505025,'request_body_i3':1072},
             # {"ads":"星域礼包-武装","hexstringheader":"a52c","times":1,"request_body_i2":2505026,'request_body_i3':1080},
-            # {"ads":"星域 挖矿礼包","hexstringheader":"a52c","times":1,"request_body_i2":2505024,'request_body_i3':1090},
+            {"ads":"端午礼包","hexstringheader":"a52c","times":1,"request_body_i2":202606151,'request_body_i3':9137},
             {"ads":"盲盒机礼包","hexstringheader":"a52c","times":1,"request_body_i2":202512227,'request_body_i3':3010},
             {"ads":"盲盒机礼包","hexstringheader":"a52c","times":1,"request_body_i2":202512227,'request_body_i3':3020},
 
