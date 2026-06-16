@@ -1091,6 +1091,65 @@ def _execute_ghxs(account_name, args, **kw):
     return True
 
 
+def _execute_xsgrrw(account_name, args, **kw):
+    from .ghxs_manager import GHXSManager
+    showres = kw.get('showres', 0)
+    delay = kw.get('delay', 0)
+    ac = kw.get('ac_manager')
+    ghxs = GHXSManager(account_name, delay=delay, showres=showres, ac_manager=ac)
+    personal_task_item_id = None
+    if args:
+        try:
+            personal_task_item_id = int(args[0])
+        except ValueError:
+            print(f"个人任务item_id无效: {args[0]}")
+            return False
+
+    personal_entries = ghxs.personal_task_entries(task_item_id=personal_task_item_id)
+    if not personal_entries:
+        print("个人任务未获取到")
+        return False
+
+    def _summary(entries):
+        parts = []
+        for _, task_id, progress in entries:
+            label = ghxs.format_personal_task_type(task_id) or str(task_id)
+            target = ghxs.personal_task_target(task_id)
+            status = f"{progress}/{target}" if target else str(progress)
+            parts.append(f"{label}({task_id})={status}")
+        return ", ".join(parts)
+
+    actual_item_id = personal_entries[0][0]
+    print(f"当前个人任务[item={actual_item_id}]: {_summary(personal_entries)}")
+
+    completed = 0
+    failed = 0
+    skipped = 0
+    gulu_partner_ac_cache = {}
+    for task_item_id, task_id, progress in personal_entries:
+        result = ghxs.run_personal_task_entry(
+            task_item_id,
+            task_id,
+            progress,
+            gulu_partner_ac_cache=gulu_partner_ac_cache,
+            submit_only=True,
+        )
+        if result is None:
+            skipped += 1
+        elif result:
+            completed += 1
+        else:
+            failed += 1
+
+    updated_entries = ghxs.personal_task_entries(task_item_id=personal_task_item_id)
+    if updated_entries:
+        print(f"更新后个人任务: {_summary(updated_entries)}")
+    if completed == 0 and failed == 0 and skipped:
+        print("已获取个人任务，但没有已达成可提交的任务")
+    print(f"悬赏个人任务完成: 完成 {completed}, 失败 {failed}, 未提交 {skipped}")
+    return failed == 0
+
+
 def _execute_sl(account_name, args, **kw):
     import main
     from .kpbltools import ACManager
@@ -1347,6 +1406,8 @@ COMMANDS = [
     CommandDef(name="rn",    desc="新账号(批量)", category="武道/其他", execute=_execute_rn, batchable=False),
     CommandDef(name="rns",   desc="新账号(样本)", category="武道/其他", execute=_execute_rns, batchable=False),
     CommandDef(name="ghxs",  desc="公会悬赏查询", category="武道/其他", usage="[个人任务item_id]", execute=_execute_ghxs, batchable=False),
+    CommandDef(name="xsgrrw", desc="悬赏个人任务", category="悬赏/船票", usage="[个人任务item_id]", batch_usage="[起始序号]",
+              execute=_execute_xsgrrw, batch_execute=lambda mgr, start_from: mgr.batch_xsgrrw(start_from=start_from)),
 
     # ── 公会批量专属（guild_only） ──
     CommandDef(name="donate", desc="捐献", category="公会管理", usage="[起始序号]", aliases=["d", "jz"], execute=_execute_donate_single, guild_only=True),
@@ -1368,10 +1429,10 @@ COMMANDS = [
               batch_execute=None),  # 需要 init_func，在 handle_guild_batch_command 中特殊处理
     CommandDef(name="xsacp", desc="悬赏接受(已配置任务全流程)", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acp(start_from=start_from)),
+    CommandDef(name="xs", desc="悬赏自动流程(个人任务+已配置公会任务+累计奖励)", category="悬赏/船票", usage="[起始序号]", guild_only=True,
+              batch_execute=lambda mgr, start_from: mgr.batch_xs(start_from=start_from)),
     CommandDef(name="xsinit", desc="悬赏初始化查询", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_xsinit(start_from=start_from)),
-    CommandDef(name="xsgrrw", desc="悬赏个人任务", category="悬赏/船票", usage="[起始序号]", guild_only=True,
-              batch_execute=lambda mgr, start_from: mgr.batch_xsgrrw(start_from=start_from)),
     CommandDef(name="xsacpb", desc="悬赏接受后放弃", category="悬赏/船票", usage="[起始序号]", guild_only=True,
               batch_execute=lambda mgr, start_from: mgr.batch_acpb(start_from=start_from)),
     CommandDef(name="xs12r", desc="悬赏自动刷非金", category="悬赏/船票", usage="[起始序号]", guild_only=True,

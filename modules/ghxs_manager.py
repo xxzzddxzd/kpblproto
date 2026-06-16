@@ -16,6 +16,7 @@ class GHXSManager:
         201003: "n-1ur船",
         201004: "n-50次挖矿",
         201005: "n-100体力",
+        201006: "n-1次咕噜",
         
         201102: "r-10次任意副本",
         201103: "r-2ur船",
@@ -31,6 +32,9 @@ class GHXSManager:
         203207: "s-1500次宠物蛋",
         204107: "r-开宝箱650分",
         204207: "s-开宝箱2000分",
+        202107: "r-2000灵石",
+        202207: "s-6000灵石",
+        202208: "s-30次秘宝宝箱",
 
         # 205xxx: 今日公会悬赏任务类型。不要归并到201xxx，部分code语义不同。
         205001: "n-2次公会讨伐",
@@ -44,7 +48,7 @@ class GHXSManager:
         205208: "s-6个魔方",
     }
     PERSONAL_TASK_TYPE_MAP = {
-        # 1405xxx: 公会悬赏个人任务ID，走1129提交/领取，不需要2178接取。
+        # 140x00x: 公会悬赏个人任务ID，走1129提交/领取，不需要2178接取。
         # 抓包确认: c72b宝石箱10连后 field60 {1: task_item_id, 2 {1: 1405006, 2: 10}}。
         1405001: "n-2次公会讨伐",
         1405002: "n-3次pvp",
@@ -53,6 +57,17 @@ class GHXSManager:
         1405005: "r-2次咕噜",
         1405006: "r-10次宝石箱",
         1405007: "r-100体力",
+        1402005: "r-2次公会个人船",
+        1402006: "r-2000灵石",
+    }
+    PERSONAL_TASK_TYPE_BY_CODE = {
+        1: "n-2次公会讨伐",
+        2: "n-3次pvp",
+        3: "r-10次任意副本",
+        4: "r-100次挖矿",
+        5: "r-2次咕噜",
+        6: "r-10次宝石箱",
+        7: "r-100体力",
     }
     TASK_RARITY_MAP = {
         0: "n",  # 普通
@@ -117,7 +132,15 @@ class GHXSManager:
     @classmethod
     def format_personal_task_type(cls, task_id):
         """将个人悬赏 task_id 转为可读名称。"""
-        return cls.PERSONAL_TASK_TYPE_MAP.get(task_id)
+        task_id = int(task_id)
+        return cls.PERSONAL_TASK_TYPE_MAP.get(task_id) or cls.PERSONAL_TASK_TYPE_BY_CODE.get(cls.personal_task_code(task_id))
+
+    @classmethod
+    def personal_task_code(cls, task_id):
+        task_id = int(task_id)
+        if 1400000 <= task_id < 1500000:
+            return task_id % 100
+        return None
 
     @classmethod
     def is_gold_task(cls, type_id):
@@ -187,6 +210,58 @@ class GHXSManager:
         config = {"ads": f"悬赏进度奖励{reward_id}", "times": 1, "hexstringheader": "2978", "request_body_i2": reward_id}
         response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
         return response and len(response) > 20
+
+    def resolve_personal_status_item_id(self, status_item_id=None):
+        """解析当前账号个人悬赏累计积分入口 id，用于 1329。"""
+        if status_item_id:
+            return int(status_item_id)
+        entry = self.ac_manager.resolve_personal_activity_entry(
+            self.account_name,
+            showres=self.showres,
+        )
+        return entry.personal_status_item_id if entry else None
+
+    def claim_personal_score_reward(self, status_item_id=None):
+        """领取个人悬赏累计积分奖励(1329)。i2 来自 017d 的 personal_status_item_id。"""
+        status_item_id = self.resolve_personal_status_item_id(status_item_id)
+        if not status_item_id:
+            print(f"<{mask_account(self.account_name)}> ✗ 未找到个人累计积分入口")
+            return False
+        config = {
+            "ads": "悬赏个人累计积分奖励",
+            "times": 1,
+            "hexstringheader": "1329",
+            "request_body_i2": int(status_item_id),
+        }
+        response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        return response and len(response) > 20
+
+    def claim_all_personal_score_rewards(self):
+        """1329 是按当前入口一次领取可领的个人累计积分奖励。"""
+        if self.claim_personal_score_reward():
+            print(f"<{mask_account(self.account_name)}> ✓ 领取个人累计积分奖励")
+            return 1
+        print(f"<{mask_account(self.account_name)}> 无新的个人累计积分奖励可领")
+        return 0
+
+    def claim_guild_score_reward(self, reward_id=1):
+        """领取公会整体悬赏累计积分奖励(2b78)。抓包 0616 确认为 i2=1。"""
+        config = {
+            "ads": f"悬赏公会累计积分奖励{reward_id}",
+            "times": 1,
+            "hexstringheader": "2b78",
+            "request_body_i2": int(reward_id),
+        }
+        response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
+        return response and len(response) > 20
+
+    def claim_all_guild_score_rewards(self):
+        """领取公会整体悬赏累计积分奖励（2b78）。"""
+        if self.claim_guild_score_reward(1):
+            print(f"<{mask_account(self.account_name)}> ✓ 领取公会累计积分奖励")
+            return 1
+        print(f"<{mask_account(self.account_name)}> 无新的公会累计积分奖励可领")
+        return 0
 
     def submit_personal_task(self, task_item_id, task_id):
         """提交/领取公会悬赏个人任务(1129)。抓包示例: i2=4145193, i3=1405006。"""
@@ -269,6 +344,18 @@ class GHXSManager:
             "label": "S钥匙装备gacha",
             "required_keys": 30,
         },
+        201005: {
+            "kind": "youli",
+            "label": "体力游历",
+            "times": 1,
+            "bio": 20,
+        },
+        201105: {
+            "kind": "youli",
+            "label": "体力游历",
+            "times": 1,
+            "bio": 20,
+        },
         203107: {
             "kind": "pet_egg",
             "label": "宠物蛋10连",
@@ -297,6 +384,12 @@ class GHXSManager:
             "draw_count": 10,
             "request_times": 1,
         },
+        205105: {
+            "kind": "youli",
+            "label": "体力游历",
+            "times": 1,
+            "bio": 20,
+        },
         205207: {
             "kind": "gem_chest",
             "label": "公会S宝石箱30个",
@@ -305,37 +398,49 @@ class GHXSManager:
         },
     }
     PERSONAL_TASK_FLOW_CONFIGS = {
-        1405002: {
+        2: {
             "kind": "pvp",
             "label": "个人PVP",
             "target": 3,
         },
-        1405003: {
+        3: {
             "kind": "dungeon",
             "label": "个人任意副本",
             "target": 10,
         },
-        1405005: {
+        5: {
             "kind": "gulu",
             "label": "个人咕噜",
             "target": 2,
             "partner_account": "dh",
             "level": 1,
         },
-        1405006: {
+        6: {
             "kind": "personal_gem_chest",
             "label": "个人宝石箱10个",
             "target": 10,
             "draw_count": 10,
             "request_times": 1,
         },
-        1405007: {
+        7: {
             "kind": "youli",
             "label": "个人体力消耗100",
             "target": 100,
             "consume_per_run": 100,
             "bio": 20,
         },
+    }
+    PERSONAL_TASK_NO_FLOW = {1402005, 1402006}
+    PERSONAL_TASK_TARGETS = {
+        1402005: 2,
+        1402006: 2000,
+        1: 2,
+        2: 3,
+        3: 10,
+        4: 100,
+        5: 2,
+        6: 10,
+        7: 100,
     }
 
     # 兼容旧代码：需要走钥匙全流程的悬赏任务类型 → 所需钥匙数量。
@@ -367,7 +472,24 @@ class GHXSManager:
 
     @classmethod
     def personal_task_flow_config(cls, task_id):
-        return cls.PERSONAL_TASK_FLOW_CONFIGS.get(task_id)
+        task_id = int(task_id)
+        if task_id in cls.PERSONAL_TASK_NO_FLOW:
+            return None
+        return cls.PERSONAL_TASK_FLOW_CONFIGS.get(task_id) or cls.PERSONAL_TASK_FLOW_CONFIGS.get(cls.personal_task_code(task_id))
+
+    @classmethod
+    def personal_task_target(cls, task_id):
+        """返回个人悬赏任务目标值；没有执行流程的任务也需要用它判断能否提交。"""
+        task_id = int(task_id)
+        explicit_target = cls.PERSONAL_TASK_TARGETS.get(task_id)
+        if explicit_target:
+            return int(explicit_target)
+        config = cls.personal_task_flow_config(task_id) or {}
+        for key in ("target", "draw_count"):
+            value = config.get(key)
+            if value:
+                return int(value)
+        return int(cls.PERSONAL_TASK_TARGETS.get(task_id, cls.PERSONAL_TASK_TARGETS.get(cls.personal_task_code(task_id), 0)))
 
     def _resolve_task_uuid(self, task_uuid, task_type_id):
         """没有传 uuid 时，从当前悬赏池里找同类型任务。"""
@@ -550,6 +672,123 @@ class GHXSManager:
         }
         response = self.ac_manager.do_common_request(self.account_name, config, showres=self.showres)
         return response and len(response) > 20
+
+    @staticmethod
+    def personal_dungeon_plan(times):
+        times = int(times)
+        if times <= 0:
+            return []
+        dungeon_types = (1, 2, 3, 4)
+        base, remainder = divmod(times, len(dungeon_types))
+        plan = []
+        for idx, dungeon_type in enumerate(dungeon_types):
+            count = base + (1 if idx < remainder else 0)
+            if count > 0:
+                plan.append((dungeon_type, count))
+        return plan
+
+    def execute_personal_task_action(self, config, remaining, gulu_partner_ac_cache=None):
+        kind = config.get("kind")
+        if kind == "pvp":
+            from .da_manager import DAManager
+            print(f"    执行PVP x{remaining}")
+            return DAManager(
+                self.account_name,
+                showres=self.showres,
+                delay=self.delay,
+                ac_manager=self.ac_manager,
+            ).dopvp_times(remaining, init=True)
+
+        if kind == "youli":
+            from .yl_manager import YLManager
+            bio = int(config.get("bio", 20))
+            consume_per_run = int(config.get("consume_per_run", 100))
+            times = max(1, (int(remaining) + consume_per_run - 1) // consume_per_run)
+            print(f"    执行游历: {bio}倍 x{times}")
+            return YLManager(
+                self.account_name,
+                showres=self.showres,
+                delay=self.delay,
+                ac_manager=self.ac_manager,
+            ).do_youli_with_params(bio, None, times, 0)
+
+        if kind == "dungeon":
+            from .da_manager import DAManager
+            plan = self.personal_dungeon_plan(remaining)
+            plan_text = ", ".join(f"sd {dungeon_type} x{times}" for dungeon_type, times in plan)
+            print(f"    执行副本扫荡: {plan_text}")
+            da = DAManager(
+                self.account_name,
+                showres=self.showres,
+                delay=self.delay,
+                ac_manager=self.ac_manager,
+            )
+            for dungeon_type, times in plan:
+                da.saodang(dungeon_type, 0, times)
+            return True
+
+        if kind == "gulu":
+            from .gem_team_manager import run_gem_auto2
+            partner = config.get("partner_account", "dh")
+            level = int(config.get("level", 1))
+            times = int(remaining)
+            partner_ac = None
+            if gulu_partner_ac_cache is not None:
+                partner_ac = gulu_partner_ac_cache.get(partner)
+                if partner_ac is None:
+                    partner_ac = ACManager(partner, showres=self.showres, delay=0)
+                    gulu_partner_ac_cache[partner] = partner_ac
+            print(f"    执行咕噜: {self.account_name} glauto2 {partner} {level} {times}")
+            return run_gem_auto2(
+                self.account_name,
+                account_name_b=partner,
+                level=level,
+                times=times,
+                showres=self.showres,
+                delay=0,
+                ac_manager_a=self.ac_manager,
+                ac_manager_b=partner_ac,
+            )
+
+        if kind in ("personal_gem_chest", "gem_chest"):
+            request_times = max(1, (int(remaining) + 9) // 10)
+            print(f"    执行宝石箱10连 x{request_times}")
+            return self.use_gem_chests(request_times=request_times)
+
+        print(f"    未支持的个人任务流程类型: {kind}")
+        return False
+
+    def run_personal_task_entry(self, task_item_id, task_id, progress, gulu_partner_ac_cache=None, submit_only=True):
+        task_id = int(task_id)
+        progress = int(progress)
+        config = self.personal_task_flow_config(task_id)
+        label = self.format_personal_task_type(task_id) or (config or {}).get("label") or str(task_id)
+        target = self.personal_task_target(task_id)
+        remaining = max(0, target - progress) if target else 0
+        status = f"{progress}/{target}" if target else str(progress)
+
+        if remaining > 0:
+            if submit_only:
+                print(f"  - {label}({task_id}) 未达成({status})，只提交模式跳过")
+                return None
+            if not config:
+                print(f"  - {label}({task_id}) 进度 {status}: 未配置流程，未达成，跳过")
+                return None
+            print(f"  - {label}({task_id}) 进度 {status}，补 {remaining}")
+            if not self.execute_personal_task_action(config, remaining, gulu_partner_ac_cache):
+                print(f"    ✗ {label}动作失败，跳过提交")
+                return False
+        else:
+            if not target and not config:
+                print(f"  - {label}({task_id})={progress}: 未配置目标/流程，跳过")
+                return None
+            print(f"  - {label}({task_id}) 已达成({status})，提交")
+
+        if self.submit_personal_task(task_item_id, task_id):
+            print(f"    ✓ {label}提交成功")
+            return True
+        print(f"    ✗ {label}提交失败")
+        return False
 
     def claim_all_score_rewards(self):
         """遍历领取所有进度奖励（无API查已领状态，逐个尝试，已领的会自动跳过）"""
@@ -760,6 +999,50 @@ class GHXSManager:
         print(f"<{mask_account(self.account_name)}> ═══ 宝石箱任务全流程完成 ═══\n")
         return True
 
+    def run_youli_task(self, task_uuid=None, task_type_id=201105):
+        """
+        体力悬赏全流程：
+        1. 接任务
+        2. 执行 yl 1 次
+        3. 交公会悬赏
+        4. 领进度奖励
+        """
+        config = self.task_flow_config(task_type_id) or {}
+        times = int(config.get("times", 1))
+        bio = int(config.get("bio", 20))
+        task_name = self.format_task_type(task_type_id) or str(task_type_id)
+        print(f"\n<{mask_account(self.account_name)}> ═══ 开始体力任务: {task_name} (yl x{times}) ═══")
+
+        task_uuid = self._resolve_task_uuid(task_uuid, task_type_id)
+        if not task_uuid:
+            return False
+        if not self._accept_resolved_task(task_uuid, task_type_id):
+            return False
+
+        from .yl_manager import YLManager
+        print(f"<{mask_account(self.account_name)}> 执行游历: {bio}倍 x{times}")
+        if not YLManager(
+            self.account_name,
+            showres=self.showres,
+            delay=self.delay,
+            ac_manager=self.ac_manager,
+        ).do_youli_with_params(bio, None, times, 0):
+            print(f"<{mask_account(self.account_name)}> ✗ 游历失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 游历完成")
+
+        print(f"<{mask_account(self.account_name)}> 交任务...")
+        if not self.complete():
+            print(f"<{mask_account(self.account_name)}> ✗ 交任务失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 任务完成")
+
+        print(f"<{mask_account(self.account_name)}> 领取进度奖励...")
+        self.claim_all_score_rewards()
+
+        print(f"<{mask_account(self.account_name)}> ═══ 体力任务全流程完成 ═══\n")
+        return True
+
     def run_personal_gem_chest_task(self, task_item_id=None, task_id=1405006, open_chests=True):
         """
         个人宝石箱任务流程：
@@ -806,5 +1089,7 @@ class GHXSManager:
             return self.run_open_box_task(task_uuid=task_uuid, task_type_id=task_type_id)
         if kind == "gem_chest":
             return self.run_gem_chest_task(task_uuid=task_uuid, task_type_id=task_type_id)
+        if kind == "youli":
+            return self.run_youli_task(task_uuid=task_uuid, task_type_id=task_type_id)
         print(f"<{mask_account(self.account_name)}> 未支持的任务流程类型: {kind}")
         return False

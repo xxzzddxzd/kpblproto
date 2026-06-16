@@ -1445,14 +1445,14 @@ class GuildBatchManager:
         return failed == 0
 
     def batch_xsgrrw(self, start_from=1):
-        """遍历当前公会成员，执行已配置的公会悬赏个人任务并提交。"""
+        """遍历当前公会成员，提交已达成的公会悬赏个人任务。"""
         from .ghxs_manager import GHXSManager
 
         total = len(self.guild_accounts)
         completed = 0
         failed = 0
         skipped = 0
-        unsupported = 0
+        skipped_tasks = 0
         save_needed = False
         gulu_partner_ac_cache = {}
 
@@ -1492,7 +1492,7 @@ class GuildBatchManager:
                         gulu_partner_ac_cache,
                     )
                     if result is None:
-                        unsupported += 1
+                        skipped_tasks += 1
                         continue
                     ran_supported = True
                     if result:
@@ -1501,7 +1501,7 @@ class GuildBatchManager:
                         failed += 1
 
                 if not ran_supported:
-                    print("  已获取个人任务，但没有已配置流程的任务")
+                    print("  已获取个人任务，但没有已达成可提交的任务")
 
                 updated_entries = ghxs.personal_task_entries()
                 if updated_entries:
@@ -1521,120 +1521,128 @@ class GuildBatchManager:
         if save_needed:
             self._save_guild_accounts()
             print(f"已保存到 {self.accounts_file}")
-        print(f"悬赏个人任务完成: 完成 {completed}, 失败 {failed}, 跳过账号 {skipped}, 未配置任务 {unsupported}")
+        print(f"悬赏个人任务完成: 完成 {completed}, 失败 {failed}, 跳过账号 {skipped}, 未提交任务 {skipped_tasks}")
         return failed == 0
 
-    @staticmethod
-    def _xsgrrw_dungeon_plan(times):
-        times = int(times)
-        if times <= 0:
-            return []
-        dungeon_types = (1, 2, 3, 4)
-        base, remainder = divmod(times, len(dungeon_types))
-        plan = []
-        for idx, dungeon_type in enumerate(dungeon_types):
-            count = base + (1 if idx < remainder else 0)
-            if count > 0:
-                plan.append((dungeon_type, count))
-        return plan
-
-    @staticmethod
-    def _xsgrrw_personal_flow_config(ghxs, task_id):
-        task_id = int(task_id)
-        config = ghxs.personal_task_flow_config(task_id)
-        if config:
-            return config
-        label = ghxs.format_personal_task_type(task_id) or ""
-        if "体力" in label:
-            return {
-                "kind": "youli",
-                "label": "个人体力消耗100",
-                "target": 100,
-                "consume_per_run": 100,
-                "bio": 20,
-            }
-        return None
-
     def _run_xsgrrw_personal_task(self, acname, ac, ghxs, task_item_id, task_id, progress, gulu_partner_ac_cache=None):
-        config = self._xsgrrw_personal_flow_config(ghxs, task_id)
-        label = ghxs.format_personal_task_type(task_id) or (config or {}).get("label") or str(task_id)
-        if not config:
-            print(f"  - {label}({task_id})={progress}: 未配置流程，跳过")
-            return None
+        return ghxs.run_personal_task_entry(
+            task_item_id,
+            task_id,
+            progress,
+            gulu_partner_ac_cache=gulu_partner_ac_cache,
+            submit_only=True,
+        )
 
-        target = int(config.get("target", config.get("draw_count", 0)))
-        progress = int(progress)
-        remaining = max(0, target - progress)
-        status = f"{progress}/{target}" if target else str(progress)
-        if remaining > 0:
-            print(f"  - {label}({task_id}) 进度 {status}，补 {remaining}")
-            if not self._execute_xsgrrw_personal_action(acname, ac, ghxs, config, remaining, gulu_partner_ac_cache):
-                print(f"    ✗ {label}动作失败，跳过提交")
-                return False
-        else:
-            print(f"  - {label}({task_id}) 已达成({status})，提交")
+    def _xs_eligible_accounts(self, start_from=1):
+        accounts = []
+        total = len(self.guild_accounts)
+        for idx, acname in enumerate(self.guild_accounts.keys(), 1):
+            if idx < start_from:
+                continue
+            sid = self.guild_accounts[acname]['server_id']
+            if not self._is_guild_member(acname):
+                print(f"[{idx}/{total}] {acname} ({sid}) — 非公会成员，xs跳过")
+                continue
+            accounts.append((idx, acname, sid))
+        return accounts
 
-        if ghxs.submit_personal_task(task_item_id, task_id):
-            print(f"    ✓ {label}提交成功")
-            return True
-        print(f"    ✗ {label}提交失败")
-        return False
+    def _claim_xs_score_rewards(self, accounts):
+        from .ghxs_manager import GHXSManager
 
-    def _execute_xsgrrw_personal_action(self, acname, ac, ghxs, config, remaining, gulu_partner_ac_cache=None):
-        kind = config.get("kind")
-        if kind == "pvp":
-            from .da_manager import DAManager
-            print(f"    执行PVP x{remaining}")
-            return DAManager(acname, showres=self.showres, delay=self.delay, ac_manager=ac).dopvp_times(remaining, init=True)
+        reward_targets = [(0, self.leader_account, None)] + accounts
+        personal_claimed = 0
+        guild_claimed = 0
+        failed = 0
+        print("\n══════ 领取悬赏累计积分奖励 ══════")
+        for idx, acname, sid in reward_targets:
+            label = f"{acname}" if idx == 0 else f"{acname} ({sid})"
+            print(f"[奖励] {label}")
+            try:
+                if idx == 0:
+                    ac = ACManager(acname, showres=self.showres, delay=self.delay)
+                else:
+                    ac = ACManager(acname, accounts_file=self.accounts_file, showres=self.showres, delay=self.delay)
+                ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres, ac_manager=ac)
+                personal_claimed += ghxs.claim_all_personal_score_rewards()
+                guild_claimed += ghxs.claim_all_guild_score_rewards()
+            except Exception as e:
+                failed += 1
+                print(f"  ✗ 领取奖励异常: {e}")
+        print(f"悬赏累计积分奖励领取完成: 个人 {personal_claimed}, 公会 {guild_claimed}, 失败账号 {failed}")
+        return failed == 0
 
-        if kind == "youli":
-            from .yl_manager import YLManager
-            bio = int(config.get("bio", 20))
-            consume_per_run = int(config.get("consume_per_run", 100))
-            times = max(1, (int(remaining) + consume_per_run - 1) // consume_per_run)
-            print(f"    执行游历: {bio}倍 x{times}")
-            return YLManager(acname, showres=self.showres, delay=self.delay, ac_manager=ac).do_youli_with_params(bio, None, times, 0)
+    def batch_xs(self, start_from=1):
+        """自动悬赏：提交个人任务，执行已配置公会悬赏流程，最后领取个人/公会累计积分奖励。"""
+        from .ghxs_manager import GHXSManager
 
-        if kind == "dungeon":
-            from .da_manager import DAManager
-            plan = self._xsgrrw_dungeon_plan(remaining)
-            plan_text = ", ".join(f"sd {dungeon_type} x{times}" for dungeon_type, times in plan)
-            print(f"    执行副本扫荡: {plan_text}")
-            da = DAManager(acname, showres=self.showres, delay=self.delay, ac_manager=ac)
-            for dungeon_type, times in plan:
-                da.saodang(dungeon_type, 0, times)
-            return True
+        print("══════ 步骤1: 提交悬赏个人任务 ══════")
+        self.batch_xsgrrw(start_from=start_from)
 
-        if kind == "gulu":
-            from .gem_team_manager import run_gem_auto2
-            partner = config.get("partner_account", "dh")
-            level = int(config.get("level", 1))
-            times = int(remaining)
-            partner_ac = None
-            if gulu_partner_ac_cache is not None:
-                partner_ac = gulu_partner_ac_cache.get(partner)
-                if partner_ac is None:
-                    partner_ac = ACManager(partner, showres=self.showres, delay=0)
-                    gulu_partner_ac_cache[partner] = partner_ac
-            print(f"    执行咕噜: {acname} glauto2 {partner} {level} {times}")
-            return run_gem_auto2(
-                acname,
-                account_name_b=partner,
-                level=level,
-                times=times,
-                showres=self.showres,
-                delay=0,
-                ac_manager_a=ac,
-                ac_manager_b=partner_ac,
-            )
+        accounts = self._xs_eligible_accounts(start_from=start_from)
+        total_accounts = len(accounts)
+        if not accounts:
+            print("没有可用公会成员账号，跳过公会悬赏流程")
+            return self._claim_xs_score_rewards(accounts)
 
-        if kind in ("personal_gem_chest", "gem_chest"):
-            request_times = max(1, (int(remaining) + 9) // 10)
-            print(f"    执行宝石箱10连 x{request_times}")
-            return ghxs.use_gem_chests(request_times=request_times)
+        print("\n══════ 步骤2: 执行已配置公会悬赏流程 ══════")
+        account_pos = 0
+        completed = 0
+        failed = 0
+        no_flow_rounds = 0
 
-        print(f"    未支持的个人任务流程类型: {kind}")
-        return False
+        while account_pos < total_accounts:
+            ghxs_leader = GHXSManager(self.leader_account, showres=self.showres, delay=self.delay)
+            resp = ghxs_leader.query()
+            if not resp or not resp.task_entries:
+                print("查询公会悬赏失败或无任务，停止流程执行")
+                break
+
+            current_score = resp.field9 if resp.field9 else 0
+            flow_tasks = [
+                task for task in resp.task_entries
+                if GHXSManager.task_flow_config(task.task_type_id)
+            ]
+            if not flow_tasks:
+                _, _, summary = self._summarize_xs_tasks(ghxs_leader, resp.task_entries)
+                print(f"当前悬赏积分: {current_score}；没有已配置流程的任务。任务池: {summary}")
+                no_flow_rounds += 1
+                break
+
+            # 优先执行任务池中第一个已配置流程任务；完成后重新查询任务池。
+            task = flow_tasks[0]
+            flow_config = GHXSManager.task_flow_config(task.task_type_id) or {}
+            task_label = ghxs_leader.format_task_type(task.task_type_id) or str(task.task_type_id)
+            print(f"当前悬赏积分: {current_score}；目标任务: {task_label}({task.task_type_id}) / {flow_config.get('label')}")
+
+            task_done = False
+            while account_pos < total_accounts:
+                idx, acname, sid = accounts[account_pos]
+                account_pos += 1
+                print(f"[{idx}/{len(self.guild_accounts)}] {acname} ({sid}) — {flow_config.get('label')}全流程")
+                try:
+                    ac = ACManager(acname, accounts_file=self.accounts_file, showres=self.showres, delay=self.delay)
+                    ghxs = GHXSManager(acname, delay=self.delay, showres=self.showres, ac_manager=ac)
+                    if ghxs.run_task_flow(task_uuid=task.task_uuid, task_type_id=task.task_type_id):
+                        print(f"  ✓ {acname} 全流程完成")
+                        completed += 1
+                        task_done = True
+                        break
+                    print(f"  ✗ {acname} 执行失败(资源不够或其他原因)")
+                    failed += 1
+                except Exception as e:
+                    failed += 1
+                    print(f"  ✗ {acname} 异常: {e}")
+
+            if not task_done:
+                print("当前任务没有账号完成，停止流程执行")
+                break
+
+        if account_pos >= total_accounts:
+            print("可用账号次数已耗尽")
+        print(f"公会悬赏流程完成: 完成 {completed}, 失败 {failed}, 未配置轮次 {no_flow_rounds}")
+
+        rewards_ok = self._claim_xs_score_rewards(accounts)
+        return failed == 0 and rewards_ok
 
     @staticmethod
     def _summarize_xs_tasks(ghxs_leader, tasks):
