@@ -413,7 +413,8 @@ def _execute_wk(account_name, args, **kw):
     print("开始执行挖矿...")
     from .wk_manager import WKManager
     showres = kw.get('showres', 0)
-    wk = WKManager(account_name, showres=showres)
+    ac = kw.get('ac_manager')
+    wk = WKManager(account_name, showres=showres, ac_manager=ac)
     if args and args[0].lower() in ('1', 'one', 'once', 'single'):
         return wk.mine_once(False)
     return wk.start_mining(False)
@@ -1349,7 +1350,7 @@ COMMANDS = [
     CommandDef(name="yl",    desc="游历",       category="日常/资源", usage="[次数=1]", execute=_execute_yl, batch_default_args=["20"]),
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),
     CommandDef(name="xyx",   desc="幸运星",     category="日常/资源", execute=_execute_xyx),
-    CommandDef(name="wk",    desc="挖矿",       category="日常/资源", usage="[once=只点一次]", execute=_execute_wk, batchable=False),
+    CommandDef(name="wk",    desc="挖矿",       category="日常/资源", usage="[once=只点一次]", batch_usage="[起始序号] [once=只点一次]", execute=_execute_wk),
     CommandDef(name="dy",    desc="钓鱼/钓鱼每日任务", category="日常/资源", usage="[区域=auto] [次数=1, 0=全部] [中止策略=0] | rw", batch_usage="[起始序号] [rw|区域=auto] [次数=全部] [中止策略=0]", execute=_execute_dy, batch_execute=_batch_dy),
     CommandDef(name="cc",    desc="一键传承",   category="日常/资源", execute=_execute_cc, batchable=False),
     CommandDef(name="tf",    desc="天赋强化",   category="日常/资源", execute=_execute_tf),

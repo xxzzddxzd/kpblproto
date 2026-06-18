@@ -405,7 +405,7 @@ def handle_guild_batch_command(account_name, args):
     cmd = get_command(sub)
     if cmd is None or not cmd.batchable:
         print(f"未知的gg子命令: {sub}")
-        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, dy, kg, kgtest/kgt, grc, ghgrc, fl, flfull, fl31, mr, ndrwlq, check, k, i, status/s, run, xs, xsacp, xsinit, xsgrrw, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
+        print("可用: gen, init, join/j, approve, donate/d, daily, da, defda, jq, yl, tf, xyx, wk, dy, kg, kgtest/kgt, grc, ghgrc, fl, flfull, fl31, mr, ndrwlq, check, k, i, status/s, run, xs, xsacp, xsinit, xsgrrw, xsacpb, xs12r, xst, xs123r, zscp, pipeline")
         return False
 
     arg_start = 2 if len(args) > 1 and args[1].isdigit() else 1
