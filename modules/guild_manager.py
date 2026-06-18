@@ -1444,8 +1444,8 @@ class GuildBatchManager:
         print(f"悬赏初始化完成: 成功 {queried}, 失败 {failed}, 跳过 {skipped}")
         return failed == 0
 
-    def batch_xsgrrw(self, start_from=1):
-        """遍历当前公会成员，提交已达成的公会悬赏个人任务。"""
+    def batch_xsgrrw(self, start_from=1, submit_only=True):
+        """遍历当前公会成员，处理公会悬赏个人任务。默认只提交已达成任务。"""
         from .ghxs_manager import GHXSManager
 
         total = len(self.guild_accounts)
@@ -1490,6 +1490,7 @@ class GuildBatchManager:
                         task_id,
                         progress,
                         gulu_partner_ac_cache,
+                        submit_only=submit_only,
                     )
                     if result is None:
                         skipped_tasks += 1
@@ -1524,13 +1525,23 @@ class GuildBatchManager:
         print(f"悬赏个人任务完成: 完成 {completed}, 失败 {failed}, 跳过账号 {skipped}, 未提交任务 {skipped_tasks}")
         return failed == 0
 
-    def _run_xsgrrw_personal_task(self, acname, ac, ghxs, task_item_id, task_id, progress, gulu_partner_ac_cache=None):
+    def _run_xsgrrw_personal_task(
+        self,
+        acname,
+        ac,
+        ghxs,
+        task_item_id,
+        task_id,
+        progress,
+        gulu_partner_ac_cache=None,
+        submit_only=True,
+    ):
         return ghxs.run_personal_task_entry(
             task_item_id,
             task_id,
             progress,
             gulu_partner_ac_cache=gulu_partner_ac_cache,
-            submit_only=True,
+            submit_only=submit_only,
         )
 
     def _xs_eligible_accounts(self, start_from=1):
@@ -1575,8 +1586,8 @@ class GuildBatchManager:
         """自动悬赏：提交个人任务，执行已配置公会悬赏流程，最后领取个人/公会累计积分奖励。"""
         from .ghxs_manager import GHXSManager
 
-        print("══════ 步骤1: 提交悬赏个人任务 ══════")
-        self.batch_xsgrrw(start_from=start_from)
+        print("══════ 步骤1: 处理悬赏个人任务 ══════")
+        self.batch_xsgrrw(start_from=start_from, submit_only=False)
 
         accounts = self._xs_eligible_accounts(start_from=start_from)
         total_accounts = len(accounts)

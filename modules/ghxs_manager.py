@@ -57,6 +57,7 @@ class GHXSManager:
         1405005: "r-2次咕噜",
         1405006: "r-10次宝石箱",
         1405007: "r-100体力",
+        1404004: "r-开宝箱650分",
         1402005: "r-2次公会个人船",
         1402006: "r-2000灵石",
     }
@@ -398,6 +399,11 @@ class GHXSManager:
         },
     }
     PERSONAL_TASK_FLOW_CONFIGS = {
+        1404004: {
+            "kind": "open_box",
+            "label": "个人开宝箱650分",
+            "target_score": 650,
+        },
         2: {
             "kind": "pvp",
             "label": "个人PVP",
@@ -407,6 +413,11 @@ class GHXSManager:
             "kind": "dungeon",
             "label": "个人任意副本",
             "target": 10,
+        },
+        4: {
+            "kind": "mine",
+            "label": "个人挖矿",
+            "target": 100,
         },
         5: {
             "kind": "gulu",
@@ -432,6 +443,7 @@ class GHXSManager:
     }
     PERSONAL_TASK_NO_FLOW = {1402005, 1402006}
     PERSONAL_TASK_TARGETS = {
+        1404004: 650,
         1402005: 2,
         1402006: 2000,
         1: 2,
@@ -726,6 +738,22 @@ class GHXSManager:
             for dungeon_type, times in plan:
                 da.saodang(dungeon_type, 0, times)
             return True
+
+        if kind == "mine":
+            from .wk_manager import WKManager
+            times = int(remaining)
+            print(f"    执行挖矿 x{times}")
+            wk = WKManager(self.account_name, showres=self.showres, ac_manager=self.ac_manager)
+            for idx in range(times):
+                print(f"    挖矿任务进度: {idx + 1}/{times}")
+                if not wk.mine_once(False):
+                    return False
+            return True
+
+        if kind == "open_box":
+            target_score = int(remaining)
+            print(f"    执行开积分宝箱: {target_score}分")
+            return self.open_score_chests(target_score)
 
         if kind == "gulu":
             from .gem_team_manager import run_gem_auto2
