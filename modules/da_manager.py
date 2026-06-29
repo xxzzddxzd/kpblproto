@@ -11,7 +11,7 @@ from .wk_manager import WKManager
 from . import kpbl_pb2
 from .first_login_requests import (
     FIRST_LOGIN_REQUESTS,
-    FIRST_LOGIN_REQUESTS_FULL,
+    FIRST_LOGIN_REQUESTS_PLUS,
     FIRST_LOGIN_LV31_REQUESTS,
 )
 
@@ -51,14 +51,16 @@ class DAManager:
         )
 
     def _do_first_login_request(self, req, showres=None):
-        """执行首登请求前，显式修正个人活动链路里的动态参数。"""
+        """执行首登请求；个人任务链路统一交给 ACManager 处理。"""
         actual_showres = self.showres if showres is None else showres
-        config = self.ac_manager.prepare_personal_activity_request(
-            self.account_name,
-            req,
-            showres=actual_showres,
-        )
-        return self.ac_manager.do_common_request(self.account_name, config, showres=actual_showres)
+        header = (req.get("hexstringheader") or "").replace(" ", "").lower()
+        if header in ("017d", "0f29"):
+            return self.ac_manager.do_personal_task_query_flow(
+                self.account_name,
+                showres=actual_showres,
+                ads=req.get("ads"),
+            )
+        return self.ac_manager.do_common_request(self.account_name, dict(req), showres=actual_showres)
     
     def get_daily_config(self):
         """
@@ -744,7 +746,7 @@ class DAManager:
             self.saodang(dt, 0, 4)
         self.dodungeon_auto_battle()
         print('开箱子')
-        self.ac_manager.openBox(71, 5)
+        self.ac_manager.openBox(71, 10)
         self.dopetqh()
 
 
@@ -1067,38 +1069,8 @@ class DAManager:
     def day_first_login(self):
         """每日首次登录请求，从 first_login_requests 模块导入"""
 
-        for req in FIRST_LOGIN_REQUESTS:
+        for req in FIRST_LOGIN_REQUESTS + FIRST_LOGIN_REQUESTS_PLUS:
             self._do_first_login_request(req)
-
-    def day_first_login_full(self):
-        """每日首次登录请求(完整)，批量执行 FIRST_LOGIN_REQUESTS_FULL，仅输出异常请求。"""
-        for req in FIRST_LOGIN_REQUESTS_FULL:
-            self._do_first_login_request(req, showres=0)
-
-    def day_first_login_full_one(self, selector):
-        """执行完整首登列表里的单个请求，selector 可为序号或 ads。"""
-        if selector is None:
-            print("缺少 flfull 请求序号")
-            return False
-        req = None
-        if isinstance(selector, int) or str(selector).isdigit():
-            index = int(selector)
-            if index < 0 or index >= len(FIRST_LOGIN_REQUESTS_FULL):
-                print(f"flfull 序号超出范围: {index}, 可用 0-{len(FIRST_LOGIN_REQUESTS_FULL) - 1}")
-                return False
-            req = FIRST_LOGIN_REQUESTS_FULL[index]
-        else:
-            selector = str(selector)
-            for item in FIRST_LOGIN_REQUESTS_FULL:
-                if item.get("ads") == selector:
-                    req = item
-                    break
-            if req is None:
-                print(f"找不到 flfull 请求: {selector}")
-                return False
-        print(f"执行 flfull 单请求: {req.get('ads')} {req.get('hexstringheader')}")
-        self._do_first_login_request(req)
-        return True
 
     def day_first_login_lv31(self):
         """31级账号首次登录完整请求，包含教学跳过链路"""

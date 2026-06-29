@@ -464,6 +464,7 @@ class GHXSManager:
     KEY_BOX_TYPE = 5028
     PET_EGG_COUNT_PER_MULTIPLIER = 35
     PET_EGG_MULTIPLIERS = (10, 5, 3, 1)
+    EQUIP_GACHA_SHOP_ID = 201001
     GEM_CHEST_SHOP_ID = 200004
     GHXS_ACTIVITY_ID = 120260601
     CHEST_SCORE_BY_TYPE = {
@@ -657,12 +658,12 @@ class GHXSManager:
         return True
 
     def use_s_keys(self):
-        """使用S钥匙抽装备 (c72b i2=201004, i3=2, i4=2), 复刻抓包发3次共30个"""
+        """使用S钥匙抽装备，按 2026-06-29 抓包的 10 连参数发3次共30个。"""
         config = {
             "ads": "S钥匙装备gacha",
             "times": 3,
             "hexstringheader": "c72b",
-            "request_body_i2": 201004,
+            "request_body_i2": self.EQUIP_GACHA_SHOP_ID,
             "request_body_i3": 2,
             "request_body_i4": 2,
         }

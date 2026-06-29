@@ -125,18 +125,6 @@ def _execute_fl(account_name, args, **kw):
     return True
 
 
-def _execute_flfull(account_name, args, **kw):
-    from .da_manager import DAManager
-    showres = kw.get('showres', 0)
-    delay = kw.get('delay', 0)
-    ac = kw.get('ac_manager')
-    da = DAManager(account_name, showres=showres, delay=delay, ac_manager=ac)
-    if args:
-        return da.day_first_login_full_one(args[0])
-    da.day_first_login_full()
-    return True
-
-
 def _resolve_fl31_member_level(ac, account_name):
     if not ac:
         return None, ''
@@ -1237,15 +1225,6 @@ def _batch_fl(mgr, start_from):
     mgr._for_each_account(_fl, "每日首登", start_from=start_from)
 
 
-def _batch_flfull(mgr, start_from):
-    import time as _time
-    from .da_manager import DAManager
-    def _fl(ac, name):
-        DAManager(name, showres=mgr.showres, delay=mgr.delay).day_first_login_full()
-        _time.sleep(60)
-    mgr._for_each_account(_fl, "每日首登(完整)", start_from=start_from)
-
-
 def _batch_fl31(mgr, start_from):
     import time as _time
     from .da_manager import DAManager
@@ -1345,7 +1324,6 @@ COMMANDS = [
     CommandDef(name="da",    desc="日常任务",   category="日常/资源", execute=_execute_da),
     CommandDef(name="defda", desc="默认日常任务", category="日常/资源", execute=_execute_defda),
     CommandDef(name="fl",    desc="首登奖励",   category="日常/资源", execute=_execute_fl, batch_usage="[起始序号]", batch_execute=_batch_fl),
-    CommandDef(name="flfull", desc="首登奖励(完整)", category="日常/资源", usage="[单请求序号/ads]", execute=_execute_flfull, batch_usage="[起始序号]", batch_execute=_batch_flfull),
     CommandDef(name="fl31",  desc="31级首登+教学跳过", category="日常/资源", execute=_execute_fl31, batch_usage="[起始序号]", batch_execute=_batch_fl31),
     CommandDef(name="yl",    desc="游历",       category="日常/资源", usage="[次数=1]", execute=_execute_yl, batch_default_args=["20"]),
     CommandDef(name="ylxyx", desc="游历+幸运星", category="日常/资源", execute=_execute_ylxyx, batch_default_args=["20"]),

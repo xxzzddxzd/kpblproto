@@ -20,8 +20,7 @@ CRON_LOG=/root/kpblproto/cron_us.log
 # - Daily 08:01: dh gg zscp.
 # - Cron log only records timestamp and command; command stdout/stderr is discarded.
 # 00 UTC
-# dh flfull, then dh gg flfull.
-# 0 0 * * 1 cd "$APP_DIR" ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh flfull' >> $CRON_LOG ; $PYTHON_BIN main.py dh flfull >/dev/null 2>&1 ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh gg flfull' >> $CRON_LOG ; $PYTHON_BIN main.py dh gg flfull >/dev/null 2>&1
+# Full first-login command removed; use dh fl / dh gg fl.
 
 # 主号 fl
 1 0 * * * cd "$APP_DIR" ; /bin/date '+\%Y-\%m-\%d \%H:\%M:\%S \%z main.py dh fl' >> $CRON_LOG ; $PYTHON_BIN main.py dh fl >/dev/null 2>&1 ;

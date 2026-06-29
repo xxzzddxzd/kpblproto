@@ -412,33 +412,6 @@ class ACManager:
         entry = self.resolve_personal_activity_entry(account_name, showres=showres)
         return entry.personal_task_item_id if entry else None
 
-    def prepare_personal_activity_request(self, account_name, request_config, showres=1):
-        """显式修正个人活动链路里的动态参数，供 fl/da/kg/xs 等业务入口调用。"""
-        config = dict(request_config)
-        header = (config.get("hexstringheader") or "").replace(" ", "").lower()
-        needs_entry = header == "0f29" or header == "057d" or (
-            header == "1329" and config.get("request_body_i2")
-        )
-        if not needs_entry:
-            return config
-
-        entry = self.resolve_personal_activity_entry(account_name, showres=showres)
-        if not entry:
-            return config
-
-        if header == "0f29" and entry.personal_task_item_id:
-            config["request_body_i2"] = int(entry.personal_task_item_id)
-        elif header == "057d" and entry.activity_id:
-            config["request_body_i4"] = int(entry.activity_id)
-        elif header == "1329" and entry.personal_status_item_id:
-            try:
-                old_i2 = int(config.get("request_body_i2") or 0)
-            except (TypeError, ValueError):
-                old_i2 = 0
-            if old_i2 > 100000:
-                config["request_body_i2"] = int(entry.personal_status_item_id)
-        return config
-
     def do_personal_task_query_flow(self, account_name, task_item_id=None, showres=1, ads=None):
         """统一执行个人悬赏查询链路：先 017d 取入口 id，再 0f29 查询。"""
         resolved_task_item_id = self.resolve_personal_task_item_id(
