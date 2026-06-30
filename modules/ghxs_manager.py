@@ -357,6 +357,13 @@ class GHXSManager:
             "times": 1,
             "bio": 20,
         },
+        201106: {
+            "kind": "gulu",
+            "label": "咕噜",
+            "times": 2,
+            "partner_account": "dh",
+            "level": 1,
+        },
         203107: {
             "kind": "pet_egg",
             "label": "宠物蛋10连",
@@ -390,6 +397,13 @@ class GHXSManager:
             "label": "体力游历",
             "times": 1,
             "bio": 20,
+        },
+        205106: {
+            "kind": "gulu",
+            "label": "咕噜",
+            "times": 2,
+            "partner_account": "dh",
+            "level": 1,
         },
         205207: {
             "kind": "gem_chest",
@@ -1072,6 +1086,56 @@ class GHXSManager:
         print(f"<{mask_account(self.account_name)}> ═══ 体力任务全流程完成 ═══\n")
         return True
 
+    def run_gulu_task(self, task_uuid=None, task_type_id=201106):
+        """
+        咕噜悬赏全流程：
+        1. 接任务
+        2. 执行 glauto2 指定次数
+        3. 交公会悬赏
+        4. 领进度奖励
+        """
+        config = self.task_flow_config(task_type_id) or {}
+        times = int(config.get("times", 2))
+        partner = config.get("partner_account", "dh")
+        level = int(config.get("level", 1))
+        task_name = self.format_task_type(task_type_id) or str(task_type_id)
+        print(f"\n<{mask_account(self.account_name)}> ═══ 开始咕噜任务: {task_name} (glauto2 {partner} {level} x{times}) ═══")
+
+        task_uuid = self._resolve_task_uuid(task_uuid, task_type_id)
+        if not task_uuid:
+            return False
+        if not self._accept_resolved_task(task_uuid, task_type_id):
+            return False
+
+        from .gem_team_manager import run_gem_auto2
+        partner_ac = ACManager(partner, showres=self.showres, delay=0)
+        print(f"<{mask_account(self.account_name)}> 执行咕噜: glauto2 {partner} {level} {times}")
+        if not run_gem_auto2(
+            self.account_name,
+            account_name_b=partner,
+            level=level,
+            times=times,
+            showres=self.showres,
+            delay=0,
+            ac_manager_a=self.ac_manager,
+            ac_manager_b=partner_ac,
+        ):
+            print(f"<{mask_account(self.account_name)}> ✗ 咕噜失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 咕噜完成")
+
+        print(f"<{mask_account(self.account_name)}> 交任务...")
+        if not self.complete():
+            print(f"<{mask_account(self.account_name)}> ✗ 交任务失败")
+            return False
+        print(f"<{mask_account(self.account_name)}> ✓ 任务完成")
+
+        print(f"<{mask_account(self.account_name)}> 领取进度奖励...")
+        self.claim_all_score_rewards()
+
+        print(f"<{mask_account(self.account_name)}> ═══ 咕噜任务全流程完成 ═══\n")
+        return True
+
     def run_personal_gem_chest_task(self, task_item_id=None, task_id=1405006, open_chests=True):
         """
         个人宝石箱任务流程：
@@ -1120,5 +1184,7 @@ class GHXSManager:
             return self.run_gem_chest_task(task_uuid=task_uuid, task_type_id=task_type_id)
         if kind == "youli":
             return self.run_youli_task(task_uuid=task_uuid, task_type_id=task_type_id)
+        if kind == "gulu":
+            return self.run_gulu_task(task_uuid=task_uuid, task_type_id=task_type_id)
         print(f"<{mask_account(self.account_name)}> 未支持的任务流程类型: {kind}")
         return False
