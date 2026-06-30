@@ -1183,6 +1183,7 @@ class GHXSManager:
             print(f"<{mask_account(self.account_name)}> ✗ 咕噜失败")
             return False
         print(f"<{mask_account(self.account_name)}> ✓ 咕噜完成")
+        self.ac_manager.login(self.account_name, showloginres=0)
 
         def _settle_gulu_progress():
             gm_a = GemTeamManager(

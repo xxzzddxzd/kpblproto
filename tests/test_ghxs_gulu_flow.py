@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace
 
 from modules.ghxs_manager import GHXSManager
@@ -91,6 +92,51 @@ class GHXSGuluFlowTest(unittest.TestCase):
         available = GHXSManager.available_task_entries(resp)
 
         self.assertEqual([task.task_uuid for task in available], ["available"])
+
+    def test_gulu_task_refreshes_login_before_progress_check(self):
+        class FakeAC:
+            def __init__(self):
+                self.login_calls = []
+
+            def login(self, account_name, showloginres=0):
+                self.login_calls.append((account_name, showloginres))
+                return True
+
+        class FakePartnerAC:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        class ProbeGHXSManager(GHXSManager):
+            def __init__(self):
+                self.account_name = "probe"
+                self.showres = 0
+                self.delay = 0
+                self.ac_manager = FakeAC()
+                self.progress_checked_after_login = False
+
+            def _resolve_task_uuid(self, task_uuid, task_type_id):
+                return task_uuid
+
+            def _accept_resolved_task(self, task_uuid, task_type_id):
+                return True
+
+            def wait_for_task_progress(self, task_uuid, task_type_id, target_progress, settle_callback=None, attempts=3, delay_seconds=1):
+                self.progress_checked_after_login = bool(self.ac_manager.login_calls)
+                return True
+
+            def complete_verified(self, task_uuid, task_type_id, attempts=2, delay_seconds=1):
+                return True
+
+            def claim_all_score_rewards(self):
+                return 0
+
+        ghxs = ProbeGHXSManager()
+        with patch("modules.ghxs_manager.ACManager", FakePartnerAC), \
+             patch("modules.gem_team_manager.run_gem_auto2", return_value=True):
+            self.assertTrue(ghxs.run_gulu_task(task_uuid="task-uuid", task_type_id=202106))
+
+        self.assertEqual(ghxs.ac_manager.login_calls, [("probe", 0)])
+        self.assertTrue(ghxs.progress_checked_after_login)
 
 
 if __name__ == "__main__":
