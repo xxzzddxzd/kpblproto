@@ -1227,7 +1227,8 @@ class GuildBatchManager:
         # 先用会长号 query 获取任务列表
         ghxs_leader = GHXSManager(self.leader_account, showres=self.showres)
         resp = ghxs_leader.query()
-        if not resp or not resp.task_entries:
+        available_tasks = GHXSManager.available_task_entries(resp)
+        if not resp or not available_tasks:
             print("查询公会悬赏失败或无任务")
             return False
 
@@ -1237,7 +1238,7 @@ class GuildBatchManager:
 
         # 按 type_id 聚合，展示供选择
         type_tasks = {}
-        for task in resp.task_entries:
+        for task in available_tasks:
             tid = ghxs_leader.task_group_id(task.task_type_id)
             if tid not in type_tasks:
                 type_tasks[tid] = []
@@ -1315,12 +1316,13 @@ class GuildBatchManager:
                 round_num += 1
                 print(f"\n{'='*40} 第{round_num}轮 {'='*40}")
                 resp = ghxs_leader.query()
-                if not resp or not resp.task_entries:
+                available_tasks = GHXSManager.available_task_entries(resp)
+                if not resp or not available_tasks:
                     print("查询公会悬赏失败或无任务")
                     return False
 
                 type_tasks = {}
-                for task in resp.task_entries:
+                for task in available_tasks:
                     tid = task.task_type_id
                     if tid not in type_tasks:
                         type_tasks[tid] = []
@@ -1604,17 +1606,18 @@ class GuildBatchManager:
         while account_pos < total_accounts:
             ghxs_leader = GHXSManager(self.leader_account, showres=self.showres, delay=self.delay)
             resp = ghxs_leader.query()
-            if not resp or not resp.task_entries:
+            available_tasks = GHXSManager.available_task_entries(resp)
+            if not resp or not available_tasks:
                 print("查询公会悬赏失败或无任务，停止流程执行")
                 break
 
             current_score = resp.field9 if resp.field9 else 0
             flow_tasks = [
-                task for task in resp.task_entries
+                task for task in available_tasks
                 if GHXSManager.task_flow_config(task.task_type_id)
             ]
             if not flow_tasks:
-                _, _, summary = self._summarize_xs_tasks(ghxs_leader, resp.task_entries)
+                _, _, summary = self._summarize_xs_tasks(ghxs_leader, available_tasks)
                 print(f"当前悬赏积分: {current_score}；没有已配置流程的任务。任务池: {summary}")
                 no_flow_rounds += 1
                 break
@@ -1755,11 +1758,12 @@ class GuildBatchManager:
         while member_idx < len(eligible):
             round_num += 1
             resp = ghxs_leader.query()
-            if not resp or not resp.task_entries:
+            available_tasks = GHXSManager.available_task_entries(resp)
+            if not resp or not available_tasks:
                 print("查询悬赏失败或无任务，结束")
                 break
 
-            non_gold_tasks = [t for t in resp.task_entries if not ghxs_leader.is_gold_task(t.task_type_id)]
+            non_gold_tasks = [t for t in available_tasks if not ghxs_leader.is_gold_task(t.task_type_id)]
             if not non_gold_tasks:
                 print("全部为金色任务，结束")
                 break
@@ -1823,11 +1827,12 @@ class GuildBatchManager:
 
         ghxs_leader = GHXSManager(self.leader_account, showres=self.showres)
         resp = ghxs_leader.query()
-        if not resp or not resp.task_entries:
+        available_tasks = GHXSManager.available_task_entries(resp)
+        if not resp or not available_tasks:
             print("查询悬赏失败或无任务")
             return False
 
-        keep_tids = self._prompt_keep_xs_task_types(ghxs_leader, resp.task_entries)
+        keep_tids = self._prompt_keep_xs_task_types(ghxs_leader, available_tasks)
         keep_summary = ", ".join(ghxs_leader.format_task_type(tid) or str(tid) for tid in keep_tids) if keep_tids else "无"
         print(f"保留规则: {keep_summary}")
 
@@ -1837,16 +1842,17 @@ class GuildBatchManager:
         while member_idx < len(eligible):
             round_num += 1
             resp = ghxs_leader.query()
-            if not resp or not resp.task_entries:
+            available_tasks = GHXSManager.available_task_entries(resp)
+            if not resp or not available_tasks:
                 print("查询悬赏失败或无任务，结束")
                 break
 
-            _, _, all_summary = self._summarize_xs_tasks(ghxs_leader, resp.task_entries)
-            replace_tasks = [t for t in resp.task_entries if ghxs_leader.task_group_id(t.task_type_id) not in keep_tids]
+            _, _, all_summary = self._summarize_xs_tasks(ghxs_leader, available_tasks)
+            replace_tasks = [t for t in available_tasks if ghxs_leader.task_group_id(t.task_type_id) not in keep_tids]
             _, _, replace_summary = self._summarize_xs_tasks(ghxs_leader, replace_tasks)
 
             print(f"\n{'='*20} 第{round_num}轮 {'='*20}")
-            print(f"当前任务 {len(resp.task_entries)}个: {all_summary}")
+            print(f"当前可接任务 {len(available_tasks)}个: {all_summary}")
             if not replace_tasks:
                 print("当前任务均为保留任务，结束")
                 break
@@ -1906,11 +1912,12 @@ class GuildBatchManager:
 
         ghxs_leader = GHXSManager(self.leader_account, showres=self.showres)
         resp = ghxs_leader.query()
-        if not resp or not resp.task_entries:
+        available_tasks = GHXSManager.available_task_entries(resp)
+        if not resp or not available_tasks:
             print("查询悬赏失败或无任务")
             return False
 
-        all_tasks = list(resp.task_entries)
+        all_tasks = list(available_tasks)
         _, _, summary = self._summarize_xs_tasks(ghxs_leader, all_tasks)
         print(f"任务清单 {len(all_tasks)}个: {summary}")
 

@@ -4,6 +4,7 @@
 """
 
 import logging
+import time
 from . import kpbl_pb2
 from .kpbltools import ACManager, mask_account
 
@@ -167,6 +168,13 @@ class GHXSManager:
             return resp
         return None
 
+    @staticmethod
+    def available_task_entries(resp):
+        """返回未被成员接取/处理的公会悬赏任务。status=0 表示仍可接。"""
+        if not resp:
+            return []
+        return [task for task in resp.task_entries if getattr(task, 'status', 0) == 0]
+
     def accept(self, task_uuid, task_type_id):
         """接受公会悬赏任务"""
         config = {
@@ -291,6 +299,58 @@ class GHXSManager:
         if not resp:
             return []
         return list(resp.active_entries)
+
+    def active_task_entry(self, task_uuid=None, task_type_id=None, resp=None):
+        """返回当前进行中的指定公会悬赏任务；优先按 uuid 匹配。"""
+        resp = resp or self.query()
+        if not resp:
+            return None
+        target_group_id = self.task_group_id(task_type_id) if task_type_id else None
+        for entry in resp.active_entries:
+            if task_uuid and entry.task_uuid == task_uuid:
+                return entry
+            if not task_uuid and target_group_id is not None and self.task_group_id(entry.task_type_id) == target_group_id:
+                return entry
+        return None
+
+    def wait_for_task_progress(self, task_uuid, task_type_id, target_progress, settle_callback=None, attempts=3, delay_seconds=1):
+        """查询进行中任务进度；未达标时可触发一次结算推进动作后重查。"""
+        target_progress = int(target_progress)
+        settle_used = False
+        for attempt in range(1, int(attempts) + 1):
+            entry = self.active_task_entry(task_uuid=task_uuid, task_type_id=task_type_id)
+            progress = int(entry.progress) if entry else 0
+            if progress >= target_progress:
+                print(f"<{mask_account(self.account_name)}> ✓ 悬赏进度确认: {progress}/{target_progress}")
+                return True
+
+            print(f"<{mask_account(self.account_name)}> 悬赏进度未达成: {progress}/{target_progress}")
+            if settle_callback and not settle_used:
+                settle_used = True
+                print(f"<{mask_account(self.account_name)}> 尝试启动下一局推进结算...")
+                if not settle_callback():
+                    print(f"<{mask_account(self.account_name)}> ✗ 结算推进失败")
+                    return False
+            elif attempt < int(attempts) and delay_seconds > 0:
+                time.sleep(delay_seconds)
+
+        print(f"<{mask_account(self.account_name)}> ✗ 悬赏进度仍未达成: {target_progress}")
+        return False
+
+    def complete_verified(self, task_uuid, task_type_id, attempts=2, delay_seconds=1):
+        """提交公会悬赏后重新查询，确认任务不再处于 active_entries。"""
+        if not self.complete():
+            return False
+        for attempt in range(1, int(attempts) + 1):
+            entry = self.active_task_entry(task_uuid=task_uuid, task_type_id=task_type_id)
+            if entry is None:
+                return True
+            progress = getattr(entry, 'progress', '?')
+            if attempt < int(attempts) and delay_seconds > 0:
+                print(f"<{mask_account(self.account_name)}> 交任务后仍在进行中({progress})，等待确认...")
+                time.sleep(delay_seconds)
+        print(f"<{mask_account(self.account_name)}> ✗ 交任务响应已返回，但任务仍在进行中 progress={progress}")
+        return False
 
     def query_personal_task_index(self):
         """查询个人悬赏入口(017d)。响应里 activity_id=120260601 的 field3 是0f29入口。"""
@@ -527,7 +587,7 @@ class GHXSManager:
             print(f"<{mask_account(self.account_name)}> ✗ 查询悬赏失败或无任务")
             return None
         target_group_id = self.task_group_id(task_type_id)
-        for task in resp.task_entries:
+        for task in self.available_task_entries(resp):
             if task.task_type_id == task_type_id or self.task_group_id(task.task_type_id) == target_group_id:
                 return task.task_uuid
         print(f"<{mask_account(self.account_name)}> ✗ 未找到类型 {task_type_id} 的任务")
@@ -1107,7 +1167,7 @@ class GHXSManager:
         if not self._accept_resolved_task(task_uuid, task_type_id):
             return False
 
-        from .gem_team_manager import run_gem_auto2
+        from .gem_team_manager import GemTeamManager, run_gem_auto2
         partner_ac = ACManager(partner, showres=self.showres, delay=0)
         print(f"<{mask_account(self.account_name)}> 执行咕噜: glauto2 {partner} {level} {times}")
         if not run_gem_auto2(
@@ -1124,8 +1184,46 @@ class GHXSManager:
             return False
         print(f"<{mask_account(self.account_name)}> ✓ 咕噜完成")
 
+        def _settle_gulu_progress():
+            gm_a = GemTeamManager(
+                self.account_name,
+                level=level,
+                showres=self.showres,
+                delay=0,
+                ac_manager=self.ac_manager,
+            )
+            gm_b = GemTeamManager(
+                partner,
+                level=level,
+                showres=self.showres,
+                delay=0,
+                ac_manager=partner_ac,
+            )
+            target_charaid = gm_b.ac_manager.get_account(partner, "charaid")
+            gm_a.fangqi_battle()
+            gm_b.fangqi_battle()
+            roomid = gm_a.create_and_invite(target_charaid, level)
+            if not roomid:
+                return False
+            if not gm_b.join(roomid):
+                return False
+            time.sleep(1)
+            gm_a.start()
+            time.sleep(1)
+            gm_b.start()
+            return True
+
+        if not self.wait_for_task_progress(
+            task_uuid,
+            task_type_id,
+            times,
+            settle_callback=_settle_gulu_progress,
+            attempts=3,
+        ):
+            return False
+
         print(f"<{mask_account(self.account_name)}> 交任务...")
-        if not self.complete():
+        if not self.complete_verified(task_uuid, task_type_id):
             print(f"<{mask_account(self.account_name)}> ✗ 交任务失败")
             return False
         print(f"<{mask_account(self.account_name)}> ✓ 任务完成")
