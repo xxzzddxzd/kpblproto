@@ -59,6 +59,22 @@ class KGManager:
         resp.ParseFromString(res[6:])
         return resp
 
+    @staticmethod
+    def is_activity_active(kg):
+        """判断 d959 是否返回了当前考古活动数据。"""
+        if not kg:
+            return False
+        boards = getattr(kg, 'boards', None)
+        board1 = getattr(boards, 'board1', None) if boards else None
+        board2 = getattr(boards, 'board2', None) if boards else None
+        if getattr(board1, 'board_id', 0) or getattr(board2, 'board_id', 0):
+            return True
+        return bool(
+            getattr(kg, 'field4', 0)
+            or getattr(kg, 'mining_task_score', 0)
+            or getattr(kg, 'field8', 0)
+        )
+
     def query_kg(self):
         """d959: 查询考古状态"""
         config = {"ads": "考古查询", "times": 1, "hexstringheader": "d959"}

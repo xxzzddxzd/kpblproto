@@ -6,6 +6,9 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional, List
 
+from .kg_manager import KGManager
+from .kpbltools import ACManager
+
 FL31_DONE_FLAG = "fl31_done"
 FL31_DONE_TIME = "fl31_done_time"
 
@@ -1202,7 +1205,6 @@ def _execute_donate_single(account_name, args, **kw):
 
 
 def _execute_kg(account_name, args, **kw):
-    from .kg_manager import KGManager
     ac = kw.get('ac_manager')
     kg = KGManager(account_name, ac_manager=ac)
     if args and args[0] in ('i', 'info'):
@@ -1212,6 +1214,27 @@ def _execute_kg(account_name, args, **kw):
         kg.dig_available()
         return True
     kg.run()
+    return True
+
+
+def _batch_kg(mgr, start_from, args=None):
+    """gg kg: 公会考古批量前先判断本周是否开启考古。"""
+    args = args or []
+    try:
+        leader_ac = ACManager(mgr.leader_account, showres=mgr.showres, delay=mgr.delay)
+        kg_probe = KGManager(mgr.leader_account, ac_manager=leader_ac).query_kg()
+    except Exception as e:
+        print(f"考古活动预检失败，继续按账号执行: {e}")
+        kg_probe = None
+
+    if kg_probe is not None and not KGManager.is_activity_active(kg_probe):
+        print("本周无公会考古活动，跳过 gg kg 批量")
+        return True
+
+    def _kg(ac, name):
+        _execute_kg(name, args, showres=mgr.showres, delay=mgr.delay, ac_manager=ac)
+
+    mgr._for_each_account(_kg, "公会考古(领奖+挖矿+汇报)", start_from=start_from)
     return True
 
 
@@ -1364,7 +1387,7 @@ COMMANDS = [
     CommandDef(name="ghgrc", desc="个人船刷新到UR后开船", category="活动/限时", usage="[最大刷新=15]", execute=_execute_ghgrc),
     CommandDef(name="nc",    desc="暖春",       category="活动/限时", execute=_execute_nc, batchable=False),
     CommandDef(name="ncloop", desc="暖春循环",  category="活动/限时", execute=_execute_ncloop, batchable=False),
-    CommandDef(name="kg",    desc="公会考古(领奖+挖矿+汇报)", category="活动/限时", usage="[i=只领奖并统计锤子|g=只挖掘]", execute=_execute_kg),
+    CommandDef(name="kg",    desc="公会考古(领奖+挖矿+汇报)", category="活动/限时", usage="[i=只领奖并统计锤子|g=只挖掘]", execute=_execute_kg, batch_execute=_batch_kg),
 
     # ── 组队 / 副本 ──
     CommandDef(name="gl",     desc="宝石副本组队监听 / gg批量第一关", category="组队/副本", usage="[时长(秒)]", batch_usage="[次数]", execute=_execute_gl, batch_execute=_batch_gl),
